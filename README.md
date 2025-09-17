@@ -1,51 +1,158 @@
-# Steam Recommender 
-Find your new favorite game through game simularity, this algorithm attepts to reward video games that can't afford advertising
+# Steam Recommender
 
-## Why does the Results page only have a steam review filter?
-Ideally this is a oneshot app that gives you exactly what you were looking for first try!
-if it isn't then we have done something wrong 
-this app is in https://nextsteamgame.com/ 
-## How this works
-Steam Reccomender creates tags from 3 endpoints, 1 website and video reviews and apply weights to each tag
-from this we also add a "unique" tag, this is what seperates this game from its others in its genre
-then I upload it all into a sqlite database so when the user is searching for something its quick
+Find your new favorite game through game similarity. This algorithm attempts to reward video games that can't afford advertising.
 
+**Live Demo**: https://nextsteamgame.com/
 
-## Comparisons
-Using estimations from the ratios we form from the tags we compare the game the user input to other games in the database
-applying:
- 80% descriptive tags 
- 20% unique in its genre tag
+## 🎯 Why This Exists
 
-## Plans:
-Currently only has around 350 games in the database, looking into scraping more ingo
-going to implement chroma db and use vector simularitys as another "layer" to the simularity search
-Ideally this fixes semantic differences
+Ideally this is a one-shot app that gives you exactly what you were looking for first try! If it doesn't, then we have done something wrong.
 
-### Limitations
-because the data pipeline is based of endpoints creating the db takes 3 days due to rate limiting because of this the data
-will typically be 3 months old
+## 🧠 How This Works
 
-### TLDR
-Basically, we gather as much info on a game that we can, create tags, apply weights to the tags, and using that the user can find new games.
-### Preview of the website 
-![image](https://github.com/user-attachments/assets/3d99ff7f-d75b-48f4-a5c9-cf9a1c59a0fc)
+Steam Recommender creates tags from 3 sources: Steam reviews, professional reviews, and video analysis. It applies intelligent weights to each tag and adds "unique" tags that separate games from others in their genre. All data is stored in an optimized SQLite database for lightning-fast searches.
 
-![image](https://github.com/user-attachments/assets/5f2c0604-38f6-497f-ab21-1363ce99a627)
+### The Algorithm
 
+**Hierarchical Genre Tree + Vector Similarity:**
+1. **80% descriptive tags** - Core gameplay elements (combat, exploration, story)
+2. **20% unique-in-genre tags** - What makes this game special within its category
 
-### Our glorious tech stack
-![image](https://github.com/user-attachments/assets/2266a005-ea0d-4081-9836-69bc965eac51)
+**Three-tier genre classification:**
+```
+main_genre → sub_genre → sub_sub_genre
+Example: action → rpg → open-world
+```
 
-## Todo
-- we should be able to have context of previous games if the review is mentioning it and build tags from that 
-- Convert the MVP flask ap to fast api (starting to get limited)
-- Implement Chroma db 
-- humble bundle affiliates
+**Similarity rewards by proximity:**
+- Same sub_sub_genre: 0.4 bonus
+- Same sub_genre: 0.25 bonus
+- Same main_genre: 0.15 bonus
 
-## IMPORTANT Notice
-if any of the reviewing companies I pulled data from would like to be removed from this program let me know
-this is a silly data science project
+## 🏗️ Architecture
 
-I do have ads cause Im a broke college student, I just want to make it break even for internet traffic
+### Clean Separation of Concerns
+```
+├── frontend/                    # Web interface
+│   ├── static/                 # CSS, images, JS
+│   └── templates/              # HTML templates
+├── backend/                    # Core engine
+│   ├── api/                   # Flask routes & endpoints
+│   ├── core/                  # Game search & similarity engine
+│   ├── config/                # Dynamic configuration
+│   └── database_builder/      # Data pipeline
+├── data/                      # Databases & models
+└── logs/                      # Application logs
+```
 
+### Tech Stack
+- **Python** - Unified language for entire pipeline
+- **Flask** - Web framework for recommendation API
+- **SQLite** - Hierarchical game database with vector storage
+- **OpenAI GPT-3.5** - AI-powered tag generation from reviews
+- **scikit-learn** - TF-IDF vectorization for similarity matching
+- **Beautiful Soup & Selenium** - Web scraping for professional reviews
+
+## 🚀 Setup & Usage
+
+### Quick Start
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Set OpenAI API key
+export OPENAI_API_KEY="your-api-key"
+
+# Run complete data pipeline (3+ days)
+python -m backend.database_builder.pipeline_orchestrator
+
+# Start web application
+python app.py
+```
+
+### Development Pipeline
+```bash
+# Run specific pipeline stages
+python -m backend.database_builder.pipeline_orchestrator --stage 1  # Data collection
+python -m backend.database_builder.pipeline_orchestrator --stage 2  # Review analysis
+python -m backend.database_builder.pipeline_orchestrator --stage 3  # Database creation
+
+# Skip warning for automation
+python -m backend.database_builder.pipeline_orchestrator --skip-warning
+```
+
+### Configuration
+
+All settings are centralized in `backend/config/settings.py`:
+- Database paths
+- API endpoints and rate limits
+- ML/Vector parameters
+- Web server configuration
+
+## 📊 Current Stats
+
+- **~350 games** in database
+- **3-source analysis** per game (Steam reviews, IGN, YouTube)
+- **1000-dimensional** TF-IDF vectors for similarity
+- **Sub-second** recommendation responses
+
+## 🔄 Data Pipeline
+
+**Stage 1: Data Collection (1-2 hours)**
+- SteamSpy API → 20k game catalog
+- Steam Store API → metadata, pricing, images
+
+**Stage 2: Review Analysis (1-2 days)**
+- Steam Reviews + OpenAI → intelligent tag generation
+- IGN Scraping → professional review scores
+- Hierarchical classification → genre taxonomy
+
+**Stage 3: Database Creation (30 mins)**
+- JSON → optimized SQLite schema
+- TF-IDF vectorization → binary BLOB storage
+- Performance indexing → sub-second queries
+
+## 🎮 Preview
+
+![Steam Recommender Interface](https://github.com/user-attachments/assets/3d99ff7f-d75b-48f4-a5c9-cf9a1c59a0fc)
+
+![Game Recommendations](https://github.com/user-attachments/assets/5f2c0604-38f6-497f-ab21-1363ce99a627)
+
+## 📋 Todo
+
+- Context-aware review analysis (mention previous games)
+- Convert Flask app to FastAPI (hitting performance limits)
+- Implement ChromaDB for enhanced semantic similarity
+- Humble Bundle affiliate integration
+
+## 🚨 Limitations
+
+The data pipeline takes 3+ days due to API rate limiting, so the database is typically 3 months old. This trade-off ensures we can analyze games thoroughly without overwhelming external APIs.
+
+## ⚠️ Important Notice
+
+If any reviewing companies want their data removed from this program, please let me know. This is a data science project for educational purposes.
+
+I run minimal ads because I'm a broke college student trying to break even on server costs.
+
+## 🛠️ Development
+
+### Project Structure
+- **Modular Architecture** - Clean separation between frontend, API, core logic, and data pipeline
+- **Dynamic Configuration** - Centralized settings with environment variable support
+- **Type Hints** - Full type annotations for better code quality
+- **Error Handling** - Comprehensive exception management with graceful fallbacks
+
+### Key Features
+- **Hierarchical Genre Matching** - Multi-tier similarity scoring
+- **Vector Similarity Engine** - TF-IDF cosine similarity with tag-based fallback
+- **Intelligent Rate Limiting** - Respects API limits with exponential backoff
+- **Checkpoint System** - Resume long-running processes from interruptions
+
+### API Endpoints
+- `GET /` - Main interface
+- `POST /search` - Game search and preference selection
+- `POST /recommend` - Generate recommendations
+- `GET /api/search` - Search suggestions (JSON)
+- `GET /debug/stats` - Database statistics
+- `GET /health` - System health check
