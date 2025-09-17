@@ -7,13 +7,15 @@ from typing import List, Dict, Any, Tuple, Optional
 from sklearn.metrics.pairwise import cosine_similarity
 
 from backend.config import ML_CONFIG
+from .score_calculator import ScoreCalculator, SimilarityScores, WeightPresets
 
 
 class SimilarityEngine:
     """Handles similarity calculations between games"""
 
-    def __init__(self, db_path: str):
+    def __init__(self, db_path: str, score_calculator: Optional[ScoreCalculator] = None):
         self.db_path = db_path
+        self.score_calculator = score_calculator or ScoreCalculator(WeightPresets.balanced())
 
     def find_similar_games(self, target_appid: int, user_preferences: Optional[Dict] = None,
                           limit: int = 10) -> List[Dict[str, Any]]:

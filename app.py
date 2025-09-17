@@ -11,8 +11,8 @@ from backend.config import WEB_CONFIG, validate_config, ensure_directories
 
 def create_app():
     """Application factory"""
-    # Validate configuration
-    validate_config()
+    # Validate configuration (OpenAI key not required for web app)
+    validate_config(require_openai=False)
     ensure_directories()
 
     app = Flask(__name__,

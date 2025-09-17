@@ -114,17 +114,18 @@ python -m backend.database_builder.pipeline_orchestrator --stage 2
 ```
 
 **What happens:**
-- Downloads 100 Steam reviews per game (~350 games = 35,000 reviews)
+- Downloads 100 Steam reviews per game (analysis subset of ~500-1000 games from 20k catalog)
 - Filters out toxic/spam reviews using sentiment analysis
 - Sends clean reviews to OpenAI GPT-3.5 for tag generation
 - Scrapes IGN professional reviews (optional)
 - Generates hierarchical game classifications
 
-**Estimated Cost: $50-100**
+**Estimated Cost: $100-300**
 - OpenAI GPT-3.5-turbo: ~$0.0015 per 1K tokens
 - Average review analysis: ~500 tokens per game
-- 350 games × 500 tokens × $0.0015 = ~$26 base cost
+- 500-1000 games × 500 tokens × $0.0015 = ~$37-75 base cost
 - Additional costs for retries, longer reviews, and classification
+- Full 20k database analysis would cost ~$1500+ (not recommended)
 
 **Time: 1-2 days**
 - OpenAI rate limits: 3 requests per minute (free tier)
@@ -167,9 +168,9 @@ python -m backend.database_builder.pipeline_orchestrator --skip-warning
 |-----------|----------------|-------|
 | SteamSpy API | FREE | Public API, 1 second rate limit |
 | Steam Store API | FREE | Public API, respects rate limits |
-| OpenAI GPT-3.5 | $50-100 | 350 games × ~500 tokens per analysis |
+| OpenAI GPT-3.5 | $100-300 | 500-1000 games × ~500 tokens per analysis |
 | IGN Scraping | FREE | Web scraping with delays |
-| **Total Estimated Cost** | **$50-100** | Mainly OpenAI API usage |
+| **Total Estimated Cost** | **$100-300** | Mainly OpenAI API usage |
 
 #### Reducing Costs
 
@@ -221,10 +222,11 @@ RATE_LIMITS = {
 
 ## Current Stats
 
-- **~350 games** in database
-- **3-source analysis** per game (Steam reviews, IGN, YouTube)
+- **20,000 games** in catalog (SteamSpy + Steam Store data)
+- **500-1000 games** with full AI analysis (Steam reviews, IGN, YouTube)
 - **1000-dimensional** TF-IDF vectors for similarity
-- **Sub-second** recommendation responses
+- **Sub-second** recommendation responses across entire 20k database
+- **Hierarchical niche carving** makes sub_sub_genre matches very valuable at this scale
 
 ## Data Pipeline Details
 

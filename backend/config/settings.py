@@ -3,6 +3,10 @@ Configuration settings for Steam Recommender
 """
 import os
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Base directory
 BASE_DIR = Path(__file__).parent.parent.parent
@@ -87,11 +91,11 @@ def get_database_url(db_name: str) -> str:
     """Get database URL for given database name"""
     return str(DATABASE_CONFIG.get(f"{db_name}_db", DATABASE_CONFIG['recommendations_db']))
 
-def validate_config():
+def validate_config(require_openai: bool = False):
     """Validate required configuration"""
     errors = []
 
-    if not API_CONFIG['openai_api_key']:
+    if require_openai and not API_CONFIG['openai_api_key']:
         errors.append("OPENAI_API_KEY environment variable not set")
 
     # Create data directories
@@ -101,3 +105,7 @@ def validate_config():
         raise ValueError(f"Configuration errors: {', '.join(errors)}")
 
     return True
+
+def validate_pipeline_config():
+    """Validate configuration for database building pipeline"""
+    return validate_config(require_openai=True)
