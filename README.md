@@ -4,6 +4,43 @@ Find your new favorite game through game similarity. This algorithm attempts to 
 
 **Live Demo**: https://nextsteamgame.com/
 
+## Quick Start
+
+### 1. Setup Environment Variables
+
+```bash
+# Copy the example environment file
+cp .env.example .env
+
+# Edit .env and add your OpenAI API key
+# Get your key from: https://platform.openai.com/api-keys
+nano .env  # or use your preferred editor
+```
+
+### 2. Install Dependencies
+
+```bash
+# Create virtual environment
+python3 -m venv venv
+
+# Activate virtual environment
+# On Linux/Mac:
+source venv/bin/activate
+# On Windows:
+venv\Scripts\activate
+
+# Install required packages
+pip install -r requirements.txt
+```
+
+### 3. Run the Application
+
+```bash
+python app.py
+```
+
+The app will be available at `http://localhost:5000`
+
 ## Why This Exists
 
 Ideally this is a one-shot app that gives you exactly what you were looking for first try! If it doesn't, then we have done something wrong.
@@ -77,89 +114,103 @@ cd Steam_Reccomender
 # Install Python dependencies
 pip install -r requirements.txt
 
-# Set your OpenAI API key
-export OPENAI_API_KEY="your-openai-api-key-here"
+# Setup environment variables (choose one method):
 
-# Optional: For automated deployment
+# Method 1: Use .env file (Recommended)
+cp .env.example .env
+# Edit .env and add your OpenAI API key
+
+# Method 2: Export directly (temporary)
+export OPENAI_API_KEY="your-openai-api-key-here"
 export FLASK_SECRET_KEY="your-secure-random-key"
 ```
 
-### Building the Database
+### Building the Database (New Modular System)
 
-The database building process is the core of this project. It takes 3+ days due to API rate limiting but produces a comprehensive game recommendation database.
+The database building process has been **completely refactored** into a modular, stage-based pipeline with advanced checkpointing, error recovery, and monitoring capabilities.
 
-#### Stage 1: Data Collection (1-2 hours)
-
-Collects basic game information from public APIs:
+#### Quick Start with New Modular System
 
 ```bash
-# Run just the data collection stage
+# Run complete pipeline (NEW - RECOMMENDED)
+python database_builder.py
+
+# Run specific stage only (NEW)
+python database_builder.py --stage data_collection
+python database_builder.py --stage review_analysis
+python database_builder.py --stage database_creation
+
+# Check pipeline status (NEW)
+python database_builder.py --status
+
+# Reset pipeline if needed (NEW)
+python database_builder.py --reset
+```
+
+#### Stage 1: Data Collection (~2 hours)
+
+```bash
+python database_builder.py --stage data_collection
+```
+
+**Enhanced Features:**
+- **Smart checkpointing**: Resume from interruptions automatically
+- **Progress tracking**: Real-time progress indicators
+- **Batch processing**: Configurable batch sizes for optimal performance
+- **Error recovery**: Intelligent retry mechanisms with exponential backoff
+
+**Outputs:** `steamspy_all_games.db`, `steam_api.db`
+**Cost:** FREE (only API rate limits)
+
+#### Stage 2: Review Analysis (~1-2 days)
+
+```bash
+python database_builder.py --stage review_analysis
+```
+
+**Enhanced Features:**
+- **Cost estimation**: Real-time OpenAI API cost projections
+- **Granular checkpointing**: Resume from exact interruption point
+- **Quality filtering**: Advanced spam and toxicity detection
+- **Professional reviews**: Optional IGN review integration
+
+**Outputs:** Analysis JSON files, hierarchical classification data
+**Cost:** $100-300 (OpenAI API usage)
+
+#### Stage 3: Database Creation (~30 minutes)
+
+```bash
+python database_builder.py --stage database_creation
+```
+
+**Enhanced Features:**
+- **Integrity validation**: Comprehensive database validation
+- **Performance optimization**: Automatic index creation
+- **Statistics reporting**: Detailed completion analytics
+- **Output verification**: Automatic file validation
+
+**Outputs:** `steam_recommendations.db`, `hierarchical_vectorizer.pkl`
+**Cost:** FREE (local processing)
+
+#### Pipeline Status & Monitoring
+
+```bash
+# Get comprehensive status report
+python database_builder.py --status
+
+# Validate configuration and dependencies
+python database_builder.py --validate
+```
+
+#### Legacy Support
+
+The original orchestrator is still available:
+
+```bash
+# Legacy interface (still functional)
 python -m backend.database_builder.pipeline_orchestrator --stage 1
-```
-
-**What happens:**
-- Fetches 20,000 games from SteamSpy API (~1 hour)
-- Enriches with Steam Store API data (pricing, images, descriptions)
-- Creates initial SQLite databases: `steamspy_all_games.db` and `steam_api.db`
-
-**Cost: FREE** - No OpenAI API calls in this stage
-
-#### Stage 2: Review Analysis (1-2 days)
-
-The most time-consuming and expensive stage - analyzes game reviews using AI:
-
-```bash
-# Run just the review analysis stage
 python -m backend.database_builder.pipeline_orchestrator --stage 2
-```
-
-**What happens:**
-- Downloads 100 Steam reviews per game (analysis subset of ~500-1000 games from 20k catalog)
-- Filters out toxic/spam reviews using sentiment analysis
-- Sends clean reviews to OpenAI GPT-3.5 for tag generation
-- Scrapes IGN professional reviews (optional)
-- Generates hierarchical game classifications
-
-**Estimated Cost: $100-300**
-- OpenAI GPT-3.5-turbo: ~$0.0015 per 1K tokens
-- Average review analysis: ~500 tokens per game
-- 500-1000 games × 500 tokens × $0.0015 = ~$37-75 base cost
-- Additional costs for retries, longer reviews, and classification
-- Full 20k database analysis would cost ~$1500+ (not recommended)
-
-**Time: 1-2 days**
-- OpenAI rate limits: 3 requests per minute (free tier)
-- Steam API rate limits: 1 request per second
-- IGN scraping delays: 2-5 seconds between requests
-
-#### Stage 3: Database Creation (30 minutes)
-
-Optimizes the analyzed data into the final recommendation database:
-
-```bash
-# Run just the database creation stage
 python -m backend.database_builder.pipeline_orchestrator --stage 3
-```
-
-**What happens:**
-- Converts JSON analysis results to optimized SQLite schema
-- Creates TF-IDF vectors from game tags (1000-dimensional)
-- Stores vectors as binary BLOBs for fast similarity calculations
-- Creates performance indexes for sub-second queries
-- Generates final `steam_recommendations.db`
-
-**Cost: FREE** - No API calls, pure data processing
-
-#### Complete Pipeline
-
-To run all stages automatically:
-
-```bash
-# Run the complete pipeline (3+ days)
-python -m backend.database_builder.pipeline_orchestrator
-
-# Skip the warning prompt for automation
-python -m backend.database_builder.pipeline_orchestrator --skip-warning
 ```
 
 #### Cost Breakdown

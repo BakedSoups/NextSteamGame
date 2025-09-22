@@ -1,3 +1,8 @@
+# Environment variables
+.env
+.env.local
+.env.*.local
+
 # Ignore JSON files
 *.json
 
@@ -7,12 +12,25 @@
 # Ignore Python cache
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.Python
+*.so
 
 # Ignore virtual environments
 venv/
-.env/
+env/
+ENV/
+.venv/
 
-# Ignore Go build/cache files
+# Ignore logs
+logs/
+*.log
+
+# Ignore data directory
+data/
+
+# Ignore Go build/cache files (if any legacy Go files remain)
 *.exe
 *.out
 *.test
@@ -20,3 +38,13 @@ venv/
 # Ignore IDE/editor files
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Ignore pickle files (vectorizers)
+*.pkl

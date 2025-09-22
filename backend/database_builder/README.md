@@ -1,64 +1,117 @@
-# Steam Recommender Database Builder
+# Steam Recommender Database Builder - Modular Pipeline
 
-This directory contains the Python-based data pipeline for building the Steam game recommendation database. The pipeline has been converted from Go to Python for better maintainability and integration.
+This directory contains the **completely refactored modular database builder** for the Steam Recommender system. The pipeline has been redesigned with a stage-based architecture featuring comprehensive checkpointing, error recovery, and monitoring capabilities.
 
-## 🏗️ Pipeline Overview
+## New Modular Architecture
 
-The complete data pipeline consists of 3 stages that take ~3 days due to API rate limits:
+The database builder now follows a modular pipeline architecture with three main stages:
 
 ```
-Stage 1: Data Collection (1-2 hours)
-├── SteamSpy API → steamspy_all_games.db
-└── Steam Store API → steam_api.db
-
-Stage 2: Review Analysis (1-2 days)
-├── Steam Reviews → OpenAI Analysis → Tags
-├── IGN Reviews → Web Scraping → Professional scores
-└── Hierarchical Classification → JSON
-
-Stage 3: Database Creation (30 mins)
-├── JSON → SQLite schema
-├── TF-IDF Vectorization
-└── steam_recommendations.db + hierarchical_vectorizer.pkl
+Data Collection → Review Analysis → Database Creation
 ```
 
-## 🚀 Quick Start
+### Stage 1: Data Collection (`pipeline/data_collection_stage.py`)
+- **Purpose**: Collect raw game data from SteamSpy and Steam Store APIs
+- **Duration**: ~2 hours
+- **Cost**: FREE (only API rate limits)
+- **Outputs**: `steamspy_all_games.db`, `steam_api.db`
 
-### Run Complete Pipeline
+### Stage 2: Review Analysis (`pipeline/review_analysis_stage.py`)
+- **Purpose**: Analyze Steam reviews with AI and scrape professional reviews
+- **Duration**: ~1-2 days (due to OpenAI rate limits)
+- **Cost**: $100-300 (OpenAI API usage)
+- **Outputs**: Analysis JSON files, hierarchical classification
+
+### Stage 3: Database Creation (`pipeline/database_creation_stage.py`)
+- **Purpose**: Create final recommendation database with TF-IDF vectors
+- **Duration**: ~30 minutes
+- **Cost**: FREE (local processing)
+- **Outputs**: `steam_recommendations.db`, `hierarchical_vectorizer.pkl`
+
+## Quick Start (New Modular System)
+
+### Primary Interface
 ```bash
-python pipeline_orchestrator.py
+# Run complete pipeline (NEW)
+python database_builder.py
+
+# Run specific stage only (NEW)
+python database_builder.py --stage data_collection
+python database_builder.py --stage review_analysis
+python database_builder.py --stage database_creation
+
+# Check pipeline status (NEW)
+python database_builder.py --status
+
+# Reset pipeline (NEW)
+python database_builder.py --reset
+
+# Validate configuration (NEW)
+python database_builder.py --validate
 ```
 
-### Run Specific Stage
+### Legacy Interface (Still Available)
 ```bash
-python pipeline_orchestrator.py --stage 1  # Data collection only
-python pipeline_orchestrator.py --stage 2  # Review analysis only
-python pipeline_orchestrator.py --stage 3  # Database creation only
+# Old orchestrator (still works)
+python pipeline_orchestrator.py --stage 1
+python pipeline_orchestrator.py --stage 2
+python pipeline_orchestrator.py --stage 3
 ```
 
-### Skip Warning Prompt
-```bash
-python pipeline_orchestrator.py --skip-warning
+## File Structure
+
+### New Modular Pipeline (PRIMARY)
+```
+pipeline/
+├── __init__.py                    # Package exports
+├── base_stage.py                  # Base stage interface with checkpointing
+├── data_collection_stage.py       # Stage 1: SteamSpy + Steam API
+├── review_analysis_stage.py       # Stage 2: AI review analysis
+├── database_creation_stage.py     # Stage 3: Final database creation
+└── orchestrator.py               # Enhanced orchestrator with monitoring
 ```
 
-## 📁 File Structure
+### Core Modules (Shared)
+- `steamspy_collector.py` - SteamSpy data collection
+- `steam_api_enricher.py` - Steam Store API enrichment
+- `database_manager.py` - Database schema and migration
 
-### Core Pipeline Modules
-- `pipeline_orchestrator.py` - Main orchestration script
-- `steamspy_collector.py` - Collects 20k games from SteamSpy API
-- `steam_api_enricher.py` - Enriches with Steam Store data (pricing, images, etc.)
-- `database_manager.py` - Database schema creation and migration
-
-### Tag Builder Modules (Python)
+### Tag Builder Modules (Legacy Integration)
 - `tag_builder/steam_reviews_extractor.py` - Steam review analysis with OpenAI
 - `tag_builder/ign_scrape.py` - IGN professional review scraping
 - `tag_builder/extract_verdicts.py` - Hierarchical game classification
-- `tag_builder/json_converter.py` - Final database creation with vectors
+- `tag_builder/json_converter.py` - JSON to SQLite conversion
 
-### Legacy Modules (Go - Deprecated)
-- `*.go` files - Original Go implementation (no longer used)
+### Legacy Components
+- `pipeline_orchestrator.py` - Original orchestrator (deprecated but functional)
 
-## 🔧 Dependencies
+## Key Improvements in Modular System
+
+### Advanced Checkpointing & Recovery
+- **Per-stage checkpoints**: Resume from any interrupted stage
+- **Progress tracking**: Detailed progress indicators with item counts
+- **Smart recovery**: Automatically detect and skip completed work
+- **Granular control**: Reset individual stages without affecting others
+
+### Enhanced Monitoring & Reporting
+- **Real-time status**: Live pipeline status with completion percentages
+- **Cost estimation**: Accurate OpenAI API cost projections
+- **Dependency validation**: Automatic checking of stage prerequisites
+- **Comprehensive logging**: Structured logs with execution summaries
+
+### Improved Developer Experience
+- **Modular design**: Each stage is independently testable and maintainable
+- **Type safety**: Full type hints throughout the codebase
+- **Error isolation**: Stage failures don't corrupt other stages
+- **Configuration management**: Centralized, environment-aware settings
+
+### Performance & Reliability
+- **Batch processing**: Configurable batch sizes for memory efficiency
+- **Retry mechanisms**: Intelligent retry with exponential backoff
+- **Rate limit handling**: Automatic API rate limit compliance
+- **Resource optimization**: Better memory and disk space management
+
+## Dependencies
 
 ### Required Python Packages
 ```bash
@@ -74,7 +127,7 @@ export OPENAI_API_KEY="your-openai-api-key"
 - Chrome/Chromium browser (for IGN scraping)
 - ChromeDriver (for Selenium)
 
-## 🗄️ Database Schema
+## Database Schema
 
 ### Stage 1 Databases
 
@@ -104,7 +157,7 @@ tag_ratios (steam_appid, tag, ratio)
 game_vectors (steam_appid, vector_data BLOB, vector_dimension)
 ```
 
-## 🎯 Key Features
+## Key Features
 
 ### Multi-Source Data Collection
 - **SteamSpy**: Game catalog with ownership/review data
@@ -129,7 +182,7 @@ game_vectors (steam_appid, vector_data BLOB, vector_dimension)
 - **Quality Filtering**: Sentiment analysis, spam detection
 - **Graceful Degradation**: Fallback mechanisms for missing data
 
-## ⚡ Performance Optimizations
+## Performance Optimizations
 
 ### Database Optimizations
 - Strategic indexing on hierarchy (main_genre, sub_genre, sub_sub_genre)
@@ -146,7 +199,7 @@ game_vectors (steam_appid, vector_data BLOB, vector_dimension)
 - Sparse matrix conversion only during storage
 - Batch processing to limit memory usage
 
-## 🔍 Monitoring & Debugging
+## Monitoring & Debugging
 
 ### Logging
 All modules log to both console and `pipeline.log`:
@@ -165,7 +218,7 @@ python app.py
 # Visit: http://localhost:5000/debug/stats
 ```
 
-## 🚨 Common Issues
+## Common Issues
 
 ### OpenAI API Limits
 - **Quota Exceeded**: Pipeline will skip games and continue
@@ -181,7 +234,7 @@ python app.py
 - **Large Datasets**: Use batch processing (default: 1000 games)
 - **Vector Storage**: Optimize max_features if memory constrained
 
-## 📊 Expected Timeline
+## Expected Timeline
 
 | Stage | Duration | Bottleneck | Output |
 |-------|----------|------------|---------|
@@ -189,7 +242,7 @@ python app.py
 | Stage 2 | 1-2 days | OpenAI API + web scraping | ~350 analyzed games |
 | Stage 3 | 30 minutes | Vector computation | Production database |
 
-## 🎉 Pipeline Outputs
+## Pipeline Outputs
 
 After successful completion:
 
@@ -199,7 +252,7 @@ After successful completion:
 4. **ign_all_games.json** - Professional review data
 5. **pipeline.log** - Complete execution log
 
-## 🔄 Migration from Go
+## Migration from Go
 
 The Python pipeline replaces the original Go implementation:
 
