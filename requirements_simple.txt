@@ -1,0 +1,23 @@
+# Simplified Requirements for Steam Database Builder
+# Install with: pip install -r requirements_simple.txt
+
+# Core dependencies
+requests==2.32.3
+openai==1.81.0
+python-dotenv==1.0.0
+
+# Review sentiment analysis
+vaderSentiment==3.3.2
+
+# Vector database
+chromadb==0.4.24
+
+# Database
+sqlite3  # Built-in with Python
+
+# Optional: Web framework (only if using Flask app)
+# flask==3.0.0
+
+# Optional: Machine learning (only if using TF-IDF fallback)
+# numpy==1.24.3
+# scikit-learn==1.3.0
