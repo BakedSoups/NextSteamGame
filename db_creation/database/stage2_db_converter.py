@@ -8,13 +8,9 @@ import sys
 import json
 import sqlite3
 import os
-from pathlib import Path
 from typing import Dict, List, Optional
 
-# Add analyzers path
-sys.path.append(str(Path(__file__).parent / 'analyzers'))
-
-from vector_analyzer import VectorAnalyzer
+from ..analysis.analyzers.vector_analyzer import VectorAnalyzer
 import chromadb
 from chromadb.utils import embedding_functions
 

@@ -6,13 +6,9 @@ Clean test using the organized db_creation modules
 
 import sys
 import json
-from pathlib import Path
 
-# Add the analyzers path
-sys.path.append(str(Path(__file__).parent.parent / 'analyzers'))
-
-from vector_analyzer import VectorAnalyzer
-from output_formatter import OutputFormatter
+from ..analyzers.vector_analyzer import VectorAnalyzer
+from ..analyzers.output_formatter import OutputFormatter
 
 
 def test_persona_analysis(num_reviews: int = 10) -> None:

@@ -322,18 +322,18 @@ def main():
 
     if len(sys.argv) < 2:
         print("Usage:")
-        print("  python query_database.py info <appid>              # Get game info")
-        print("  python query_database.py similar <appid> <type>    # Find similar games")
-        print("  python query_database.py search <type> <query>     # Search by description")
-        print("  python query_database.py list                      # List all games")
+        print("  python -m database.query_database info <appid>              # Get game info")
+        print("  python -m database.query_database similar <appid> <type>    # Find similar games")
+        print("  python -m database.query_database search <type> <query>     # Search by description")
+        print("  python -m database.query_database list                      # List all games")
         print("")
         print("Types: gameplay, music, vibes")
         print("")
         print("Examples:")
-        print("  python query_database.py info 1687950")
-        print("  python query_database.py similar 1687950 music")
-        print("  python query_database.py search music 'jazz and rock'")
-        print("  python query_database.py search gameplay 'turn-based combat'")
+        print("  python -m database.query_database info 1687950")
+        print("  python -m database.query_database similar 1687950 music")
+        print("  python -m database.query_database search music 'jazz and rock'")
+        print("  python -m database.query_database search gameplay 'turn-based combat'")
         sys.exit(1)
 
     command = sys.argv[1]
@@ -341,7 +341,7 @@ def main():
 
     if command == "info":
         if len(sys.argv) < 3:
-            print("Usage: python query_database.py info <appid>")
+            print("Usage: python -m database.query_database info <appid>")
             sys.exit(1)
 
         appid = int(sys.argv[2])
@@ -353,7 +353,7 @@ def main():
 
     elif command == "similar":
         if len(sys.argv) < 4:
-            print("Usage: python query_database.py similar <appid> <type>")
+            print("Usage: python -m database.query_database similar <appid> <type>")
             print("Types: gameplay, music, vibes")
             sys.exit(1)
 
@@ -367,7 +367,7 @@ def main():
 
     elif command == "search":
         if len(sys.argv) < 4:
-            print("Usage: python query_database.py search <type> <query>")
+            print("Usage: python -m database.query_database search <type> <query>")
             print("Types: gameplay, music, vibes")
             sys.exit(1)
 

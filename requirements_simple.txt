@@ -12,9 +12,6 @@ vaderSentiment==3.3.2
 # Vector database
 chromadb==0.4.24
 
-# Database
-sqlite3  # Built-in with Python
-
 # Optional: Web framework (only if using Flask app)
 # flask==3.0.0
 

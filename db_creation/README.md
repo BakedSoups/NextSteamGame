@@ -6,15 +6,18 @@ Clean, organized system for Steam game vector analysis.
 
 ```
 db_creation/
-├── core/
-│   └── steam_review_analyzer.py    # Core review extraction
-├── analyzers/
-│   ├── vector_analyzer.py          # Main analysis engine
-│   └── output_formatter.py         # Pretty printing
-├── config/
-│   └── review_config.json          # All configuration
-├── tests/
-│   └── test_persona.py             # Test Persona 3 Reload
+├── analysis/
+│   ├── core/
+│   │   └── steam_review_analyzer.py    # Review extraction + filtering
+│   ├── analyzers/
+│   │   ├── vector_analyzer.py          # AI analysis engine
+│   │   └── output_formatter.py         # Pretty printing
+│   └── tests/
+│       └── test_persona.py             # Analysis-only test entrypoint
+├── database/
+│   ├── main.py                         # Main entrypoint for building both databases
+│   ├── stage2_db_converter.py          # Persist analysis into SQLite + ChromaDB
+│   └── query_database.py               # Query stored databases
 └── README.md
 ```
 
@@ -22,25 +25,32 @@ db_creation/
 
 ### Stage 1: Test Analysis
 ```bash
-cd db_creation/tests
-python test_persona.py 15    # Analyze with 15 reviews
-python test_persona.py       # Default 10 reviews
+cd db_creation
+python -m db_creation.analysis.tests.test_persona 15    # Analyze with 15 reviews
+python -m db_creation.analysis.tests.test_persona       # Default 10 reviews
 ```
 
 ### Stage 2: Convert to Databases
 ```bash
-cd db_creation
-python stage2_db_converter.py           # Convert Persona 3 to SQLite + ChromaDB
-python stage2_db_converter.py 730       # Convert CS2
+cd Steam_Reccomender
+python -m db_creation.database.main                     # Build SQLite + ChromaDB for Persona 3
+python -m db_creation.database.main 730                 # Build SQLite + ChromaDB for CS2
+python -m db_creation.database.main 730 440 --num-reviews 15
+```
+
+Or run it directly from the database folder:
+```bash
+cd db_creation/database
+python main.py 730
 ```
 
 ### Query Databases
 ```bash
-cd db_creation
-python query_database.py info 1687950                    # Get game info
-python query_database.py similar 1687950 music           # Find similar music
-python query_database.py search gameplay "turn-based"    # Search gameplay
-python query_database.py list                            # List all games
+cd Steam_Reccomender
+python -m db_creation.database.query_database info 1687950                    # Get game info
+python -m db_creation.database.query_database similar 1687950 music           # Find similar music
+python -m db_creation.database.query_database search gameplay "turn-based"    # Search gameplay
+python -m db_creation.database.query_database list                            # List all games
 ```
 
 ## 🎯 Output Format

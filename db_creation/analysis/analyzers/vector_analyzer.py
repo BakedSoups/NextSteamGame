@@ -5,14 +5,10 @@ Provides comprehensive analysis including gameplay, music, and vibes vectors
 
 import os
 import json
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 from pathlib import Path
 
-# Import core components
-import sys
-sys.path.append(str(Path(__file__).parent.parent / 'core'))
-
-from steam_review_analyzer import SteamReviewAnalyzer
+from ..core.steam_review_analyzer import SteamReviewAnalyzer
 from openai import OpenAI
 
 
