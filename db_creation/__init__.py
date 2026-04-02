@@ -1,1 +1,0 @@
-# DB Creation package for Steam game analysis

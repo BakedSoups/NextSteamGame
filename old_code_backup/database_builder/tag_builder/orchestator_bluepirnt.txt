@@ -1,7 +1,0 @@
-first runs scrape.py saving ign all_games 
-then runs extract verdicts.py which then goes into tag_cleaner
-tag cleaner makes sure the tags aren't duplicates
-then we have to find a way to connect appids to ign games by name (using fuzzy)
-n^2 saddly could be faster with parrelel look ups but thats overkil
-UNLESS
-then inserts into steam_api.db

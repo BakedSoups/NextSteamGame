@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Steam Game Recommender{% endblock %}
+{% block title %}Next Steam Game{% endblock %}
 
 {% block body_class %}index-dark{% endblock %}
 
@@ -28,11 +28,11 @@
     <div class="container backdrop-blur-sm">
         <div class="header-row">
             <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="logo-image">
-            <h1 class="text-4xl font-bold text-steam-blue">Steam Game Recommender</h1>
+            <h1 class="text-4xl font-bold text-steam-blue">Next Steam Game</h1>
         </div>
         
         <p class="text-lg opacity-90">Find games similar to ones you love</p>
-        <p class="text-lg opacity-90 mb-6">Discover games based on their gameplay elements, not just popularity or reviews</p>
+        <p class="text-lg opacity-90 mb-6">Discover games based on their gameplay elements, not just popularity or reviews, learn why you truly like a game and find other games like that!</p>
         
         <form action="{{ url_for('search') }}" method="post" class="w-full relative">
             <input 

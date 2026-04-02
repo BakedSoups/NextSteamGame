@@ -380,6 +380,73 @@ class SteamMetadataBuilder:
                 CREATE INDEX IF NOT EXISTS idx_ingestion_state_status ON ingestion_state(store_fetch_status);
                 """
             )
+            self._migrate_schema_if_needed(conn)
+
+    def _table_exists(self, conn: sqlite3.Connection, table_name: str) -> bool:
+        row = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?",
+            (table_name,),
+        ).fetchone()
+        return row is not None
+
+    def _table_columns(self, conn: sqlite3.Connection, table_name: str) -> set[str]:
+        if not self._table_exists(conn, table_name):
+            return set()
+        rows = conn.execute(f"PRAGMA table_info({table_name})").fetchall()
+        return {str(row["name"]) for row in rows}
+
+    def _migrate_schema_if_needed(self, conn: sqlite3.Connection) -> None:
+        raw_columns = self._table_columns(conn, "raw_steam_app_details")
+        if raw_columns and "region_code" not in raw_columns:
+            LOGGER.info("Migrating raw_steam_app_details to region-aware schema")
+            conn.executescript(
+                """
+                ALTER TABLE raw_steam_app_details RENAME TO raw_steam_app_details_legacy;
+
+                CREATE TABLE raw_steam_app_details (
+                    appid INTEGER NOT NULL,
+                    region_code TEXT NOT NULL DEFAULT 'us',
+                    fetched_at TEXT NOT NULL,
+                    success INTEGER NOT NULL,
+                    payload_json TEXT NOT NULL,
+                    PRIMARY KEY (appid, region_code)
+                );
+
+                INSERT INTO raw_steam_app_details (appid, region_code, fetched_at, success, payload_json)
+                SELECT appid, 'us', fetched_at, success, payload_json
+                FROM raw_steam_app_details_legacy;
+
+                DROP TABLE raw_steam_app_details_legacy;
+                """
+            )
+
+        games_columns = self._table_columns(conn, "games")
+        if games_columns and "steamspy_owner_estimate" not in games_columns:
+            LOGGER.info("Adding games.steamspy_owner_estimate")
+            conn.execute("ALTER TABLE games ADD COLUMN steamspy_owner_estimate INTEGER")
+
+        if not self._table_exists(conn, "game_pricing"):
+            LOGGER.info("Creating game_pricing table")
+            conn.executescript(
+                """
+                CREATE TABLE game_pricing (
+                    appid INTEGER NOT NULL,
+                    region_code TEXT NOT NULL,
+                    currency TEXT,
+                    initial INTEGER,
+                    final INTEGER,
+                    discount_percent INTEGER,
+                    initial_formatted TEXT,
+                    final_formatted TEXT,
+                    is_free INTEGER NOT NULL DEFAULT 0,
+                    fetched_at TEXT NOT NULL,
+                    PRIMARY KEY (appid, region_code),
+                    FOREIGN KEY (appid) REFERENCES games(appid) ON DELETE CASCADE
+                );
+                CREATE INDEX IF NOT EXISTS idx_game_pricing_region ON game_pricing(region_code);
+                """
+            )
+        conn.commit()
 
     def _request_json(self, url: str, params: Dict[str, Any], context: str) -> Any:
         delay = self.retry_config.base_delay
@@ -646,8 +713,14 @@ class SteamMetadataBuilder:
 
     def _replace_simple_join(self, cursor: sqlite3.Cursor, table_name: str, appid: int, rows: Iterable[Sequence[Any]]) -> None:
         cursor.execute(f"DELETE FROM {table_name} WHERE appid = ?", (appid,))
-        rows = list(rows)
-        if rows:
+        seen: set[tuple] = set()
+        deduped = []
+        for row in rows:
+            key = tuple(row)
+            if key not in seen:
+                seen.add(key)
+                deduped.append(row)
+        if deduped:
             placeholders = {
                 "game_genres": "(appid, genre_id, genre_name)",
                 "game_categories": "(appid, category_id, category_name)",
@@ -656,7 +729,7 @@ class SteamMetadataBuilder:
                 "game_screenshots": "(appid, screenshot_id, path_thumbnail, path_full)",
                 "game_movies": "(appid, movie_id, name, thumbnail, webm_480, mp4_480)",
             }[table_name]
-            cursor.executemany(f"INSERT INTO {table_name} {placeholders} VALUES ({','.join('?' for _ in rows[0])})", rows)
+            cursor.executemany(f"INSERT INTO {table_name} {placeholders} VALUES ({','.join('?' for _ in deduped[0])})", deduped)
 
     def _upsert_price_row(
         self,
@@ -901,6 +974,10 @@ class SteamMetadataBuilder:
                 (appid, utcnow_iso(), error_message[:1000]),
             )
 
+    def _batched(self, items: Sequence[int], batch_size: int) -> Iterable[List[int]]:
+        for start in range(0, len(items), batch_size):
+            yield list(items[start:start + batch_size])
+
     def load_appids_for_store_enrichment(self, limit: Optional[int], refresh_store: bool) -> List[int]:
         query = """
             SELECT appid
@@ -983,16 +1060,17 @@ class SteamMetadataBuilder:
         for index, appid in enumerate(appids, start=1):
             attempted += 1
             try:
-                payload = self.fetch_app_details(appid, region_code="us")
-                success = self.upsert_store_details(appid, payload, region_code="us")
+                us_payload = self.fetch_app_details(appid, region_code="us")
+                success = self.upsert_store_details(appid, us_payload, region_code="us")
+
                 if success:
                     for region_code in self.price_regions:
                         if region_code == "us":
                             continue
                         regional_payload = self.fetch_app_details(appid, region_code=region_code)
                         self.upsert_store_details(appid, regional_payload, region_code=region_code)
-                if success:
                     succeeded += 1
+
                 LOGGER.info("Store %s/%s appid=%s success=%s", index, len(appids), appid, success)
             except Exception as exc:
                 errors += 1
@@ -1076,57 +1154,41 @@ def default_db_path() -> Path:
 
 def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Build a canonical SQLite metadata database for Steam.")
-    parser.add_argument("--db-path", type=Path, default=default_db_path(), help="Output SQLite database path.")
-    parser.add_argument("--limit", type=int, default=None, help="Maximum number of apps to ingest from SteamSpy.")
-    parser.add_argument("--page-limit", type=int, default=None, help="Maximum number of SteamSpy pages to fetch.")
-    parser.add_argument("--skip-store", action="store_true", help="Only ingest SteamSpy catalog, skip Steam Store enrichment.")
-    parser.add_argument("--refresh-store", action="store_true", help="Refetch store metadata even for apps already enriched.")
-    parser.add_argument("--no-resume", action="store_true", help="Restart SteamSpy crawling from page 0 instead of resuming from stored pages.")
-    parser.add_argument("--price-regions", default="us", help="Comma-separated Store API country codes for pricing, e.g. us,gb,ca,au,jp.")
-    parser.add_argument("--steamspy-delay", type=float, default=1.1, help="Delay between SteamSpy page requests.")
-    parser.add_argument("--store-delay", type=float, default=0.4, help="Delay between Steam Store requests.")
-    parser.add_argument("--store-batch-delay", type=float, default=8.0, help="Delay after each store batch.")
-    parser.add_argument("--store-batch-size", type=int, default=25, help="How many store requests to issue before batch delay.")
-    parser.add_argument("--max-retries", type=int, default=5, help="Maximum retries per HTTP request.")
-    parser.add_argument("--base-delay", type=float, default=2.0, help="Initial retry delay in seconds.")
-    parser.add_argument("--timeout", type=int, default=30, help="Per-request timeout in seconds.")
-    parser.add_argument("--notes", default=None, help="Optional note saved on the sync run.")
-    parser.add_argument("--verbose", action="store_true", help="Enable debug logging.")
     return parser.parse_args(argv)
 
 
-def configure_logging(verbose: bool) -> None:
+def configure_logging() -> None:
     logging.basicConfig(
-        level=logging.DEBUG if verbose else logging.INFO,
+        level=logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
-    args = parse_args(argv)
-    configure_logging(args.verbose)
+    parse_args(argv)
+    configure_logging()
 
     builder = SteamMetadataBuilder(
-        db_path=args.db_path,
+        db_path=default_db_path(),
         retry_config=RetryConfig(
-            max_retries=args.max_retries,
-            base_delay=args.base_delay,
-            timeout=args.timeout,
+            max_retries=5,
+            base_delay=2.0,
+            timeout=30,
         ),
-        steamspy_delay=args.steamspy_delay,
-        store_delay=args.store_delay,
-        store_batch_delay=args.store_batch_delay,
-        store_batch_size=args.store_batch_size,
-        price_regions=[region.strip() for region in args.price_regions.split(",") if region.strip()],
+        steamspy_delay=1.1,
+        store_delay=0.4,
+        store_batch_delay=8.0,
+        store_batch_size=25,
+        price_regions=["us"],
     )
 
     return builder.build(
-        limit=args.limit,
-        page_limit=args.page_limit,
-        skip_store=args.skip_store,
-        refresh_store=args.refresh_store,
-        resume=not args.no_resume,
-        notes=args.notes,
+        limit=None,
+        page_limit=None,
+        skip_store=False,
+        refresh_store=False,
+        resume=True,
+        notes=None,
     )
 
 
