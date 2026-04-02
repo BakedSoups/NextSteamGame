@@ -1,0 +1,2 @@
+from .game_metadata import generate_game_metadata
+from .semantic_vectors import generate_game_vectors
