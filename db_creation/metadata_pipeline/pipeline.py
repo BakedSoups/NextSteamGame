@@ -27,6 +27,8 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence
 
 import requests
 
+from paths import metadata_db_path
+
 
 LOGGER = logging.getLogger("steam_metadata_builder")
 
@@ -1148,8 +1150,7 @@ class SteamMetadataBuilder:
 
 
 def default_db_path() -> Path:
-    project_root = Path(__file__).resolve().parents[2]
-    return project_root / "data" / "steam_metadata.db"
+    return metadata_db_path()
 
 
 def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:

@@ -1,19 +1,17 @@
 import json
 import random
 import sqlite3
-from pathlib import Path
 from typing import Dict, List
 
 from .llm.game_metadata import generate_game_metadata
 from .llm.semantic_vectors import generate_game_vectors
 from .steam_review import fetch_steam_reviews, select_review_samples
 from .tag_unification import format_tag_groups, group_tags
+from paths import insightful_words_path, metadata_db_path, sampled_game_tags_path
 
-
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-DB_PATH = PROJECT_ROOT / "data" / "steam_metadata.db"
-INSIGHTFUL_WORDS_PATH = Path(__file__).resolve().parents[1] / "insightful_words.json"
-SAMPLE_OUTPUT_PATH = Path(__file__).resolve().parents[1] / "sampled_game_tags.json"
+DB_PATH = metadata_db_path()
+INSIGHTFUL_WORDS_PATH = insightful_words_path()
+SAMPLE_OUTPUT_PATH = sampled_game_tags_path()
 
 
 def load_insightful_words() -> Dict:
