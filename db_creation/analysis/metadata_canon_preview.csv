@@ -1,51 +1,67 @@
 group_id,context,representative_tag,member_count,total_occurrences,members,member_occurrences
-1,genre_tree.primary,Action,1,235,Action,Action:235
-2,genre_tree.traits,Environmental Interaction,2,25,Environmental interaction | Environmental Interaction,Environmental interaction:19; Environmental Interaction:6
-3,micro_tags,mystery,1,25,mystery,mystery:25
-4,genre_tree.sub,Mystery,1,16,Mystery,Mystery:16
-5,genre_tree.sub,Action-Adventure,2,8,Action-Adventure | Action-adventure,Action-Adventure:6; Action-adventure:2
-6,genre_tree.sub,Stealth Action,1,8,Stealth Action,Stealth Action:8
+1,genre_tree.primary,Action,1,245,Action,Action:245
+2,genre_tree.traits,Environmental Interaction,3,22,Environmental interaction | Environmental Interaction | environmental interaction,Environmental interaction:15; Environmental Interaction:6; environmental interaction:1
+3,micro_tags,mystery,1,22,mystery,mystery:22
+4,genre_tree.sub,Mystery,1,20,Mystery,Mystery:20
+5,genre_tree.sub,Stealth Action,1,10,Stealth Action,Stealth Action:10
+6,micro_tags,action-packed,1,8,action-packed,action-packed:8
 7,genre_tree.sub,Action RPG,1,6,Action RPG,Action RPG:6
-8,micro_tags,action-packed,1,6,action-packed,action-packed:6
-9,genre_tree.traits,Character interaction,2,5,Character interaction | Character Interaction,Character interaction:3; Character Interaction:2
-10,genre_tree.traits,Social interaction,2,4,Social interaction | social interaction,Social interaction:3; social interaction:1
-11,micro_tags,fast-paced action,1,4,fast-paced action,fast-paced action:4
-12,micro_tags,arcade action,1,3,arcade action,arcade action:3
-13,genre_tree.sub,Mystery Puzzle,1,2,Mystery Puzzle,Mystery Puzzle:2
-14,genre_tree.traits,fast-paced action,1,2,fast-paced action,fast-paced action:2
-15,micro_tags,action RPG,1,2,action RPG,action RPG:2
-16,micro_tags,action adventure,2,2,action adventure | action-adventure,action adventure:1; action-adventure:1
-17,micro_tags,action combat,1,2,action combat,action combat:2
-18,micro_tags,explosive action,1,2,explosive action,explosive action:2
-19,micro_tags,microtransactions,1,2,microtransactions,microtransactions:2
-20,micro_tags,mystery elements,1,2,mystery elements,mystery elements:2
-21,micro_tags,stealth action,1,2,stealth action,stealth action:2
-22,genre_tree.primary,Mystery,1,1,Mystery,Mystery:1
-23,genre_tree.sub,Action Platformer,1,1,Action Platformer,Action Platformer:1
-24,genre_tree.traits,Elemental interactions,1,1,Elemental interactions,Elemental interactions:1
-25,genre_tree.traits,Microtransaction model,1,1,Microtransaction model,Microtransaction model:1
-26,genre_tree.traits,Mystery Elements,1,1,Mystery Elements,Mystery Elements:1
-27,genre_tree.traits,action-oriented,1,1,action-oriented,action-oriented:1
-28,genre_tree.traits,multiplayer interaction,1,1,multiplayer interaction,multiplayer interaction:1
-29,micro_tags,NPC interactions,1,1,NPC interactions,NPC interactions:1
-30,micro_tags,PvP action,1,1,PvP action,PvP action:1
-31,micro_tags,action gameplay,1,1,action gameplay,action gameplay:1
-32,micro_tags,faction diversity,1,1,faction diversity,faction diversity:1
-33,micro_tags,faction variety,1,1,faction variety,faction variety:1
-34,micro_tags,fun interactions,1,1,fun interactions,fun interactions:1
-35,micro_tags,intense action,1,1,intense action,intense action:1
-36,micro_tags,item interactions,1,1,item interactions,item interactions:1
-37,micro_tags,joyful interactions,1,1,joyful interactions,joyful interactions:1
-38,micro_tags,local interactions,1,1,local interactions,local interactions:1
-39,micro_tags,micro transactions,1,1,micro transactions,micro transactions:1
-40,micro_tags,mystery solving,1,1,mystery solving,mystery solving:1
-41,micro_tags,no micro-transactions,1,1,no micro-transactions,no micro-transactions:1
-42,micro_tags,no microtransactions,1,1,no microtransactions,no microtransactions:1
-43,micro_tags,npc reactions,1,1,npc reactions,npc reactions:1
-44,micro_tags,player interaction,1,1,player interaction,player interaction:1
-45,micro_tags,reaction challenge,1,1,reaction challenge,reaction challenge:1
-46,micro_tags,reaction moments,1,1,reaction moments,reaction moments:1
-47,micro_tags,reaction time,1,1,reaction time,reaction time:1
-48,micro_tags,romantic mystery,1,1,romantic mystery,romantic mystery:1
-49,micro_tags,social interaction,1,1,social interaction,social interaction:1
-50,micro_tags,user dissatisfaction,1,1,user dissatisfaction,user dissatisfaction:1
+8,micro_tags,fast-paced action,1,6,fast-paced action,fast-paced action:6
+9,genre_tree.sub,Action Adventure,1,2,Action-Adventure,Action-Adventure:2
+10,genre_tree.sub,Action Puzzle,1,2,Action Puzzle,Action Puzzle:2
+11,genre_tree.sub,Mystery Puzzle,1,2,Mystery Puzzle,Mystery Puzzle:2
+12,genre_tree.traits,Social Interaction,1,2,social interaction,social interaction:2
+13,micro_tags,NPC interactions,1,2,NPC interactions,NPC interactions:2
+14,micro_tags,action adventure,1,2,action-adventure,action-adventure:2
+15,micro_tags,explosive action,1,2,explosive action,explosive action:2
+16,micro_tags,mystery solving,1,2,mystery solving,mystery solving:2
+17,micro_tags,social interaction,1,2,social interaction,social interaction:2
+18,genre_tree.primary,Mystery,1,1,Mystery,Mystery:1
+19,genre_tree.sub,Action Platformer,1,1,Action Platformer,Action Platformer:1
+20,genre_tree.sub,Character Action,1,1,Character Action,Character Action:1
+21,genre_tree.sub,Stylish Action,1,1,Stylish Action,Stylish Action:1
+22,genre_tree.traits,Action Selection,1,1,Action Selection,Action Selection:1
+23,genre_tree.traits,Character Interaction,1,1,Character Interaction,Character Interaction:1
+24,genre_tree.traits,Dynamic Interactions,1,1,Dynamic interactions,Dynamic interactions:1
+25,genre_tree.traits,Faction Based,1,1,Faction-Based,Faction-Based:1
+26,genre_tree.traits,Fast-Paced Action,1,1,Fast-paced action,Fast-paced action:1
+27,genre_tree.traits,Intense Action,1,1,Intense Action,Intense Action:1
+28,genre_tree.traits,Physical Interaction,1,1,Physical Interaction,Physical Interaction:1
+29,genre_tree.traits,Reaction Time,1,1,reaction time,reaction time:1
+30,genre_tree.traits,Real-Time Action,1,1,real-time action,real-time action:1
+31,genre_tree.traits,Single Action,1,1,Single action,Single action:1
+32,micro_tags,NPC interaction,1,1,NPC interaction,NPC interaction:1
+33,micro_tags,action,1,1,action,action:1
+34,micro_tags,action choices,1,1,action choices,action choices:1
+35,micro_tags,action combat,1,1,action combat,action combat:1
+36,micro_tags,action economy,1,1,action economy,action economy:1
+37,micro_tags,action oriented,1,1,action-oriented,action-oriented:1
+38,micro_tags,action platformer,1,1,action platformer,action platformer:1
+39,micro_tags,action strategy,1,1,action strategy,action strategy:1
+40,micro_tags,arcade action,1,1,arcade action,arcade action:1
+41,micro_tags,chain actions,1,1,chain actions,chain actions:1
+42,micro_tags,character interaction,1,1,character interaction,character interaction:1
+43,micro_tags,character interactions,1,1,character interactions,character interactions:1
+44,micro_tags,dev interaction,1,1,dev interaction,dev interaction:1
+45,micro_tags,faction choice,1,1,faction choice,faction choice:1
+46,micro_tags,faction dynamics,1,1,faction dynamics,faction dynamics:1
+47,micro_tags,faction playstyle,1,1,faction playstyle,faction playstyle:1
+48,micro_tags,faction skills,1,1,faction skills,faction skills:1
+49,micro_tags,faction variety,1,1,faction variety,faction variety:1
+50,micro_tags,frustrating interactions,1,1,frustrating interactions,frustrating interactions:1
+51,micro_tags,hands on interaction,1,1,hands-on interaction,hands-on interaction:1
+52,micro_tags,immediate action,1,1,immediate action,immediate action:1
+53,micro_tags,interaction problems,1,1,interaction problems,interaction problems:1
+54,micro_tags,lobby interactions,1,1,lobby interactions,lobby interactions:1
+55,micro_tags,manly action,1,1,manly action,manly action:1
+56,micro_tags,minimal interaction,1,1,minimal interaction,minimal interaction:1
+57,micro_tags,murder mystery,1,1,murder mystery,murder mystery:1
+58,micro_tags,mystery unraveling,1,1,mystery unraveling,mystery unraveling:1
+59,micro_tags,physical interaction,1,1,physical interaction,physical interaction:1
+60,micro_tags,player satisfaction,1,1,player satisfaction,player satisfaction:1
+61,micro_tags,playful interactions,1,1,playful interactions,playful interactions:1
+62,micro_tags,quick reactions,1,1,quick reactions,quick reactions:1
+63,micro_tags,satisfaction loop,1,1,satisfaction loop,satisfaction loop:1
+64,micro_tags,scientific mystery,1,1,scientific mystery,scientific mystery:1
+65,micro_tags,urban mystery,1,1,urban mystery,urban mystery:1
+66,micro_tags,vr action,1,1,VR action,VR action:1

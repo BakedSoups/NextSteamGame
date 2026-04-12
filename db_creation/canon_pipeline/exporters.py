@@ -23,15 +23,15 @@ def write_preview_csv(path: Path, groups: Sequence[Group], preview_limit: int) -
             ]
         )
         for index, group in enumerate(groups[:preview_limit], start=1):
-            ordered_members = sorted(group.members, key=lambda item: (-group.counts[item], item))
+            ordered_members = sorted(set(group.raw_members), key=lambda item: (-group.raw_counts[item], item))
             writer.writerow(
                 [
                     index,
                     group.context,
                     group.representative,
-                    group.member_count,
+                    len(ordered_members),
                     group.total_occurrences,
                     " | ".join(ordered_members),
-                    "; ".join(f"{member}:{group.counts[member]}" for member in ordered_members),
+                    "; ".join(f"{member}:{group.raw_counts[member]}" for member in ordered_members),
                 ]
             )

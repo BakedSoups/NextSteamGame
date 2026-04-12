@@ -11,6 +11,28 @@ def normalize_tag_text(tag: str) -> str:
     return tag.strip().lower().replace("_", " ").replace("-", " ")
 
 
+def collapse_normalized_counter(counter: Counter) -> tuple[Counter, Dict[str, Counter]]:
+    collapsed = Counter()
+    raw_members: Dict[str, Counter] = {}
+    for tag, count in counter.items():
+        normalized = normalize_tag_text(tag)
+        collapsed[normalized] += count
+        raw_members.setdefault(normalized, Counter())[tag] += count
+    return collapsed, raw_members
+
+
+def collapse_counter_map(
+    counters: Dict[str, Counter],
+) -> tuple[Dict[str, Counter], Dict[str, Dict[str, Counter]]]:
+    collapsed_map: Dict[str, Counter] = {}
+    raw_member_map: Dict[str, Dict[str, Counter]] = {}
+    for context, counter in counters.items():
+        collapsed_counter, raw_members = collapse_normalized_counter(counter)
+        collapsed_map[context] = collapsed_counter
+        raw_member_map[context] = raw_members
+    return collapsed_map, raw_member_map
+
+
 def load_rows(db_path: Path, sample_size: int | None = None) -> Sequence[sqlite3.Row]:
     connection = sqlite3.connect(db_path)
     connection.row_factory = sqlite3.Row

@@ -1,34 +1,46 @@
 group_id,context,representative_tag,member_count,total_occurrences,members,member_occurrences
-1,narrative,mystery,1,274,mystery,mystery:274
-2,mechanics,character-interaction,2,15,interaction | character-interaction,interaction:14; character-interaction:1
-3,vibe,satisfaction,1,8,satisfaction,satisfaction:8
-4,mechanics,character_interaction,1,3,character_interaction,character_interaction:3
-5,mechanics,reaction_time,1,2,reaction_time,reaction_time:2
-6,narrative,character_interaction,2,2,character_interaction | character_interactions,character_interaction:1; character_interactions:1
-7,narrative,faction_diversity,1,2,faction_diversity,faction_diversity:2
-8,structure_loop,character_interaction,2,2,character_interaction | character_interactions,character_interaction:1; character_interactions:1
-9,uniqueness,social-interaction,2,2,social interaction | social-interaction,social interaction:1; social-interaction:1
-10,mechanics,VR Interaction,1,1,VR Interaction,VR Interaction:1
-11,mechanics,buggy_interactions,1,1,buggy_interactions,buggy_interactions:1
-12,mechanics,environment_interaction,1,1,environment_interaction,environment_interaction:1
-13,mechanics,language_interaction,1,1,language_interaction,language_interaction:1
-14,mechanics,limited_interaction,1,1,limited_interaction,limited_interaction:1
-15,mechanics,micro_transactions,1,1,micro_transactions,micro_transactions:1
-16,mechanics,microtransactions,1,1,microtransactions,microtransactions:1
-17,mechanics,tilt interaction,1,1,tilt interaction,tilt interaction:1
-18,narrative,satisfaction,1,1,satisfaction,satisfaction:1
-19,structure_loop,deliberate actions,1,1,deliberate actions,deliberate actions:1
-20,structure_loop,lobby_interaction,1,1,lobby_interaction,lobby_interaction:1
-21,structure_loop,menu_interaction,1,1,menu_interaction,menu_interaction:1
-22,structure_loop,player interaction,1,1,player interaction,player interaction:1
-23,structure_loop,puzzle_interaction,1,1,puzzle_interaction,puzzle_interaction:1
-24,structure_loop,timed_actions,1,1,timed_actions,timed_actions:1
-25,structure_loop,transaction_pressure,1,1,transaction_pressure,transaction_pressure:1
-26,uniqueness,dynamic interactions,1,1,dynamic interactions,dynamic interactions:1
-27,uniqueness,enemy_interaction,1,1,enemy_interaction,enemy_interaction:1
-28,uniqueness,environment_interaction,1,1,environment_interaction,environment_interaction:1
-29,uniqueness,environmental interaction,1,1,environmental interaction,environmental interaction:1
-30,uniqueness,multiplayer interaction,1,1,multiplayer interaction,multiplayer interaction:1
-31,uniqueness,no micro-transactions,1,1,no micro-transactions,no micro-transactions:1
-32,uniqueness,no_microtransactions,1,1,no_microtransactions,no_microtransactions:1
-33,uniqueness,physics_interaction,1,1,physics_interaction,physics_interaction:1
+1,narrative,mystery,1,236,mystery,mystery:236
+2,vibe,satisfaction,1,9,satisfaction,satisfaction:9
+3,mechanics,character interaction,1,5,character_interaction,character_interaction:5
+4,mechanics,interaction,1,5,interaction,interaction:5
+5,structure_loop,character interaction,2,4,character_interaction | character-interaction,character_interaction:3; character-interaction:1
+6,narrative,faction conflict,1,3,faction_conflict,faction_conflict:3
+7,uniqueness,environment interaction,2,3,environment_interaction | environment interaction,environment_interaction:2; environment interaction:1
+8,mechanics,action,1,2,action,action:2
+9,mechanics,action economy,1,2,action economy,action economy:2
+10,structure_loop,character interactions,1,2,character interactions,character interactions:2
+11,structure_loop,community interaction,1,2,community_interaction,community_interaction:2
+12,structure_loop,immediate action,2,2,immediate action | immediate_action,immediate action:1; immediate_action:1
+13,uniqueness,character interaction,1,2,character_interaction,character_interaction:2
+14,uniqueness,environmental interaction,1,2,environmental interaction,environmental interaction:2
+15,mechanics,NPC interaction,1,1,NPC_interaction,NPC_interaction:1
+16,mechanics,action points,1,1,action_points,action_points:1
+17,mechanics,buggy interactions,1,1,buggy_interactions,buggy_interactions:1
+18,mechanics,character interactions,1,1,character interactions,character interactions:1
+19,mechanics,click actions,1,1,click_actions,click_actions:1
+20,mechanics,dialogue interaction,1,1,dialogue_interaction,dialogue_interaction:1
+21,mechanics,faction choice,1,1,faction_choice,faction_choice:1
+22,mechanics,faction variation,1,1,faction_variation,faction_variation:1
+23,mechanics,minimal interaction,1,1,minimal_interaction,minimal_interaction:1
+24,mechanics,object interaction,1,1,object-interaction,object-interaction:1
+25,mechanics,physical interaction,1,1,physical_interaction,physical_interaction:1
+26,mechanics,ui interaction,1,1,ui_interaction,ui_interaction:1
+27,narrative,action,1,1,action,action:1
+28,narrative,arcade action,1,1,arcade_action,arcade_action:1
+29,narrative,distraction,1,1,distraction,distraction:1
+30,narrative,faction skills,1,1,faction_skills,faction_skills:1
+31,narrative,murder mystery,1,1,murder mystery,murder mystery:1
+32,narrative,mystery solving,1,1,mystery solving,mystery solving:1
+33,narrative,player interaction,1,1,player_interaction,player_interaction:1
+34,narrative,satisfaction,1,1,satisfaction,satisfaction:1
+35,structure_loop,faction management,1,1,faction-management,faction-management:1
+36,structure_loop,interaction,1,1,interaction,interaction:1
+37,uniqueness,action shots,1,1,action_shots,action_shots:1
+38,uniqueness,dev interaction,1,1,dev_interaction,dev_interaction:1
+39,uniqueness,dynamic interactions,1,1,dynamic interactions,dynamic interactions:1
+40,uniqueness,narrative interaction,1,1,narrative_interaction,narrative_interaction:1
+41,uniqueness,pedestrian interaction,1,1,pedestrian_interaction,pedestrian_interaction:1
+42,uniqueness,physical interaction,1,1,physical_interaction,physical_interaction:1
+43,uniqueness,single action,1,1,single_action,single_action:1
+44,uniqueness,ufo interaction,1,1,UFO_interaction,UFO_interaction:1
+45,vibe,action-packed,1,1,action-packed,action-packed:1
