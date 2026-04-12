@@ -3,8 +3,10 @@ import os
 from typing import Dict, List
 
 from openai import OpenAI
+from openai import RateLimitError
 from pydantic import BaseModel, field_validator
 
+from .errors import CreditsExhaustedError
 from .review_sampling import sample_reviews
 
 
@@ -58,26 +60,32 @@ REVIEWS:
 def _generate_vectors(sampled_reviews: List[str]) -> Dict:
     prompt = _build_prompt(sampled_reviews)
 
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        temperature=0.2,
-        response_format={"type": "json_object"},
-        messages=[
-            {
-                "role": "system",
-                "content": (
-                    "You generate structured semantic representations for games. "
-                    "Return a JSON object with exactly these top-level keys: "
-                    "mechanics, narrative, vibe, structure_loop, uniqueness. "
-                    "Each value must be an object mapping short tags to integer weights summing to 100."
-                ),
-            },
-            {
-                "role": "user",
-                "content": prompt,
-            },
-        ],
-    )
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            temperature=0.2,
+            response_format={"type": "json_object"},
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You generate structured semantic representations for games. "
+                        "Return a JSON object with exactly these top-level keys: "
+                        "mechanics, narrative, vibe, structure_loop, uniqueness. "
+                        "Each value must be an object mapping short tags to integer weights summing to 100."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": prompt,
+                },
+            ],
+        )
+    except RateLimitError as exc:
+        message = str(exc).lower()
+        if "insufficient_quota" in message or "quota" in message or "credit" in message:
+            raise CreditsExhaustedError("OpenAI API credits exhausted.") from exc
+        raise
 
     content = response.choices[0].message.content or "{}"
 

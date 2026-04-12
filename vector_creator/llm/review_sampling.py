@@ -1,8 +1,7 @@
-import random
 from typing import Dict, List
 
 
-def sample_reviews(results: Dict, per_category: int = 12, max_total: int = 40) -> List[str]:
+def sample_reviews(results: Dict, per_category: int = 5, max_total: int = 5) -> List[str]:
     pool = []
 
     for category in ["descriptive", "artistic", "music"]:
@@ -18,6 +17,4 @@ def sample_reviews(results: Dict, per_category: int = 12, max_total: int = 40) -
             seen.add(text)
             unique.append(text)
 
-    random.shuffle(unique)
     return unique[:max_total]
-

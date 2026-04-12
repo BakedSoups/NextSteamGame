@@ -5,7 +5,8 @@ import requests
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 
-APP_ID = "893180"
+# APP_ID = "893180"
+MAX_REVIEWS_PER_GAME = 350
 
 # --- load embedding model once at the top
 model = SentenceTransformer("all-mpnet-base-v2")
@@ -24,7 +25,7 @@ def fetch_steam_reviews(APP_ID):
     all_reviews = []
     cursor = "*"
 
-    while len(all_reviews) < 5000:
+    while len(all_reviews) < MAX_REVIEWS_PER_GAME:
         params["cursor"] = cursor
         res = requests.get(url, params=params).json()
         
@@ -33,6 +34,9 @@ def fetch_steam_reviews(APP_ID):
             break
 
         all_reviews.extend(reviews)
+        if len(all_reviews) >= MAX_REVIEWS_PER_GAME:
+            all_reviews = all_reviews[:MAX_REVIEWS_PER_GAME]
+            break
         cursor = res.get("cursor")
 
     # --- basic filters
@@ -85,6 +89,9 @@ def score_review(review_text, lexicon):
 
 
 def rerank_with_embeddings(candidates, query):
+    if not candidates:
+        return []
+
     texts = [r["review"] for r in candidates]
 
     review_embeddings = model.encode(texts)
@@ -163,14 +170,14 @@ def select_review_samples(reviews: list, semantic_lexicon: dict):
     }
 
 
-if __name__ == "__main__":
-    import json
+# if __name__ == "__main__":
+#     import json
 
-    reviews = fetch_steam_reviews(APP_ID)
-    with open("insightful_words.json", "r", encoding="utf-8") as f:
-        semantic_lexicon = json.load(f)
-    results = select_review_samples(reviews, semantic_lexicon)
+#     reviews = fetch_steam_reviews(APP_ID)
+#     with open("insightful_words.json", "r", encoding="utf-8") as f:
+#         semantic_lexicon = json.load(f)
+#     results = select_review_samples(reviews, semantic_lexicon)
 
 
-pull_reviews = fetch_steam_reviews
-capture_descriptive_reviews = select_review_samples
+# pull_reviews = fetch_steam_reviews
+# capture_descriptive_reviews = select_review_samples
