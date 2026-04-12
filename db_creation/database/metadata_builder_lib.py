@@ -1148,7 +1148,7 @@ class SteamMetadataBuilder:
 
 
 def default_db_path() -> Path:
-    project_root = Path(__file__).resolve().parents[1]
+    project_root = Path(__file__).resolve().parents[2]
     return project_root / "data" / "steam_metadata.db"
 
 

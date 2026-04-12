@@ -22,8 +22,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from vector_creator.pipeline import build_game_output, load_insightful_words
-from vector_creator.llm.errors import CreditsExhaustedError
+from noncanon_pipeline.pipeline import build_game_output, load_insightful_words
+from noncanon_pipeline.llm.errors import CreditsExhaustedError
 
 
 def utcnow_iso() -> str:

@@ -1,13 +1,30 @@
 #!/usr/bin/env python3
 
-import sys
+from __future__ import annotations
+
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
+from database.initial_noncanon_db import InitialNoncanonDbBuilder
 
-from initial_noncanon_db import main
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_METADATA_DB = PROJECT_ROOT / "data" / "steam_metadata.db"
+DEFAULT_OUTPUT_DB = PROJECT_ROOT / "data" / "steam_initial_noncanon.db"
+
+
+def main() -> None:
+    builder = InitialNoncanonDbBuilder(
+        metadata_db_path=DEFAULT_METADATA_DB,
+        output_db_path=DEFAULT_OUTPUT_DB,
+    )
+    summary = builder.build()
+    print(f"\nInitial non-canonical DB: {summary['output_db_path']}")
+    print(f"Resume point: {summary['existing_profiles']} games already stored")
+    print(
+        f"Run {summary['run_id']}: "
+        f"{summary['completed_games']}/{summary['attempted_games']} stored, "
+        f"{summary['error_count']} errors"
+    )
 
 
 if __name__ == "__main__":

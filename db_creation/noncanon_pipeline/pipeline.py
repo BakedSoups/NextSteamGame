@@ -10,10 +10,10 @@ from .steam_review import fetch_steam_reviews, select_review_samples
 from .tag_unification import format_tag_groups, group_tags
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DB_PATH = PROJECT_ROOT / "data" / "steam_metadata.db"
-INSIGHTFUL_WORDS_PATH = PROJECT_ROOT / "insightful_words.json"
-SAMPLE_OUTPUT_PATH = PROJECT_ROOT / "sampled_game_tags.json"
+INSIGHTFUL_WORDS_PATH = Path(__file__).resolve().parents[1] / "insightful_words.json"
+SAMPLE_OUTPUT_PATH = Path(__file__).resolve().parents[1] / "sampled_game_tags.json"
 
 
 def load_insightful_words() -> Dict:
