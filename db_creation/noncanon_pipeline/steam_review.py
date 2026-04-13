@@ -63,10 +63,10 @@ def fetch_steam_reviews(APP_ID):
     all_reviews = [r for r in all_reviews if not r['refunded']]
     all_reviews = [r for r in all_reviews if len(r['review'].split()) >= 50]
 
-    # --- playtime >= 5 hours
+    # --- playtime >= 60 minutes
     all_reviews = [
         r for r in all_reviews
-        if r["author"]["playtime_forever"] >= 300
+        if r["author"]["playtime_forever"] >= 60
     ]
 
     # --- ascii filter
