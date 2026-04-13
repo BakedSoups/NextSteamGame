@@ -4,7 +4,7 @@ from paths import analysis_dir, initial_noncanon_db_path
 
 NONCANON_DB_PATH = initial_noncanon_db_path()
 ANALYSIS_DIR = analysis_dir()
-LIMIT = 500
+LIMIT = 5000
 SEED_TAGS = ["action", "mystery"]
 
 

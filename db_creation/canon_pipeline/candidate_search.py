@@ -10,53 +10,10 @@ from sklearn.neighbors import NearestNeighbors
 
 from .representative_selection import choose_representative
 
-ACRONYM_MAP = {
-    "2d": "2D",
-    "3d": "3D",
-    "ai": "AI",
-    "npc": "NPC",
-    "pve": "PvE",
-    "pvp": "PvP",
-    "rpg": "RPG",
-}
-
 HYPHENATED_COMPOUNDS = {
     ("action", "packed"): "action-packed",
     ("fast", "paced"): "fast-paced",
     ("real", "time"): "real-time",
-}
-
-WEAK_MODIFIERS = {
-    "action",
-    "atmospheric",
-    "casual",
-    "emotional",
-    "explosive",
-    "fast",
-    "hectic",
-    "frenetic",
-    "intense",
-    "low",
-}
-
-GENERIC_MODIFIERS = {
-    "character",
-    "general",
-    "personal",
-}
-
-STRONG_SUBTYPE_TOKENS = {
-    "2d",
-    "3d",
-    "adventure",
-    "brawler",
-    "platformer",
-    "puzzle",
-    "rpg",
-    "stealth",
-    "strategy",
-    "survival",
-    "tactical",
 }
 
 
@@ -94,6 +51,14 @@ class Group:
         return sum(self.counts.values())
 
 
+@dataclass
+class ContextTokenStats:
+    token_occurrences: Counter = field(default_factory=Counter)
+    token_tag_count: Counter = field(default_factory=Counter)
+    token_head_count: Dict[str, set[str]] = field(default_factory=dict)
+    head_occurrences: Counter = field(default_factory=Counter)
+
+
 def load_model(model_name: str) -> SentenceTransformer:
     return SentenceTransformer(model_name)
 
@@ -105,8 +70,6 @@ def tokenize(tag: str) -> list[str]:
 def head_token(tokens: list[str]) -> str:
     if not tokens:
         return ""
-    if len(tokens) > 1 and tokens[-1] in STRONG_SUBTYPE_TOKENS:
-        return tokens[0]
     return tokens[-1]
 
 
@@ -117,17 +80,55 @@ def extra_modifiers(tokens: list[str], head: str) -> set[str]:
     return set(remaining)
 
 
-def is_weak_modifier_set(modifiers: set[str]) -> bool:
+def build_context_stats(counts: Counter) -> ContextTokenStats:
+    stats = ContextTokenStats()
+    for tag, occurrences in counts.items():
+        tokens = tokenize(tag)
+        head = head_token(tokens)
+        stats.head_occurrences[head] += occurrences
+        for token in set(tokens):
+            stats.token_occurrences[token] += occurrences
+            stats.token_tag_count[token] += 1
+            stats.token_head_count.setdefault(token, set()).add(head)
+    return stats
+
+
+def is_form_factor(token: str) -> bool:
+    return any(char.isdigit() for char in token) or len(token) <= 3 and token.isalpha()
+
+
+def classify_modifier(modifier: str, stats: ContextTokenStats) -> str:
+    if is_form_factor(modifier):
+        return "form_factor"
+
+    head_diversity = len(stats.token_head_count.get(modifier, set()))
+    tag_diversity = stats.token_tag_count.get(modifier, 0)
+    token_frequency = stats.token_occurrences.get(modifier, 0)
+
+    if modifier.endswith(("ing", "ed")):
+        return "process"
+    if modifier.endswith(("ive", "al", "ic", "ous", "ful", "less")):
+        return "descriptive"
+    if head_diversity >= 3:
+        return "generic"
+    if tag_diversity <= 2 and token_frequency <= 5:
+        return "specific"
+    if head_diversity == 1 and tag_diversity <= 3:
+        return "specific"
+    return "unknown"
+
+
+def classify_modifier_set(modifiers: set[str], stats: ContextTokenStats) -> set[str]:
     if not modifiers:
-        return True
-    for modifier in modifiers:
-        if modifier in WEAK_MODIFIERS or modifier in GENERIC_MODIFIERS:
-            continue
-        return False
-    return True
+        return {"none"}
+    return {classify_modifier(modifier, stats) for modifier in modifiers}
 
 
-def merge_allowed(left_tag: str, right_tag: str) -> bool:
+def is_mergeable_modifier_profile(profile: set[str]) -> bool:
+    return profile <= {"none", "descriptive", "generic", "process", "unknown"}
+
+
+def merge_allowed(left_tag: str, right_tag: str, stats: ContextTokenStats) -> bool:
     if left_tag == right_tag:
         return True
 
@@ -141,20 +142,26 @@ def merge_allowed(left_tag: str, right_tag: str) -> bool:
     right_head = head_token(right_tokens)
     left_extras = extra_modifiers(left_tokens, left_head)
     right_extras = extra_modifiers(right_tokens, right_head)
+    left_profile = classify_modifier_set(left_extras, stats)
+    right_profile = classify_modifier_set(right_extras, stats)
 
-    left_subtypes = left_extras & STRONG_SUBTYPE_TOKENS
-    right_subtypes = right_extras & STRONG_SUBTYPE_TOKENS
-    if left_subtypes != right_subtypes:
+    if "specific" in left_profile or "specific" in right_profile:
+        return left_extras == right_extras and left_head == right_head
+
+    if "form_factor" in left_profile or "form_factor" in right_profile:
+        return left_extras == right_extras and left_head == right_head
+
+    if left_head != right_head and left_head not in shared_tokens and right_head not in shared_tokens:
         return False
 
     if left_head == right_head:
-        if is_weak_modifier_set(left_extras | right_extras):
+        if is_mergeable_modifier_profile(left_profile | right_profile):
             return True
         return left_extras == right_extras
 
-    if left_head in shared_tokens and is_weak_modifier_set(right_extras):
+    if left_head in shared_tokens and is_mergeable_modifier_profile(right_profile):
         return True
-    if right_head in shared_tokens and is_weak_modifier_set(left_extras):
+    if right_head in shared_tokens and is_mergeable_modifier_profile(left_profile):
         return True
     return False
 
@@ -174,8 +181,10 @@ def format_representative_tag(context: str, normalized_tag: str) -> str:
             continue
 
         token = tokens[index]
-        if token in ACRONYM_MAP:
-            parts.append(ACRONYM_MAP[token])
+        if is_form_factor(token):
+            parts.append(token.upper() if token.isalpha() and len(token) <= 3 else token.upper().replace("D", "D"))
+        elif token.isupper():
+            parts.append(token)
         elif context.startswith("genre_tree."):
             parts.append(token.capitalize())
         else:
@@ -197,6 +206,7 @@ def create_groups_for_context(
     tags = [tag for tag, _ in counts.most_common()]
     if not tags:
         return []
+    stats = build_context_stats(counts)
 
     embeddings = model.encode(
         tags,
@@ -230,7 +240,7 @@ def create_groups_for_context(
                 continue
             if guard is not None and not guard(tag, candidate_tag):
                 continue
-            if not merge_allowed(tag, candidate_tag):
+            if not merge_allowed(tag, candidate_tag, stats):
                 continue
             chosen_indexes.append(candidate_index)
 
