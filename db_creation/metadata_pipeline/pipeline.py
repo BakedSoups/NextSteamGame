@@ -1149,47 +1149,10 @@ class SteamMetadataBuilder:
             )
 
 
-def default_db_path() -> Path:
-    return metadata_db_path()
-
-
-def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Build a canonical SQLite metadata database for Steam.")
-    return parser.parse_args(argv)
-
-
 def configure_logging() -> None:
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-    )
-
-
-def main(argv: Optional[Sequence[str]] = None) -> int:
-    parse_args(argv)
-    configure_logging()
-
-    builder = SteamMetadataBuilder(
-        db_path=default_db_path(),
-        retry_config=RetryConfig(
-            max_retries=5,
-            base_delay=2.0,
-            timeout=30,
-        ),
-        steamspy_delay=1.1,
-        store_delay=0.4,
-        store_batch_delay=8.0,
-        store_batch_size=25,
-        price_regions=["us"],
-    )
-
-    return builder.build(
-        limit=None,
-        page_limit=None,
-        skip_store=False,
-        refresh_store=False,
-        resume=True,
-        notes=None,
     )
 
 
