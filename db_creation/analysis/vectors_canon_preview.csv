@@ -1,212 +1,195 @@
 group_id,context,representative_tag,member_count,total_occurrences,members,member_occurrences
-1,narrative,mystery,1,2529,mystery,mystery:2529
-2,mechanics,interaction,6,123,interaction | social_interaction | limited interaction | limited_interaction | physical_interaction | social interaction,interaction:115; social_interaction:4; limited interaction:1; limited_interaction:1; physical_interaction:1; social interaction:1
-3,vibe,satisfaction,1,97,satisfaction,satisfaction:97
-4,mechanics,character interaction,2,38,character_interaction | character-interaction,character_interaction:28; character-interaction:10
-5,mechanics,action,1,28,action,action:28
-6,structure_loop,character interaction,3,21,character_interaction | character-interaction | character interaction,character_interaction:13; character-interaction:6; character interaction:2
-7,uniqueness,environment interaction,2,19,environment interaction | environment_interaction,environment interaction:12; environment_interaction:7
-8,structure_loop,social interaction,3,18,social_interaction | interaction | social interaction,social_interaction:11; interaction:5; social interaction:2
-9,mechanics,environment interaction,2,15,environment_interaction | environment-interaction,environment_interaction:11; environment-interaction:4
-10,narrative,action,1,14,action,action:14
-11,uniqueness,environmental interaction,3,10,environmental-interaction | environmental interaction | environmental_interaction,environmental-interaction:6; environmental interaction:2; environmental_interaction:2
-12,mechanics,environmental interaction,3,9,environmental-interaction | environmental interaction | environmental_interaction,environmental-interaction:5; environmental interaction:2; environmental_interaction:2
-13,narrative,character interaction,2,9,character_interaction | character-interaction,character_interaction:8; character-interaction:1
-14,narrative,faction conflict,2,9,faction_conflict | faction,faction_conflict:7; faction:2
-15,structure_loop,character interactions,2,9,character interactions | character_interactions,character interactions:6; character_interactions:3
-16,uniqueness,character interaction,1,9,character_interaction,character_interaction:9
-17,mechanics,item interaction,3,8,item_interaction | item-interaction | item interaction,item_interaction:5; item-interaction:2; item interaction:1
-18,uniqueness,social interaction,3,8,social_interaction | social interaction | social-interaction,social_interaction:4; social interaction:3; social-interaction:1
-19,mechanics,VR interaction,3,6,VR_interaction | VR Interaction | VR interaction,VR_interaction:3; VR Interaction:2; VR interaction:1
-20,structure_loop,community interaction,3,6,community_interaction | Community Interaction | community-interaction,community_interaction:4; Community Interaction:1; community-interaction:1
-21,structure_loop,player interaction,2,6,player_interaction | player interaction,player_interaction:4; player interaction:2
-22,structure_loop,repetitive actions,2,6,repetitive_actions | repetitive actions,repetitive_actions:4; repetitive actions:2
-23,uniqueness,community interaction,1,5,community_interaction,community_interaction:5
-24,mechanics,NPC interaction,2,4,NPC_interaction | NPC Interaction,NPC_interaction:3; NPC Interaction:1
-25,mechanics,click interaction,2,4,click_interaction | click-interaction,click_interaction:3; click-interaction:1
-26,mechanics,reaction,1,4,reaction,reaction:4
-27,structure_loop,dialogue interaction,1,4,dialogue_interaction,dialogue_interaction:4
-28,uniqueness,NO microtransactions,1,4,no_microtransactions,no_microtransactions:4
-29,vibe,mystery,1,4,mystery,mystery:4
-30,narrative,satisfaction,1,3,satisfaction,satisfaction:3
-31,uniqueness,AI interaction,1,3,AI_interaction,AI_interaction:3
-32,uniqueness,microtransactions,1,3,microtransactions,microtransactions:3
-33,mechanics,UI interaction,1,2,UI_interaction,UI_interaction:2
-34,mechanics,action points,1,2,action_points,action_points:2
-35,mechanics,color interaction,2,2,color-interaction | color_interaction,color-interaction:1; color_interaction:1
-36,mechanics,community interaction,1,2,community_interaction,community_interaction:2
-37,mechanics,dialogue interaction,1,2,dialogue_interaction,dialogue_interaction:2
-38,mechanics,microtransactions,1,2,microtransactions,microtransactions:2
-39,mechanics,object interaction,1,2,object_interaction,object_interaction:2
-40,mechanics,sprite interaction,2,2,sprite interaction | sprite_interaction,sprite interaction:1; sprite_interaction:1
-41,narrative,community interaction,1,2,community_interaction,community_interaction:2
-42,narrative,murder mystery,2,2,murder-mystery | murder_mystery,murder-mystery:1; murder_mystery:1
-43,structure_loop,action flow,2,2,action flow | flowing_action,action flow:1; flowing_action:1
-44,structure_loop,action pacing,1,2,action_pacing,action_pacing:2
-45,structure_loop,action sequence,2,2,action sequence | action_sequence,action sequence:1; action_sequence:1
-46,structure_loop,constant action,2,2,constant action | constant_action,constant action:1; constant_action:1
-47,structure_loop,continuous action,2,2,continuous action | continuous_action,continuous action:1; continuous_action:1
-48,structure_loop,dialogue interactions,2,2,dialogue interactions | dialogue_interactions,dialogue interactions:1; dialogue_interactions:1
-49,structure_loop,intense action,2,2,intense action | intense-action,intense action:1; intense-action:1
-50,structure_loop,interactions,2,2,dynamic interactions | interactions,dynamic interactions:1; interactions:1
-51,structure_loop,multiplayer interaction,2,2,multiplayer interaction | multiplayer_interaction,multiplayer interaction:1; multiplayer_interaction:1
-52,structure_loop,reaction time,1,2,reaction_time,reaction_time:2
-53,uniqueness,VR interaction,1,2,VR_interaction,VR_interaction:2
-54,uniqueness,community reaction,1,2,community_reaction,community_reaction:2
-55,uniqueness,dynamic interaction,1,2,dynamic_interaction,dynamic_interaction:2
-56,uniqueness,physical interaction,2,2,physical interaction | physical_interaction,physical interaction:1; physical_interaction:1
-57,mechanics,AI interaction,1,1,ai_interaction,ai_interaction:1
-58,mechanics,BOT interaction,1,1,bot_interaction,bot_interaction:1
-59,mechanics,DOG interaction,1,1,dog_interaction,dog_interaction:1
-60,mechanics,GOD interaction,1,1,god_interaction,god_interaction:1
-61,mechanics,MAP interactions,1,1,map_interactions,map_interactions:1
-62,mechanics,action RPG,1,1,action RPG,action RPG:1
-63,mechanics,action based,1,1,action-based,action-based:1
-64,mechanics,action queue,1,1,action_queue,action_queue:1
-65,mechanics,action resolution,1,1,action resolution,action resolution:1
-66,mechanics,action selection,1,1,action_selection,action_selection:1
-67,mechanics,arcade action,1,1,arcade_action,arcade_action:1
-68,mechanics,character interactions,1,1,character_interactions,character_interactions:1
-69,mechanics,complex interactions,1,1,complex_interactions,complex_interactions:1
-70,mechanics,creature interaction,1,1,creature_interaction,creature_interaction:1
-71,mechanics,customer interaction,1,1,customer_interaction,customer_interaction:1
-72,mechanics,cutscene interaction,1,1,cutscene_interaction,cutscene_interaction:1
-73,mechanics,enemy interaction,1,1,enemy_interaction,enemy_interaction:1
-74,mechanics,faction choice,1,1,faction_choice,faction_choice:1
-75,mechanics,faction interaction,1,1,faction_interaction,faction_interaction:1
-76,mechanics,faction variation,1,1,faction_variation,faction_variation:1
-77,mechanics,faction warfare,1,1,faction_warfare,faction_warfare:1
-78,mechanics,guest interaction,1,1,guest_interaction,guest_interaction:1
-79,mechanics,janky interaction,1,1,janky-interaction,janky-interaction:1
-80,mechanics,lack OF interaction,1,1,lack_of_interaction,lack_of_interaction:1
-81,mechanics,language interaction,1,1,language_interaction,language_interaction:1
-82,mechanics,minimal interaction,1,1,minimal-interaction,minimal-interaction:1
-83,mechanics,multiplayer interaction,1,1,multiplayer_interaction,multiplayer_interaction:1
-84,mechanics,music interaction,1,1,music_interaction,music_interaction:1
-85,mechanics,player interaction,1,1,player_interaction,player_interaction:1
-86,mechanics,reaction test,1,1,reaction_test,reaction_test:1
-87,mechanics,reaction time,1,1,reaction_time,reaction_time:1
-88,mechanics,repetitive actions,1,1,repetitive actions,repetitive actions:1
-89,mechanics,scene interaction,1,1,scene-interaction,scene-interaction:1
-90,mechanics,table interaction,1,1,table_interaction,table_interaction:1
-91,mechanics,vehicle interaction,1,1,vehicle_interaction,vehicle_interaction:1
-92,mechanics,vertical action,1,1,vertical-action,vertical-action:1
-93,mechanics,voice interaction,1,1,voice_interaction,voice_interaction:1
-94,narrative,FAN interaction,1,1,fan interaction,fan interaction:1
-95,narrative,abstraction,1,1,abstraction,abstraction:1
-96,narrative,action movies,1,1,action_movies,action_movies:1
-97,narrative,action rhythm,1,1,action_rhythm,action_rhythm:1
-98,narrative,action setpieces,1,1,action_setpieces,action_setpieces:1
-99,narrative,action theme,1,1,action_theme,action_theme:1
-100,narrative,animal interaction,1,1,animal_interaction,animal_interaction:1
-101,narrative,arcade action,1,1,arcade-action,arcade-action:1
-102,narrative,casual action,1,1,casual_action,casual_action:1
-103,narrative,character interactions,1,1,character_interactions,character_interactions:1
-104,narrative,classic action,1,1,classic-action,classic-action:1
-105,narrative,cosmetic microtransactions,1,1,cosmetic_microtransactions,cosmetic_microtransactions:1
-106,narrative,cosmic mystery,1,1,cosmic_mystery,cosmic_mystery:1
-107,narrative,cultural interaction,1,1,cultural_interaction,cultural_interaction:1
-108,narrative,developer interaction,1,1,Developer Interaction,Developer Interaction:1
-109,narrative,distinct factions,1,1,distinct_factions,distinct_factions:1
-110,narrative,distraction,1,1,distraction,distraction:1
-111,narrative,faction diversity,1,1,faction_diversity,faction_diversity:1
-112,narrative,faction dynamics,1,1,faction_dynamics,faction_dynamics:1
-113,narrative,faction identity,1,1,faction_identity,faction_identity:1
-114,narrative,faction interaction,1,1,faction_interaction,faction_interaction:1
-115,narrative,faction politics,1,1,faction politics,faction politics:1
-116,narrative,faction story,1,1,faction_story,faction_story:1
-117,narrative,faction variety,1,1,faction_variety,faction_variety:1
-118,narrative,faction warfare,1,1,faction_warfare,faction_warfare:1
-119,narrative,faction wars,1,1,faction_wars,faction_wars:1
-120,narrative,factional WAR,1,1,factional_war,factional_war:1
-121,narrative,grind satisfaction,1,1,grind satisfaction,grind satisfaction:1
-122,narrative,intellectual mystery,1,1,intellectual mystery,intellectual mystery:1
-123,narrative,interaction,1,1,interaction,interaction:1
-124,narrative,mystery solving,1,1,mystery solving,mystery solving:1
-125,narrative,online interaction,1,1,online_interaction,online_interaction:1
-126,narrative,player interaction,1,1,player_interaction,player_interaction:1
-127,narrative,playful abstraction,1,1,playful abstraction,playful abstraction:1
-128,narrative,resource extraction,1,1,resource_extraction,resource_extraction:1
-129,narrative,social interaction,1,1,social_interaction,social_interaction:1
-130,narrative,user interaction,1,1,user_interaction,user_interaction:1
-131,structure_loop,action,1,1,action,action:1
-132,structure_loop,action pace,1,1,action pace,action pace:1
-133,structure_loop,action sequences,1,1,action_sequences,action_sequences:1
-134,structure_loop,constant interaction,1,1,constant-interaction,constant-interaction:1
-135,structure_loop,diplomatic interaction,1,1,diplomatic_interaction,diplomatic_interaction:1
-136,structure_loop,distraction,1,1,distraction,distraction:1
-137,structure_loop,environmental interaction,1,1,environmental_interaction,environmental_interaction:1
-138,structure_loop,faction balance,1,1,faction_balance,faction_balance:1
-139,structure_loop,faction interaction,1,1,faction_interaction,faction_interaction:1
-140,structure_loop,group interaction,1,1,group_interaction,group_interaction:1
-141,structure_loop,high speed action,1,1,high_speed_action,high_speed_action:1
-142,structure_loop,immediate action,1,1,immediate_action,immediate_action:1
-143,structure_loop,interaction speed,1,1,interaction_speed,interaction_speed:1
-144,structure_loop,menu interaction,1,1,menu_interaction,menu_interaction:1
-145,structure_loop,micro transactions,1,1,micro_transactions,micro_transactions:1
-146,structure_loop,nonstop action,1,1,nonstop action,nonstop action:1
-147,structure_loop,optional interactions,1,1,optional_interactions,optional_interactions:1
-148,structure_loop,short satisfaction,1,1,short_satisfaction,short_satisfaction:1
-149,structure_loop,team interaction,1,1,team_interaction,team_interaction:1
-150,structure_loop,transactional,1,1,transactional,transactional:1
-151,structure_loop,turn based actions,1,1,turn-based actions,turn-based actions:1
-152,structure_loop,world interaction,1,1,world_interaction,world_interaction:1
-153,uniqueness,AI interactions,1,1,AI_interactions,AI_interactions:1
-154,uniqueness,NON action puzzles,1,1,non_action_puzzles,non_action_puzzles:1
-155,uniqueness,NPC interaction,1,1,NPC-interaction,NPC-interaction:1
-156,uniqueness,NPC interactions,1,1,NPC_interactions,NPC_interactions:1
-157,uniqueness,TOP down action,1,1,top_down_action,top_down_action:1
-158,uniqueness,action adventure blend,1,1,action-adventure blend,action-adventure blend:1
-159,uniqueness,action scenes,1,1,action_scenes,action_scenes:1
-160,uniqueness,asteroid interaction,1,1,asteroid_interaction,asteroid_interaction:1
-161,uniqueness,character interactions,1,1,character_interactions,character_interactions:1
-162,uniqueness,complex interactions,1,1,complex_interactions,complex_interactions:1
-163,uniqueness,crew interaction,1,1,crew_interaction,crew_interaction:1
-164,uniqueness,crowd interaction,1,1,crowd interaction,crowd interaction:1
-165,uniqueness,developer interaction,1,1,developer_interaction,developer_interaction:1
-166,uniqueness,distinct factions,1,1,distinct_factions,distinct_factions:1
-167,uniqueness,distraction free,1,1,distraction-free,distraction-free:1
-168,uniqueness,dynamic player interaction,1,1,dynamic_player_interaction,dynamic_player_interaction:1
-169,uniqueness,environmental interactions,1,1,environmental-interactions,environmental-interactions:1
+1,narrative,mystery,1,2547,mystery,mystery:2547
+2,mechanics,interaction,1,117,interaction,interaction:117
+3,vibe,satisfaction,1,85,satisfaction,satisfaction:85
+4,uniqueness,environment interaction,2,36,environment interaction | environmental interaction,environment interaction:26; environmental interaction:10
+5,mechanics,character interaction,1,35,character interaction,character interaction:35
+6,structure_loop,character interaction,1,22,character interaction,character interaction:22
+7,mechanics,action,1,15,action,action:15
+8,mechanics,environment interaction,2,14,environment interaction | environmental interaction,environment interaction:10; environmental interaction:4
+9,narrative,action,1,13,action,action:13
+10,structure_loop,social interaction,1,12,social interaction,social interaction:12
+11,narrative,character interaction,1,11,character interaction,character interaction:11
+12,structure_loop,character interactions,1,11,character interactions,character interactions:11
+13,uniqueness,character interaction,1,9,character interaction,character interaction:9
+14,narrative,faction conflict,1,8,faction conflict,faction conflict:8
+15,narrative,satisfaction,1,8,satisfaction,satisfaction:8
+16,structure_loop,community interaction,1,8,community interaction,community interaction:8
+17,mechanics,interactions,1,7,interactions,interactions:7
+18,mechanics,item interaction,1,7,item interaction,item interaction:7
+19,structure_loop,player interaction,1,7,player interaction,player interaction:7
+20,mechanics,VR interaction,1,6,VR interaction,VR interaction:6
+21,vibe,mystery,1,6,mystery,mystery:6
+22,uniqueness,community interaction,1,5,community interaction,community interaction:5
+23,narrative,factions,1,4,factions,factions:4
+24,narrative,murder mystery,1,4,murder mystery,murder mystery:4
+25,structure_loop,action,1,4,action,action:4
+26,vibe,action-packed,1,4,action-packed,action-packed:4
+27,mechanics,AI interaction,1,3,AI interaction,AI interaction:3
+28,mechanics,NPC interaction,1,3,NPC interaction,NPC interaction:3
+29,mechanics,action points,1,3,action points,action points:3
+30,mechanics,microtransactions,1,3,microtransactions,microtransactions:3
+31,mechanics,multiplayer interaction,1,3,multiplayer interaction,multiplayer interaction:3
+32,mechanics,text interaction,1,3,text interaction,text interaction:3
+33,narrative,abstraction,1,3,abstraction,abstraction:3
+34,narrative,community interaction,1,3,community interaction,community interaction:3
+35,structure_loop,puzzle interaction,1,3,puzzle interaction,puzzle interaction:3
+36,uniqueness,NPC interaction,1,3,NPC interaction,NPC interaction:3
+37,uniqueness,character interactions,1,3,character interactions,character interactions:3
+38,uniqueness,developer interaction,1,3,developer interaction,developer interaction:3
+39,uniqueness,live action,1,3,live action,live action:3
+40,uniqueness,microtransactions,1,3,microtransactions,microtransactions:3
+41,uniqueness,social interaction,1,3,social interaction,social interaction:3
+42,mechanics,action RPG,1,2,action RPG,action RPG:2
+43,mechanics,action adventure,1,2,action adventure,action adventure:2
+44,mechanics,card interactions,1,2,card interactions,card interactions:2
+45,mechanics,creature interaction,1,2,creature interaction,creature interaction:2
+46,mechanics,dialogue interaction,1,2,dialogue interaction,dialogue interaction:2
+47,mechanics,faction variation,1,2,faction variation,faction variation:2
+48,mechanics,musical interaction,1,2,musical interaction,musical interaction:2
+49,mechanics,terrain interaction,1,2,terrain interaction,terrain interaction:2
+50,narrative,action adventure,1,2,action adventure,action adventure:2
+51,narrative,action theme,1,2,action theme,action theme:2
+52,narrative,character interactions,1,2,character interactions,character interactions:2
+53,narrative,customer interaction,1,2,customer interaction,customer interaction:2
+54,narrative,developer interaction,1,2,developer interaction,developer interaction:2
+55,narrative,faction war,1,2,faction war,faction war:2
+56,structure_loop,continuous action,1,2,continuous action,continuous action:2
+57,structure_loop,dialogue interaction,1,2,dialogue interaction,dialogue interaction:2
+58,structure_loop,environmental interaction,1,2,environmental interaction,environmental interaction:2
+59,structure_loop,item interaction,1,2,item interaction,item interaction:2
+60,structure_loop,repetitive actions,1,2,repetitive actions,repetitive actions:2
+61,uniqueness,AI interaction,1,2,AI interaction,AI interaction:2
+62,uniqueness,color interaction,1,2,color interaction,color interaction:2
+63,uniqueness,community reaction,1,2,community reaction,community reaction:2
+64,vibe,intense action,1,2,intense action,intense action:2
+65,mechanics,NPC interactions,1,1,NPC interactions,NPC interactions:1
+66,mechanics,action combat,1,1,action combat,action combat:1
+67,mechanics,action driven,1,1,action driven,action driven:1
+68,mechanics,action keys,1,1,action keys,action keys:1
+69,mechanics,action resolution,1,1,action resolution,action resolution:1
+70,mechanics,action selection,1,1,action selection,action selection:1
+71,mechanics,action sequences,1,1,action sequences,action sequences:1
+72,mechanics,action wheel,1,1,action wheel,action wheel:1
+73,mechanics,art interaction,1,1,art interaction,art interaction:1
+74,mechanics,audio interaction,1,1,audio interaction,audio interaction:1
+75,mechanics,bug interaction,1,1,bug interaction,bug interaction:1
+76,mechanics,character interactions,1,1,character interactions,character interactions:1
+77,mechanics,color interaction,1,1,color interaction,color interaction:1
+78,mechanics,faction balance,1,1,faction balance,faction balance:1
+79,mechanics,faction balancing,1,1,faction balancing,faction balancing:1
+80,mechanics,faction choice,1,1,faction choice,faction choice:1
+81,mechanics,faction strategy,1,1,faction strategy,faction strategy:1
+82,mechanics,fast reaction,1,1,fast reaction,fast reaction:1
+83,mechanics,god interaction,1,1,god interaction,god interaction:1
+84,mechanics,map interactions,1,1,map interactions,map interactions:1
+85,mechanics,menu interaction,1,1,menu interaction,menu interaction:1
+86,mechanics,minimal interaction,1,1,minimal interaction,minimal interaction:1
+87,mechanics,player actions,1,1,player actions,player actions:1
+88,mechanics,power interaction,1,1,power interaction,power interaction:1
+89,mechanics,puck interaction,1,1,puck interaction,puck interaction:1
+90,mechanics,reaction based,1,1,reaction based,reaction based:1
+91,mechanics,reaction time,1,1,reaction time,reaction time:1
+92,mechanics,real-time action,1,1,real-time action,real-time action:1
+93,mechanics,satisfaction,1,1,satisfaction,satisfaction:1
+94,mechanics,table interaction,1,1,table interaction,table interaction:1
+95,mechanics,timer based actions,1,1,timer based actions,timer based actions:1
+96,mechanics,turret interaction,1,1,turret interaction,turret interaction:1
+97,mechanics,twitch action,1,1,twitch action,twitch action:1
+98,mechanics,villager interaction,1,1,villager interaction,villager interaction:1
+99,narrative,action focus,1,1,action focus,action focus:1
+100,narrative,action focused,1,1,action focused,action focused:1
+101,narrative,action movie,1,1,action movie,action movie:1
+102,narrative,action rhythm,1,1,action rhythm,action rhythm:1
+103,narrative,action tropes,1,1,action tropes,action tropes:1
+104,narrative,arcade action,1,1,arcade action,arcade action:1
+105,narrative,casual action,1,1,casual action,casual action:1
+106,narrative,classic action,1,1,classic action,classic action:1
+107,narrative,comedic interactions,1,1,comedic interactions,comedic interactions:1
+108,narrative,cultural interaction,1,1,cultural interaction,cultural interaction:1
+109,narrative,distraction,1,1,distraction,distraction:1
+110,narrative,faction,1,1,faction,faction:1
+111,narrative,faction campaigns,1,1,faction campaigns,faction campaigns:1
+112,narrative,faction choice,1,1,faction choice,faction choice:1
+113,narrative,faction dynamics,1,1,faction dynamics,faction dynamics:1
+114,narrative,faction intrigue,1,1,faction intrigue,faction intrigue:1
+115,narrative,faction lore,1,1,faction lore,faction lore:1
+116,narrative,faction story,1,1,faction story,faction story:1
+117,narrative,faction switching,1,1,faction switching,faction switching:1
+118,narrative,faction system,1,1,faction system,faction system:1
+119,narrative,faction variability,1,1,faction variability,faction variability:1
+120,narrative,faction variety,1,1,faction variety,faction variety:1
+121,narrative,faction wars,1,1,faction wars,faction wars:1
+122,narrative,fan interaction,1,1,fan interaction,fan interaction:1
+123,narrative,fast-paced action,1,1,fast-paced action,fast-paced action:1
+124,narrative,intense action,1,1,intense action,intense action:1
+125,narrative,lack interaction,1,1,lack interaction,lack interaction:1
+126,narrative,live action,1,1,live action,live action:1
+127,narrative,mystery elements,1,1,mystery elements,mystery elements:1
+128,narrative,mystery themes,1,1,mystery themes,mystery themes:1
+129,narrative,ontological mystery,1,1,ontological mystery,ontological mystery:1
+130,narrative,player interaction,1,1,player interaction,player interaction:1
+131,narrative,resource extraction,1,1,resource extraction,resource extraction:1
+132,narrative,simplified action,1,1,simplified action,simplified action:1
+133,narrative,social interaction,1,1,social interaction,social interaction:1
+134,narrative,space mystery,1,1,space mystery,space mystery:1
+135,narrative,world interaction,1,1,world interaction,world interaction:1
+136,structure_loop,AI interaction,1,1,AI interaction,AI interaction:1
+137,structure_loop,action bar,1,1,action bar,action bar:1
+138,structure_loop,action reaction,1,1,action reaction,action reaction:1
+139,structure_loop,action sequence,1,1,action sequence,action sequence:1
+140,structure_loop,action sequences,1,1,action sequences,action sequences:1
+141,structure_loop,action-packed,1,1,action-packed,action-packed:1
+142,structure_loop,chain reaction,1,1,chain reaction,chain reaction:1
+143,structure_loop,diplomatic interaction,1,1,diplomatic interaction,diplomatic interaction:1
+144,structure_loop,dynamic interactions,1,1,dynamic interactions,dynamic interactions:1
+145,structure_loop,enemy interaction,1,1,enemy interaction,enemy interaction:1
+146,structure_loop,faction balance,1,1,faction balance,faction balance:1
+147,structure_loop,faction interaction,1,1,faction interaction,faction interaction:1
+148,structure_loop,fast-paced action,1,1,fast-paced action,fast-paced action:1
+149,structure_loop,immediate action,1,1,immediate action,immediate action:1
+150,structure_loop,interaction cycle,1,1,interaction cycle,interaction cycle:1
+151,structure_loop,menu interaction,1,1,menu interaction,menu interaction:1
+152,structure_loop,micro transactions,1,1,micro transactions,micro transactions:1
+153,structure_loop,optional interactions,1,1,optional interactions,optional interactions:1
+154,structure_loop,rapid fire action,1,1,rapid fire action,rapid fire action:1
+155,structure_loop,satisfaction,1,1,satisfaction,satisfaction:1
+156,structure_loop,team interaction,1,1,team interaction,team interaction:1
+157,structure_loop,timed actions,1,1,timed actions,timed actions:1
+158,structure_loop,world interaction,1,1,world interaction,world interaction:1
+159,uniqueness,AI interactions,1,1,AI interactions,AI interactions:1
+160,uniqueness,NPC interactions,1,1,NPC interactions,NPC interactions:1
+161,uniqueness,VR interaction,1,1,VR interaction,VR interaction:1
+162,uniqueness,action RPG blend,1,1,action RPG blend,action RPG blend:1
+163,uniqueness,action management,1,1,action management,action management:1
+164,uniqueness,action-packed,1,1,action-packed,action-packed:1
+165,uniqueness,animal interaction,1,1,animal interaction,animal interaction:1
+166,uniqueness,bite sized action,1,1,bite sized action,bite sized action:1
+167,uniqueness,clone interaction,1,1,clone interaction,clone interaction:1
+168,uniqueness,complex interactions,1,1,complex interactions,complex interactions:1
+169,uniqueness,detailed interactions,1,1,detailed interactions,detailed interactions:1
 170,uniqueness,explosive action,1,1,explosive action,explosive action:1
-171,uniqueness,faction distinction,1,1,faction_distinction,faction_distinction:1
-172,uniqueness,faction styles,1,1,faction_styles,faction_styles:1
-173,uniqueness,fair microtransactions,1,1,fair microtransactions,fair microtransactions:1
-174,uniqueness,garden interaction,1,1,garden-interaction,garden-interaction:1
-175,uniqueness,gear interaction,1,1,gear_interaction,gear_interaction:1
-176,uniqueness,gesture interaction,1,1,gesture_interaction,gesture_interaction:1
-177,uniqueness,gravity interaction,1,1,gravity_interaction,gravity_interaction:1
-178,uniqueness,indie action,1,1,indie action,indie action:1
-179,uniqueness,indirect interaction,1,1,indirect_interaction,indirect_interaction:1
-180,uniqueness,light interaction,1,1,light_interaction,light_interaction:1
-181,uniqueness,limited interaction,1,1,limited_interaction,limited_interaction:1
-182,uniqueness,live action,1,1,live-action,live-action:1
-183,uniqueness,messenger interactions,1,1,messenger_interactions,messenger_interactions:1
-184,uniqueness,microtransaction critique,1,1,microtransaction_critique,microtransaction_critique:1
-185,uniqueness,minimal interaction,1,1,minimal_interaction,minimal_interaction:1
-186,uniqueness,multiplayer interaction,1,1,multiplayer interaction,multiplayer interaction:1
-187,uniqueness,mystery elements,1,1,mystery-elements,mystery-elements:1
-188,uniqueness,nonstop action,1,1,nonstop_action,nonstop_action:1
-189,uniqueness,organic interaction,1,1,organic_interaction,organic_interaction:1
-190,uniqueness,physics interaction,1,1,physics_interaction,physics_interaction:1
-191,uniqueness,player interaction,1,1,player interaction,player interaction:1
-192,uniqueness,quirky interactions,1,1,quirky interactions,quirky interactions:1
-193,uniqueness,spell interactions,1,1,spell_interactions,spell_interactions:1
-194,uniqueness,stealth action,1,1,stealth-action,stealth-action:1
-195,uniqueness,strategic action,1,1,strategic action,strategic action:1
-196,uniqueness,supernatural mystery,1,1,supernatural-mystery,supernatural-mystery:1
-197,uniqueness,survivor interaction,1,1,survivor_interaction,survivor_interaction:1
-198,uniqueness,systemic interactions,1,1,systemic_interactions,systemic_interactions:1
-199,uniqueness,town interaction,1,1,town_interaction,town_interaction:1
-200,uniqueness,town interactions,1,1,town interactions,town interactions:1
-201,uniqueness,unfiltered action,1,1,unfiltered action,unfiltered action:1
-202,uniqueness,unique attractions,1,1,unique-attractions,unique-attractions:1
-203,uniqueness,vehicular action,1,1,vehicular_action,vehicular_action:1
-204,uniqueness,visor interaction,1,1,visor_interaction,visor_interaction:1
-205,uniqueness,wholesome interactions,1,1,wholesome_interactions,wholesome_interactions:1
-206,uniqueness,zoom interaction,1,1,zoom_interaction,zoom_interaction:1
-207,vibe,action-packed,1,1,action-packed,action-packed:1
-208,vibe,distraction,1,1,distraction,distraction:1
-209,vibe,fast-paced action,1,1,fast-paced action,fast-paced action:1
-210,vibe,frantic action,1,1,frantic action,frantic action:1
-211,vibe,intense action,1,1,intense-action,intense-action:1
+171,uniqueness,faction distinction,1,1,faction distinction,faction distinction:1
+172,uniqueness,faction diversity,1,1,faction diversity,faction diversity:1
+173,uniqueness,faction interaction,1,1,faction interaction,faction interaction:1
+174,uniqueness,faction limit,1,1,faction limit,faction limit:1
+175,uniqueness,faction styles,1,1,faction styles,faction styles:1
+176,uniqueness,faction variability,1,1,faction variability,faction variability:1
+177,uniqueness,fast-paced action,1,1,fast-paced action,fast-paced action:1
+178,uniqueness,generator interaction,1,1,generator interaction,generator interaction:1
+179,uniqueness,ghost interaction,1,1,ghost interaction,ghost interaction:1
+180,uniqueness,gunplay satisfaction,1,1,gunplay satisfaction,gunplay satisfaction:1
+181,uniqueness,hands-on interaction,1,1,hands-on interaction,hands-on interaction:1
+182,uniqueness,limited interaction,1,1,limited interaction,limited interaction:1
+183,uniqueness,microtransaction elements,1,1,microtransaction elements,microtransaction elements:1
+184,uniqueness,mystery elements,1,1,mystery elements,mystery elements:1
+185,uniqueness,mystery integration,1,1,mystery integration,mystery integration:1
+186,uniqueness,natural reactions,1,1,natural reactions,natural reactions:1
+187,uniqueness,nine factions,1,1,nine factions,nine factions:1
+188,uniqueness,no micro transactions,1,1,no micro transactions,no micro transactions:1
+189,uniqueness,non action,1,1,non action,non action:1
+190,uniqueness,organic interaction,1,1,organic interaction,organic interaction:1
+191,uniqueness,physical interaction,1,1,physical interaction,physical interaction:1
+192,uniqueness,player interaction,1,1,player interaction,player interaction:1
+193,uniqueness,reaction time,1,1,reaction time,reaction time:1
+194,uniqueness,shallow interaction,1,1,shallow interaction,shallow interaction:1
