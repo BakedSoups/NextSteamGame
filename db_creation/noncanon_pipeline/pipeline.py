@@ -2,10 +2,38 @@ import json
 from typing import Dict
 
 from .llm.game_semantics import generate_game_semantics
+from .llm.errors import NoReviewsError, SteamReviewsUnavailableError
 from .steam_review import fetch_steam_reviews, select_review_samples
 from paths import insightful_words_path
 
 INSIGHTFUL_WORDS_PATH = insightful_words_path()
+
+
+NO_STEAM_REVIEW_PROFILE = {
+    "review_samples": {
+        "status": "no_steam_review",
+        "descriptive": [],
+        "artistic": [],
+        "music": [],
+    },
+    "vectors": {
+        "status": "no_steam_review",
+        "mechanics": {},
+        "narrative": {},
+        "vibe": {},
+        "structure_loop": {},
+        "uniqueness": {},
+    },
+    "metadata": {
+        "status": "no_steam_review",
+        "micro_tags": [],
+        "genre_tree": {
+            "primary": [],
+            "sub": [],
+            "traits": [],
+        },
+    },
+}
 
 
 def load_insightful_words() -> Dict:
@@ -14,8 +42,23 @@ def load_insightful_words() -> Dict:
 
 
 def build_game_output(appid: str, insightful_words: Dict) -> Dict:
-    reviews = fetch_steam_reviews(appid)
+    try:
+        reviews = fetch_steam_reviews(appid)
+    except SteamReviewsUnavailableError:
+        return {
+            "appid": int(appid),
+            "review_samples": NO_STEAM_REVIEW_PROFILE["review_samples"],
+            "vectors": NO_STEAM_REVIEW_PROFILE["vectors"],
+            "metadata": NO_STEAM_REVIEW_PROFILE["metadata"],
+        }
+
+    if not reviews:
+        raise NoReviewsError("No reviews")
+
     review_samples = select_review_samples(reviews, insightful_words)
+    if not any(review_samples.get(category) for category in ("descriptive", "artistic", "music")):
+        raise NoReviewsError("No insightful reviews")
+
     semantics = generate_game_semantics(review_samples)
 
     return {

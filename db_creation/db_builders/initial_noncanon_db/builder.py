@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from noncanon_pipeline.pipeline import build_game_output, load_insightful_words
-from noncanon_pipeline.llm.errors import CreditsExhaustedError
+from noncanon_pipeline.llm.errors import CreditsExhaustedError, NoReviewsError
 
 
 def utcnow_iso() -> str:
@@ -261,6 +261,15 @@ class InitialNoncanonDbBuilder:
                         "error": str(exc),
                     }
                 )
+            except NoReviewsError as exc:
+                result_queue.put(
+                    {
+                        "kind": "no_reviews",
+                        "appid": appid,
+                        "game_name": game_name,
+                        "error": str(exc),
+                    }
+                )
             except Exception as exc:
                 result_queue.put(
                     {
@@ -301,6 +310,13 @@ class InitialNoncanonDbBuilder:
                     writer_summary["processed_results"] += 1
 
                     if result["kind"] == "skipped":
+                        continue
+
+                    if result["kind"] == "no_reviews":
+                        print(
+                            f"Skipped {result['game_name']} ({result['appid']}): "
+                            f"{result['error']}"
+                        )
                         continue
 
                     writer_summary["attempted_games"] += 1

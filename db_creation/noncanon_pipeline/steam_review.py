@@ -1,12 +1,17 @@
 import re
+import time
 
 import requests
 
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 
+from .llm.errors import SteamReviewsUnavailableError
+
 # APP_ID = "893180"
 MAX_REVIEWS_PER_GAME = 250
+STEAM_REVIEW_RETRIES = 3
+STEAM_REVIEW_RETRY_DELAY = 2.0
 
 # --- load embedding model once at the top
 model = SentenceTransformer("all-mpnet-base-v2")
@@ -27,7 +32,22 @@ def fetch_steam_reviews(APP_ID):
 
     while len(all_reviews) < MAX_REVIEWS_PER_GAME:
         params["cursor"] = cursor
-        res = requests.get(url, params=params).json()
+        res = None
+        for attempt in range(1, STEAM_REVIEW_RETRIES + 1):
+            try:
+                response = requests.get(url, params=params, timeout=30)
+                response.raise_for_status()
+                body = response.text.strip()
+                if not body:
+                    raise SteamReviewsUnavailableError("No steam review")
+                res = response.json()
+                break
+            except KeyboardInterrupt:
+                raise
+            except Exception as exc:
+                if attempt == STEAM_REVIEW_RETRIES:
+                    raise SteamReviewsUnavailableError("No steam review") from exc
+                time.sleep(STEAM_REVIEW_RETRY_DELAY)
         
         reviews = res.get("reviews", [])
         if not reviews:
@@ -117,24 +137,47 @@ def select_review_samples(reviews: list, semantic_lexicon: dict):
             "scores": scores
         })
 
+    if not scored_reviews:
+        return {
+            "descriptive": [],
+            "artistic": [],
+            "music": [],
+        }
+
+    if all(max(review["scores"].values(), default=0) <= 0 for review in scored_reviews):
+        return {
+            "descriptive": [],
+            "artistic": [],
+            "music": [],
+        }
+
     # --- Stage 1: heuristic top 30 per category
-    top_descriptive = sorted(
+    top_descriptive = [
+        review for review in sorted(
         scored_reviews,
         key=lambda x: x["scores"]["descriptive"],
         reverse=True
-    )[:30]
+        )[:30]
+        if review["scores"]["descriptive"] > 0
+    ]
 
-    top_artistic = sorted(
+    top_artistic = [
+        review for review in sorted(
         scored_reviews,
         key=lambda x: x["scores"]["artistic"],
         reverse=True
-    )[:30]
+        )[:30]
+        if review["scores"]["artistic"] > 0
+    ]
 
-    top_music = sorted(
+    top_music = [
+        review for review in sorted(
         scored_reviews,
         key=lambda x: x["scores"]["music"],
         reverse=True
-    )[:30]
+        )[:30]
+        if review["scores"]["music"] > 0
+    ]
 
     # --- Stage 2: embedding rerank
     desc_query = "a deep insightful review explaining why the game works or does not"
@@ -156,12 +199,6 @@ def select_review_samples(reviews: list, semantic_lexicon: dict):
     #     print(r["scores"], "| emb:", round(r["embedding_score"], 3))
     #     print(r["review"])
     #     print("\n")
-
-    print("\n=== TOP MUSIC ===")
-    for r in top_music:
-        print(r["scores"], "| emb:", round(r["embedding_score"], 3))
-        print(r["review"])
-        print("\n")
 
     return {
         "descriptive": top_descriptive,
