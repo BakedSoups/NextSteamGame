@@ -6,9 +6,10 @@ from typing import Dict, List
 
 from openai import OpenAI
 from openai import RateLimitError
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, model_validator
 
 from .errors import CreditsExhaustedError
+from ..progress import log_stage
 from .review_sampling import sample_reviews
 
 
@@ -22,6 +23,10 @@ APPEAL_AXIS_KEYS = (
     "social_energy",
     "creativity",
 )
+
+
+def _normalize_label(text: str) -> str:
+    return " ".join(str(text).strip().lower().replace("_", " ").replace("-", " ").split())
 
 
 class GenreTree(BaseModel):
@@ -76,6 +81,26 @@ class GameMetadata(BaseModel):
             cleaned.append(tag)
         return cleaned[:8]
 
+    @model_validator(mode="after")
+    def dedupe_metadata_fields(self) -> "GameMetadata":
+        blocked = {_normalize_label(self.signature_tag)}
+        blocked.update(_normalize_label(tag) for tag in self.soundtrack_tags)
+        blocked.update(_normalize_label(tag) for tag in self.genre_tree.primary)
+        blocked.update(_normalize_label(tag) for tag in self.genre_tree.sub)
+        blocked.update(_normalize_label(tag) for tag in self.genre_tree.sub_sub)
+        blocked.update(_normalize_label(tag) for tag in self.genre_tree.traits)
+
+        cleaned_micro_tags = []
+        seen_micro_tags = set()
+        for tag in self.micro_tags:
+            normalized = _normalize_label(tag)
+            if not normalized or normalized in blocked or normalized in seen_micro_tags:
+                continue
+            seen_micro_tags.add(normalized)
+            cleaned_micro_tags.append(tag)
+        self.micro_tags = cleaned_micro_tags[:15]
+        return self
+
 
 class GameVectors(BaseModel):
     mechanics: Dict[str, int]
@@ -113,10 +138,12 @@ RULES:
 - be specific, not generic
 - avoid duplicates and close synonyms
 - micro_tags must contain at most 15 entries
+- micro_tags should add extra searchable detail and should not repeat genre_tree labels, signature_tag, or soundtrack_tags
 - signature_tag must be a short 2-4 word phrase describing the game's defining hook
 - appeal_axes must include exactly these integer 0-100 keys:
   challenge, complexity, pace, narrative_focus, social_energy, creativity
 - soundtrack_tags must be short genre/style/instrumentation tags for the music
+- prefer self-explanatory tags over franchise-specific jargon when possible
 - genre_tree must stay flat
 - vector weights must be integers
 - EACH vector object sums to EXACTLY 100 on its own
@@ -177,6 +204,10 @@ metadata.soundtrack_tags:
 - prefer concrete tags like "bossa nova", "phonk", "jazz", "orchestral", "piano", "metal"
 - avoid vague mood words like "good music" or "emotional"
 - keep to at most 8 tags
+
+When wording tags:
+- prefer descriptive phrases that still make sense outside franchise knowledge
+- example: "monster fusion" is usually better than a franchise-specific label unless the proper noun is essential
 
 metadata.genre_tree:
 - primary = broad categories like Action, RPG, Strategy
@@ -256,7 +287,7 @@ def _repair_semantics_payload(payload: Dict) -> Dict:
     return repaired
 
 
-def _generate_semantics(sampled_reviews: List[str]) -> Dict:
+def _generate_semantics(sampled_reviews: List[str], appid: str | int | None = None) -> Dict:
     prompt = _build_prompt(sampled_reviews)
     messages = [
         {
@@ -278,7 +309,7 @@ def _generate_semantics(sampled_reviews: List[str]) -> Dict:
     attempt = 0
     while attempt < MAX_SEMANTICS_RETRIES:
         attempt += 1
-        print(f"Generating semantics attempt {attempt}")
+        log_stage("semantics", f"attempt {attempt}", appid=appid)
         try:
             response = client.chat.completions.create(
                 model="gpt-4o-mini",
@@ -301,7 +332,7 @@ def _generate_semantics(sampled_reviews: List[str]) -> Dict:
         except KeyboardInterrupt:
             raise
         except Exception as exc:
-            print(f"\nRetrying invalid semantics response (attempt {attempt}): {exc}")
+            log_stage("semantics", f"invalid response on attempt {attempt}: {exc}", appid=appid)
             if attempt >= MAX_SEMANTICS_RETRIES:
                 raise RuntimeError(
                     f"Failed to generate valid semantics after {MAX_SEMANTICS_RETRIES} attempts."
@@ -330,6 +361,6 @@ def _generate_semantics(sampled_reviews: List[str]) -> Dict:
     )
 
 
-def generate_game_semantics(review_samples: Dict) -> Dict:
+def generate_game_semantics(review_samples: Dict, appid: str | int | None = None) -> Dict:
     sampled_reviews = sample_reviews(review_samples)
-    return _generate_semantics(sampled_reviews)
+    return _generate_semantics(sampled_reviews, appid=appid)

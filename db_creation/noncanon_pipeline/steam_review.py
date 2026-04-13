@@ -8,6 +8,7 @@ from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 
 from .llm.errors import NoReviewsAfterFilteringError, SteamReviewsUnavailableError
+from .progress import log_stage
 
 # APP_ID = "893180"
 MAX_RAW_REVIEWS_PER_GAME = 400
@@ -86,7 +87,7 @@ def fetch_steam_reviews(APP_ID):
             try:
                 with STEAM_FETCH_SEMAPHORE:
                     time.sleep(STEAM_REQUEST_SPACING_SECONDS)
-                    print(f"[{APP_ID}] Steam HTTP request attempt {attempt} cursor={cursor}")
+                    log_stage("http", f"request attempt={attempt} cursor={cursor}", appid=APP_ID)
                     response = requests.get(
                         url,
                         params=params,
@@ -101,12 +102,12 @@ def fetch_steam_reviews(APP_ID):
                     if not body:
                         raise SteamReviewsUnavailableError("No steam review")
                     res = response.json()
-                    print(f"[{APP_ID}] Steam HTTP response OK")
+                    log_stage("http", "response OK", appid=APP_ID)
                 break
             except KeyboardInterrupt:
                 raise
             except Exception as exc:
-                print(f"[{APP_ID}] Steam fetch retry {attempt}/{STEAM_REVIEW_RETRIES}: {exc}")
+                log_stage("http", f"retry {attempt}/{STEAM_REVIEW_RETRIES}: {exc}", appid=APP_ID)
                 if attempt == STEAM_REVIEW_RETRIES:
                     raise SteamReviewsUnavailableError("No steam review") from exc
                 time.sleep(STEAM_REVIEW_RETRY_DELAY)
@@ -125,7 +126,7 @@ def fetch_steam_reviews(APP_ID):
             if len(raw_reviews) >= MAX_RAW_REVIEWS_PER_GAME:
                 break
         if len(raw_reviews) == before_count:
-            print(f"[{APP_ID}] No new reviews from cursor; stopping pagination")
+            log_stage("http", "no new reviews from cursor; stopping pagination", appid=APP_ID)
             break
 
         strict_reviews, _ = _filter_reviews(raw_reviews, STRICT_MIN_WORDS)
@@ -141,9 +142,10 @@ def fetch_steam_reviews(APP_ID):
             break
 
     if raw_reviews:
-        print(
-            f"Fetched {len(raw_reviews)} raw reviews for {APP_ID} "
-            f"(target filtered {TARGET_FILTERED_REVIEWS})"
+        log_stage(
+            "fetch",
+            f"collected {len(raw_reviews)} raw reviews (target filtered {TARGET_FILTERED_REVIEWS})",
+            appid=APP_ID,
         )
 
     if not raw_reviews:

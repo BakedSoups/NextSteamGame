@@ -25,6 +25,7 @@ from typing import Dict, List, Optional
 
 from noncanon_pipeline.pipeline import build_game_output, build_skipped_profile, load_insightful_words
 from noncanon_pipeline.llm.errors import CreditsExhaustedError, NoReviewsError
+from noncanon_pipeline.progress import advance_appid, complete_appid, fail_appid, log_banner, log_stage
 
 
 def utcnow_iso() -> str:
@@ -301,10 +302,12 @@ class InitialNoncanonDbBuilder:
             nonlocal pending_profiles, last_flush_at
             if not pending_profiles:
                 return
-            print(f"Writing {len(pending_profiles)} profiles to SQLite")
+            log_stage("sqlite", f"writing batch size={len(pending_profiles)}")
+            for entry in pending_profiles:
+                advance_appid(entry["appid"], "sqlite", "arrived at sqlite writer")
             self.store_profiles(pending_profiles)
             for entry in pending_profiles:
-                print(f"Stored {entry['game_name']} ({entry['appid']})")
+                complete_appid(entry["appid"], "completed", entry["game_name"])
             pending_profiles = []
             last_flush_at = time.monotonic()
 
@@ -327,10 +330,7 @@ class InitialNoncanonDbBuilder:
                         continue
 
                     if result["kind"] == "no_reviews":
-                        print(
-                            f"Skipped {result['game_name']} ({result['appid']}): "
-                            f"{result['error']}"
-                        )
+                        log_stage("skip", f"{result['game_name']} :: {result['error']}", appid=result["appid"])
                         writer_summary["attempted_games"] += 1
                         writer_summary["completed_games"] += 1
                         pending_profiles.append(
@@ -349,6 +349,7 @@ class InitialNoncanonDbBuilder:
                     game_name = str(result["game_name"])
 
                     if result["kind"] == "success":
+                        log_stage("queue", f"{game_name} ready for sqlite", appid=appid)
                         pending_profiles.append(
                             {
                                 "appid": appid,
@@ -366,9 +367,11 @@ class InitialNoncanonDbBuilder:
 
                     if result["kind"] == "quota_exhausted":
                         writer_summary["status"] = "paused_quota_exhausted"
-                        print(f"Stopping run at {game_name} ({appid}): {result['error']}")
+                        log_stage("quota", f"{game_name} :: {result['error']}", appid=appid)
+                        fail_appid(appid, "quota_exhausted", game_name)
                     else:
-                        print(f"Skipped {game_name} ({appid}): {result['error']}")
+                        log_stage("error", f"{game_name} :: {result['error']}", appid=appid)
+                        fail_appid(appid, "error", game_name)
 
                     self.record_error(writer_summary["run_id"], appid, game_name, str(result["error"]))
                 finally:
@@ -432,14 +435,15 @@ class InitialNoncanonDbBuilder:
         }
 
     def build(self, limit: Optional[int] = None, notes: Optional[str] = None) -> Dict:
-        print("Preparing non-canon DB schema")
+        log_banner("Initial Non-Canonical DB Build")
+        log_stage("setup", "preparing non-canon DB schema")
         self.create_schema()
-        print("Loading insightful words")
+        log_stage("setup", "loading insightful words")
         insightful_words = load_insightful_words()
-        print("Counting existing stored profiles")
+        log_stage("setup", "counting existing stored profiles")
         existing_profiles = self.count_existing_profiles()
 
-        print("Starting run record")
+        log_stage("setup", "starting run record")
         run_id = self.start_run(notes=notes)
         attempted_games = 0
         completed_games = 0
@@ -447,11 +451,11 @@ class InitialNoncanonDbBuilder:
         status = "completed"
 
         try:
-            print("Loading candidate games from metadata DB")
+            log_stage("setup", "loading candidate games from metadata DB")
             rows = self.load_games(limit=limit)
-            print(f"Queued {len(rows)} games after resume filtering")
+            log_stage("setup", f"queued {len(rows)} games after resume filtering")
             if not rows:
-                print("No new games to process")
+                log_stage("setup", "no new games to process")
             summary = self._build_with_workers(rows, insightful_words, run_id)
             attempted_games = int(summary["attempted_games"])
             completed_games = int(summary["completed_games"])

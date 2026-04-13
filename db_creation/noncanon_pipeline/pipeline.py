@@ -3,6 +3,7 @@ from typing import Dict
 
 from .llm.game_semantics import generate_game_semantics
 from .llm.errors import NoReviewsAfterFilteringError, NoReviewsError, SteamReviewsUnavailableError
+from .progress import advance_appid, start_appid
 from .steam_review import fetch_steam_reviews, select_review_samples
 from paths import insightful_words_path
 
@@ -54,7 +55,7 @@ def load_insightful_words() -> Dict:
 
 
 def build_game_output(appid: str, insightful_words: Dict) -> Dict:
-    print(f"[{appid}] Fetching Steam reviews")
+    start_appid(appid)
     try:
         reviews = fetch_steam_reviews(appid)
     except SteamReviewsUnavailableError:
@@ -71,7 +72,8 @@ def build_game_output(appid: str, insightful_words: Dict) -> Dict:
     if not reviews:
         raise NoReviewsError("No reviews")
 
-    print(f"[{appid}] Filtered reviews ready: {len(reviews)}")
+    advance_appid(appid, "fetch", f"raw Steam reviews collected")
+    advance_appid(appid, "filter", f"{len(reviews)} reviews survived filtering")
     review_samples = select_review_samples(reviews, insightful_words)
     if not any(review_samples.get(category) for category in ("descriptive", "artistic", "music")):
         raise NoReviewsError("No insightful reviews")
@@ -80,10 +82,17 @@ def build_game_output(appid: str, insightful_words: Dict) -> Dict:
         category: len(review_samples.get(category, []))
         for category in ("descriptive", "artistic", "music")
     }
-    print(f"[{appid}] Review samples selected: {sample_counts}")
-    print(f"[{appid}] Requesting semantics")
-    semantics = generate_game_semantics(review_samples)
-    print(f"[{appid}] Semantics generated")
+    advance_appid(
+        appid,
+        "sample",
+        (
+            f"descriptive={sample_counts['descriptive']} "
+            f"artistic={sample_counts['artistic']} "
+            f"music={sample_counts['music']}"
+        ),
+    )
+    semantics = generate_game_semantics(review_samples, appid=appid)
+    advance_appid(appid, "semantics", "structured semantics generated")
 
     return {
         "appid": int(appid),
