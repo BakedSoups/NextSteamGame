@@ -1,226 +1,43 @@
-{% extends 'base.html' %}
-
-{% block title %}Next Steam Game{% endblock %}
-
-{% block body_class %}index-dark{% endblock %}
+{% extends "base.html" %}
 
 {% block content %}
-    <div class="overlay"></div>
-    
-    <a href="https://github.com/BakedSoups/Steam_Reccomender" class="github-link hover:scale-105 transition-transform duration-300" target="_blank">
-        <svg class="github-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
-        </svg>
-        GitHub
-    </a>
-    
-    <a href="https://buymeacoffee.com/peczonalexh" class="coffee-link hover:scale-105 transition-transform duration-300" target="_blank">
-        <svg class="coffee-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M18 8h1a4 4 0 0 1 0 8h-1"></path>
-            <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path>
-            <line x1="6" y1="1" x2="6" y2="4"></line>
-            <line x1="10" y1="1" x2="10" y2="4"></line>
-            <line x1="14" y1="1" x2="14" y2="4"></line>
-        </svg>
-        Buy Me a Coffee
-    </a>
-    
-    <div class="container backdrop-blur-sm">
-        <div class="header-row">
-            <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="logo-image">
-            <h1 class="text-4xl font-bold text-steam-blue">Next Steam Game</h1>
-        </div>
-        
-        <p class="text-lg opacity-90">Find games similar to ones you love</p>
-        <p class="text-lg opacity-90 mb-6">Discover games based on their gameplay elements, not just popularity or reviews, learn why you truly like a game and find other games like that!</p>
-        
-        <form action="{{ url_for('search') }}" method="post" class="w-full relative">
-            <input 
-                type="text" 
-                id="search_query"
-                name="search_query" 
-                placeholder="Search for a game you enjoy..." 
-                autocomplete="off"
-                class="w-full py-4 px-5 text-lg rounded-lg bg-opacity-80 focus:ring-2 focus:ring-steam-blue focus:ring-opacity-50 transition-all"
-            >
-            <script>
-                document.getElementById('search_query').addEventListener('keyup', function(e) {
-                    if (this.value.length >= 2) {
-                        const searchContainer = document.getElementById('search-results');
-                        const loadingIndicator = document.getElementById('loading-indicator');
-                        
-                        // Show loading indicator
-                        if (loadingIndicator) loadingIndicator.style.display = 'block';
-                        
-                        // Make fetch request for JSON data
-                        fetch(`/api/search?search_query=${encodeURIComponent(this.value)}`)
-                            .then(response => response.json())
-                            .then(games => {
-                                console.log('Search results:', games);
-                                
-                                // Clear previous results
-                                searchContainer.innerHTML = '';
-                                
-                                if (games && games.length > 0) {
-                                    // Create HTML elements for each game
-                                    games.forEach(game => {
-                                        const resultItem = document.createElement('div');
-                                        resultItem.className = 'search-result-item group hover:bg-steam-blue-medium transition-all';
-                                        resultItem.setAttribute('data-game-name', game.name);
-                                        
-                                        // Image
-                                        const img = document.createElement('img');
-                                        img.src = game.image || '/static/logo.png';
-                                        img.alt = game.name;
-                                        img.className = 'rounded shadow group-hover:scale-105 transition-transform';
-                                        
-                                        // Details container
-                                        const details = document.createElement('div');
-                                        details.className = 'search-result-details';
-                                        
-                                        // Game name
-                                        const nameDiv = document.createElement('div');
-                                        nameDiv.className = 'search-result-name';
-                                        nameDiv.textContent = game.name;
-                                        
-                                        // Add name to details
-                                        details.appendChild(nameDiv);
-                                        
-                                        // Add some space between name and genre
-                                        const spacer = document.createElement('div');
-                                        spacer.style.flexGrow = '1';
-                                        details.appendChild(spacer);
-                                        
-                                        // Genre if available (at the bottom)
-                                        if (game.genre) {
-                                            const genreDiv = document.createElement('div');
-                                            genreDiv.className = 'search-result-genre text-xs text-steam-blue opacity-80 text-left mt-auto';
-                                            genreDiv.textContent = game.genre;
-                                            details.appendChild(genreDiv);
-                                        }
-                                        
-                                        // Add elements to container
-                                        resultItem.appendChild(img);
-                                        resultItem.appendChild(details);
-                                        
-                                        // Add click event
-                                        resultItem.addEventListener('click', function() {
-                                            document.querySelector('input[name="search_query"]').value = game.name;
-                                            searchContainer.style.display = 'none';
-                                            document.querySelector('form').submit();
-                                        });
-                                        
-                                        // Add to search results
-                                        searchContainer.appendChild(resultItem);
-                                    });
-                                    
-                                    // Show search results container
-                                    searchContainer.style.display = 'block';
-                                    void searchContainer.offsetWidth;
-                                    searchContainer.style.opacity = '1';
-                                    searchContainer.style.transform = 'translateY(0)';
-                                } else {
-                                    // No results found
-                                    const noResults = document.createElement('div');
-                                    noResults.className = 'search-no-results p-3 text-center text-steam-blue-light opacity-80';
-                                    noResults.textContent = 'No games found';
-                                    searchContainer.appendChild(noResults);
-                                    searchContainer.style.display = 'block';
-                                    void searchContainer.offsetWidth;
-                                    searchContainer.style.opacity = '1';
-                                    searchContainer.style.transform = 'translateY(0)';
-                                }
-                                
-                                // Hide loading indicator
-                                if (loadingIndicator) loadingIndicator.style.display = 'none';
-                            })
-                            .catch(error => {
-                                console.error('Search error:', error);
-                                if (loadingIndicator) loadingIndicator.style.display = 'none';
-                                
-                                // Show error message
-                                searchContainer.innerHTML = '<div class="search-no-results p-3 text-center text-steam-blue-light opacity-80">Error loading results</div>';
-                                searchContainer.style.display = 'block';
-                            });
-                    }
-                });
-            </script>
-            <div id="loading-indicator" style="display: none;" class="absolute right-3 top-1/2 transform -translate-y-1/2">
-                <div class="search-loading"></div>
-            </div>
-            <div id="search-results" class="search-results"></div>
-        </form>
-    </div>
-{% endblock %}
+<section class="hero">
+  <p class="eyebrow">Final Canon DB</p>
+  <h1>Search a game, inspect its vectors, then tune the recommendation profile.</h1>
+  <p class="lede">
+    This UI uses canonical vectors and genre tree tags from <code>steam_final_canon.db</code>.
+    Micro tags are intentionally ignored for this first pass.
+  </p>
+</section>
 
-{% block scripts %}
-<script>
-    document.addEventListener('click', function(event) {
-        const resultsContainer = document.getElementById('search-results');
-        const searchInput = document.querySelector('input[name="search_query"]');
-        
-        if (resultsContainer && searchInput && !resultsContainer.contains(event.target) && event.target !== searchInput) {
-            resultsContainer.style.opacity = '0';
-            resultsContainer.style.transform = 'translateY(-10px)';
-            
-            setTimeout(() => {
-                resultsContainer.style.display = 'none';
-                resultsContainer.innerHTML = '';
-            }, 200);
-        }
-    });
-    
-    // Setup for HTMX result handling
-    document.body.addEventListener('htmx:afterSwap', function(event) {
-        if (event.detail.target.id === 'search-results') {
-            const resultsContainer = document.getElementById('search-results');
-            console.log('HTMX response received:', resultsContainer.innerHTML);
-            
-            if (resultsContainer.innerHTML.trim() !== '') {
-                resultsContainer.style.display = 'block';
-                void resultsContainer.offsetWidth;
-                resultsContainer.style.opacity = '1';
-                resultsContainer.style.transform = 'translateY(0)';
-                
-                // Add click handlers to search results
-                document.querySelectorAll('.search-result-item').forEach(item => {
-                    item.addEventListener('click', function() {
-                        const gameName = this.getAttribute('data-game-name');
-                        document.querySelector('input[name="search_query"]').value = gameName;
-                        resultsContainer.style.display = 'none';
-                        document.querySelector('form').submit();
-                    });
-                });
-            } else {
-                resultsContainer.style.display = 'none';
-            }
-        }
-    });
-    
-    // Debug HTMX events
-    document.body.addEventListener('htmx:beforeRequest', function(event) {
-        console.log('HTMX request:', event.detail);
-    });
-    
-    document.body.addEventListener('htmx:afterRequest', function(event) {
-        console.log('HTMX response status:', event.detail.xhr.status);
-    });
-    
-    // Ensure search input has focus handler
-    document.addEventListener('DOMContentLoaded', function() {
-        const searchInput = document.querySelector('input[name="search_query"]');
-        
-        if (searchInput) {
-            searchInput.addEventListener('focus', function() {
-                const resultsContainer = document.getElementById('search-results');
-                if (resultsContainer && resultsContainer.innerHTML.trim() !== '') {
-                    resultsContainer.style.display = 'block';
-                    void resultsContainer.offsetWidth;
-                    resultsContainer.style.opacity = '1';
-                    resultsContainer.style.transform = 'translateY(0)';
-                }
-            });
-        }
-    });
-</script>
+<section class="layout">
+  <aside class="panel search-panel">
+    <h2>Search</h2>
+    <input
+      class="search-input"
+      type="search"
+      name="q"
+      value="{{ initial_query }}"
+      placeholder="Search for a game"
+      hx-get="/search"
+      hx-trigger="load, keyup changed delay:250ms"
+      hx-target="#search-results"
+      hx-indicator="#search-loading"
+      autocomplete="off">
+    <div id="search-loading" class="loading">Searching...</div>
+    <div id="search-results"></div>
+  </aside>
+
+  <section class="panel profile-panel">
+    <div id="selected-game">
+      {% include "partials/game_placeholder.html" %}
+    </div>
+  </section>
+
+  <section class="panel results-panel">
+    <div id="recommendations">
+      {% include "partials/results_placeholder.html" %}
+    </div>
+  </section>
+</section>
 {% endblock %}

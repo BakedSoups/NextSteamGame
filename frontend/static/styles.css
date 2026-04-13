@@ -1,1270 +1,163 @@
-/* Steam Game Recommender - Modern UI with Steam-inspired Theme */
-
-/* -------- GLOBAL STYLES -------- */
 :root {
-  --steam-blue: #66c0f4;
-  --steam-blue-dark: #1b2838;
-  --steam-blue-darker: #0f1a25;
-  --steam-blue-medium: #2a475e;
-  --steam-blue-light: #c7d5e0;
-  --steam-positive: #4fa94d;
-  --steam-negative: #d9534f;
-  --transition-standard: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  --shadow-small: 0 2px 8px rgba(0, 0, 0, 0.2);
-  --shadow-medium: 0 4px 16px rgba(0, 0, 0, 0.4);
-  --shadow-large: 0 6px 24px rgba(0, 0, 0, 0.6);
+  --bg: #f2efe8;
+  --paper: #fffdf8;
+  --ink: #1b1b1b;
+  --muted: #6d675d;
+  --line: #d8d0c3;
+  --accent: #0f6d5b;
+  --accent-2: #d96c2d;
 }
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
+* { box-sizing: border-box; }
 body {
-  background-color: var(--steam-blue-darker);
-  color: var(--steam-blue-light);
-  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Oxygen, Ubuntu, sans-serif;
   margin: 0;
-  padding: 0;
-  line-height: 1.5;
+  font-family: Georgia, "Times New Roman", serif;
+  background:
+    radial-gradient(circle at top left, rgba(217,108,45,.12), transparent 28%),
+    radial-gradient(circle at bottom right, rgba(15,109,91,.10), transparent 30%),
+    var(--bg);
+  color: var(--ink);
 }
 
-body.dark-theme {
-  background-color: var(--steam-blue-darker);
+.shell {
+  width: min(1500px, calc(100vw - 32px));
+  margin: 0 auto;
+  padding: 24px 0 40px;
 }
 
-/* Smooth scrolling for the whole page */
-html {
-  scroll-behavior: smooth;
+.hero {
+  padding: 8px 8px 24px;
 }
 
-/* -------- HEADER/NAVIGATION -------- */
-.top-banner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background-color: rgba(16, 26, 42, 0.95); 
-  padding: 15px 40px;
-  border-bottom: 2px solid #0d151c;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  box-shadow: var(--shadow-medium);
-  backdrop-filter: blur(10px);
-}
-
-.app-logo img {
-  height: 48px;
-  width: auto;
-  transition: filter 0.3s ease;
-}
-
-.app-logo img:hover {
-  filter: brightness(1.2) drop-shadow(0 0 5px rgba(102, 192, 244, 0.5));
-  transform: scale(1.05);
-}
-
-.app-header {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-}
-
-.app-header h1 {
-  color: var(--steam-blue);
-  margin: 0;
-  font-size: 24px;
-  font-weight: bold;
-  text-shadow: 0 0 10px rgba(102, 192, 244, 0.3);
-}
-
-.home-button {
-  background-color: var(--steam-blue);
-  color: var(--steam-blue-dark);
-  padding: 8px 16px;
-  border-radius: 4px;
-  text-decoration: none;
-  font-weight: bold;
-  transition: var(--transition-standard);
-  box-shadow: 0 0 10px rgba(102, 192, 244, 0.3);
-  font-size: 15px;
-}
-
-.home-button:hover {
-  background-color: #3a9ae4;
-  box-shadow: 0 0 14px rgba(102, 192, 244, 0.6);
-  transform: translateY(-2px);
-}
-
-/* -------- INDEX PAGE STYLES -------- */
-body.index-dark {
-  background: url("../static/background.png") no-repeat center center fixed;
-  background-size: cover;
-  position: relative;
-}
-
-body.index-dark .overlay {
-  content: "";
-  position: fixed;
-  inset: 0;
-  background-color: rgba(15, 26, 37, 0.92);
-  z-index: 0;
-}
-
-.container {
-  position: relative;
-  z-index: 1;
-  max-width: 650px;
-  margin: 100px auto;
-  padding: 50px;
-  background-color: rgba(42, 71, 94, 0.95);
-  border-radius: 12px;
-  box-shadow: var(--shadow-large);
-  text-align: center;
-  backdrop-filter: blur(5px);
-  border: 1px solid rgba(102, 192, 244, 0.1);
-}
-
-/* Title styling */
-.header-row {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 15px;
-}
-
-.logo-image {
-  height: 60px;
-  width: auto;
-  filter: drop-shadow(0 0 8px rgba(102, 192, 244, 0.4));
-}
-
-.container h1 {
-  font-size: 32px;
-  color: var(--steam-blue);
-  margin: 0;
-  text-shadow: 0 0 15px rgba(102, 192, 244, 0.4);
-  letter-spacing: 0.5px;
-}
-
-.container p {
-  font-size: 18px;
-  color: #bfc9d4;
-  margin-bottom: 25px;
-  letter-spacing: 0.5px;
-}
-
-/* Search input styling */
-form {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-  position: relative;
-  width: 100%;
-}
-
-input[type="text"] {
-  padding: 16px;
-  font-size: 18px;
-  border: 2px solid rgba(74, 74, 74, 0.5);
-  background-color: rgba(27, 40, 56, 0.8);
-  color: var(--steam-blue-light);
-  border-radius: 6px;
-  width: 100%;
-  transition: var(--transition-standard);
-}
-
-input[type="text"]:focus {
-  border-color: var(--steam-blue);
-  outline: none;
-  box-shadow: 0 0 12px rgba(102, 192, 244, 0.4);
-  background-color: rgba(27, 40, 56, 0.95);
-}
-
-/* Search indicators */
-.htmx-indicator {
-  position: absolute;
-  right: 16px;
-  top: 50%;
-  transform: translateY(-50%);
-  pointer-events: none;
-  z-index: 1;
-}
-
-/* Live search results styling */
-.search-results {
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 0;
-  right: 0;
-  background-color: rgba(27, 40, 56, 0.95);
-  border: 1px solid #4a4a4a;
-  border-radius: 6px;
-  box-shadow: var(--shadow-medium);
-  max-height: 400px;
-  overflow-y: auto;
-  z-index: 10;
-  display: none;
-  transform: translateY(-10px);
-  opacity: 0;
-  transition: transform 0.2s ease-out, opacity 0.2s ease-out;
-  backdrop-filter: blur(10px);
-  
-  /* Hide scrollbar but keep functionality */
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;  /* Firefox */
-}
-
-/* Hide scrollbar for Chrome, Safari and Opera */
-.search-results::-webkit-scrollbar {
-  display: none;
-}
-
-/* No results message */
-.search-no-results {
-  padding: 15px;
-  color: var(--steam-blue-light);
-  font-style: italic;
-  font-size: 14px;
-}
-
-/* Search result item */
-.search-result-item {
-  display: flex;
-  padding: 15px 20px;
-  cursor: pointer;
-  border-bottom: 1px solid rgba(42, 71, 94, 0.5);
-  transition: var(--transition-standard);
-  align-items: center;
-  height: 100px;
-}
-
-.search-result-item:last-child {
-  border-bottom: none;
-}
-
-.search-result-item:hover {
-  background-color: rgba(58, 90, 122, 0.8);
-}
-
-.search-result-item img {
-  width: 120px;
-  height: 68px;
-  object-fit: contain;
-  object-position: center;
-  margin-right: 15px;
-  border-radius: 4px;
-  box-shadow: var(--shadow-small);
-  transition: transform 0.2s ease;
-  background-color: rgba(15, 26, 37, 0.5);
-}
-
-.search-result-item:hover img {
-  transform: scale(1.05);
-}
-
-.search-result-details {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  overflow: hidden;
-  text-align: left;
-  width: 100%;
-  height: 100%;
-}
-
-.search-result-name {
-  color: #ffffff;
-  font-size: 16px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-weight: 500;
-  margin-bottom: 4px;
-}
-
-.search-result-genre {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  text-align: left;
-}
-
-/* Animation for search result items */
-.search-result-item.new-item {
-  opacity: 0;
-  transform: translateY(12px);
-}
-
-.search-result-item.fade-out {
-  opacity: 0;
-  transform: translateY(-12px);
-  height: 0;
-  padding: 0;
-  margin: 0;
-  overflow: hidden;
-}
-
-/* Add a subtle loading indicator */
-.search-loading {
-  width: 20px;
-  height: 20px;
-  border: 2px solid #66c0f4;
-  border-radius: 50%;
-  border-top-color: transparent;
-  animation: search-spin 0.8s linear infinite;
-}
-
-@keyframes search-spin {
-  to {
-    transform: translateY(-50%) rotate(360deg);
-  }
-}
-
-/* -------- PREFERENCE PAGE STYLES -------- */
-.preference-container {
-  max-width: 800px;
-  margin: 50px auto;
-  padding: 30px;
-  background-color: rgba(42, 71, 94, 0.95);
-  border-radius: 12px;
-  box-shadow: var(--shadow-large);
-  backdrop-filter: blur(5px);
-  border: 1px solid rgba(102, 192, 244, 0.1);
-}
-
-/* Reference game card styling */
-.reference-game {
-  display: flex;
-  margin-bottom: 30px;
-  background-color: rgba(27, 40, 56, 0.7);
-  border-radius: 8px;
-  overflow: hidden;
-  padding: 20px;
-  box-shadow: var(--shadow-small);
-  transition: var(--transition-standard);
-}
-
-.reference-game:hover {
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
-  transform: translateY(-2px);
-}
-
-.game-image {
-  width: 300px;
-  height: 200px;
-  object-fit: cover;
-  border-radius: 6px;
-  margin-right: 20px;
-  box-shadow: var(--shadow-small);
-}
-
-.game-info h2 {
-  color: var(--steam-blue);
-  margin-top: 0;
-  margin-bottom: 10px;
-  font-size: 24px;
-}
-
-.game-info p {
-  margin: 5px 0;
-  color: var(--steam-blue-light);
-  font-size: 15px;
-  line-height: 1.5;
-}
-
-/* Tag selection styling */
-.preference-title {
-  color: var(--steam-blue);
-  margin: 30px 0 15px;
-  text-align: center;
-  font-size: 24px;
-  text-shadow: 0 0 10px rgba(102, 192, 244, 0.3);
-}
-
-.info-text {
-  text-align: center;
-  color: #a7c3d9;
-  margin-bottom: 25px;
-  font-style: italic;
-  font-size: 16px;
-}
-
-.tag-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-bottom: 30px;
-}
-
-.tag-item {
-  display: flex;
-  align-items: center;
-  background-color: rgba(27, 40, 56, 0.7);
-  padding: 12px 18px;
-  border-radius: 6px;
-  transition: var(--transition-standard);
-  cursor: pointer;
-  box-shadow: var(--shadow-small);
-  border: 1px solid transparent;
-}
-
-.tag-item:hover {
-  background-color: rgba(58, 90, 122, 0.7);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-}
-
-.tag-item.selected {
-  background-color: rgba(58, 90, 122, 0.8);
-  border: 1px solid var(--steam-blue);
-  box-shadow: 0 0 15px rgba(102, 192, 244, 0.5);
-}
-
-.tag-name {
-  flex: 1;
-  font-weight: bold;
-  color: var(--steam-blue-light);
-  font-size: 16px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-width: 0;
-}
-
-.tag-ratio {
-  width: 60px;
-  text-align: right;
-  color: var(--steam-blue);
-  font-weight: bold;
-  font-size: 15px;
-  margin-left: 10px;
-}
-
-.tag-bar {
-  flex: 1;
-  background-color: rgba(62, 78, 90, 0.5);
-  height: 15px;
-  border-radius: 4px;
-  margin: 0 15px;
-  overflow: hidden;
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
-}
-
-.bar-fill {
-  background-color: var(--steam-blue);
-  height: 100%;
-  transition: width 0.5s ease-out;
-  box-shadow: 0 0 8px rgba(102, 192, 244, 0.4);
-}
-
-/* Highlight the preferred tag in results */
-.preferred-tag {
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3), 0 0 10px rgba(102, 192, 244, 0.6);
-  border: 1px solid var(--steam-blue);
-}
-
-.preferred-tag .bar-fill {
-  background-color: #32a0f2;
-  box-shadow: 0 0 12px rgba(102, 192, 244, 0.6);
-}
-
-/* Find similar games button */
-.button-container {
-  text-align: center;
-  margin-top: 35px;
-}
-
-.continue-button {
-  padding: 12px 30px;
-  font-size: 16px;
-  background-color: var(--steam-blue);
-  color: var(--steam-blue-dark);
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: bold;
-  transition: var(--transition-standard);
-  box-shadow: 0 0 10px rgba(102, 192, 244, 0.3);
-  letter-spacing: 0.5px;
-}
-
-.continue-button:hover {
-  background-color: #32a0f2;
-  box-shadow: 0 0 18px rgba(102, 192, 244, 0.7);
-  transform: translateY(-2px);
-}
-
-.continue-button:active {
-  transform: translateY(1px);
-}
-
-/* Unique tags section */
-.unique-tags-container {
-  margin-top: 25px;
-  margin-bottom: 30px;
-  background-color: rgba(27, 40, 56, 0.4);
-  padding: 15px;
-  border-radius: 8px;
-  box-shadow: var(--shadow-small);
-}
-
-.unique-tags-title {
-  color: #e2eef7;
-  margin-bottom: 12px;
-  font-size: 17px;
-  font-weight: 500;
-}
-
-/* -------- RESULTS PAGE STYLES -------- */
-/* Page wrapper */
-.page-wrapper {
-  max-width: 950px; /* Reduced from 1200px */
-  margin: 35px auto 55px auto;
-  padding: 0 25px;
-  background-color: transparent;
-}
-
-/* User reference section */
-.user-profile {
-  background-color: rgba(42, 71, 94, 0.9);
-  padding: 20px;
-  border-radius: 10px;
-  margin-bottom: 25px;
-  box-shadow: var(--shadow-medium);
-  animation: fadeIn 0.5s ease-out;
-  backdrop-filter: blur(5px);
-  border: 1px solid rgba(102, 192, 244, 0.1);
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.user-title h2 {
-  margin: 0 0 15px;
-  color: #e2eef7;
-  font-size: 20px;
-  line-height: 1.4;
-}
-
-.user-title .highlight {
-  color: var(--steam-blue);
-  font-weight: bold;
-  text-shadow: 0 0 10px rgba(102, 192, 244, 0.3);
-}
-
-.user-bar .tag-bar {
-  margin-bottom: 8px;
-}
-
-/* Results container */
-.results-container {
-  display: flex;
-  flex-direction: column;
-  gap: 15px; /* Reduced from 30px */
-  padding: 5px 0;
-}
-
-/* Game Card - smaller overall */
-.game-card {
-  display: flex;
-  background-color: rgba(42, 71, 94, 0.9);
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: var(--shadow-medium);
-  min-height: 115px; /* Further reduced height */
-  transition: var(--transition-standard);
-  position: relative;
-  backdrop-filter: blur(5px);
-  border: 1px solid rgba(102, 192, 244, 0.1);
-  max-width: 100%;
-}
-
-.game-card:hover {
-  background-color: rgba(58, 90, 122, 0.9);
-  transform: translateY(-3px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4), 0 0 15px rgba(102, 192, 244, 0.3);
-}
-
-/* Thumbnail - wider to better fit game covers */
-.game-thumb {
-  min-width: 230px;
-  max-width: 230px;
-  height: 115px;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: rgba(15, 26, 37, 0.7);
-}
-
-.game-thumb img {
-  transition: transform 0.3s ease;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center top; /* Focus on the top part of the image where logos usually are */
-}
-
-.game-card:hover .game-thumb img {
-  transform: scale(1.05);
-}
-
-/* Game info section */
-.game-info {
-  flex: 1;
-  padding: 8px 12px 6px; /* Reduced bottom padding */
-  position: relative;
-  display: flex;
-  flex-direction: column;
-}
-
-/* Card header - move main tag to top right */
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  position: relative; /* For positioning elements */
-}
-
-.card-header h2 {
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-  font-size: 16px;
-  margin: 0 0 4px 0;
-  color: #ffffff;
-  max-width: 85%; /* Leave space for top-right tag */
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* Preferred tag indicator in top right */
-.preferred-tag-indicator {
-  position: absolute;
-  top: 0;
-  right: 0;
-  background-color: var(--steam-blue);
-  color: var(--steam-blue-dark);
-  padding: 2px 6px;
-  font-size: 10px;
-  font-weight: bold;
-  border-radius: 3px;
+.eyebrow {
+  margin: 0 0 8px;
   text-transform: uppercase;
-  box-shadow: 0 0 10px rgba(102, 192, 244, 0.6);
-  border: 1px solid #32a0f2;
+  letter-spacing: .12em;
+  color: var(--accent);
+  font-size: .78rem;
 }
 
-/* Tag container for all tags */
-.tag-container {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-top: 2px;
-  margin-bottom: 8px; /* Increased margin to compensate for removed genre bar */
+h1, h2, h3, h4 { margin: 0 0 12px; }
+.lede, .muted { color: var(--muted); }
+.layout {
+  display: grid;
+  grid-template-columns: 320px 1.1fr 1fr;
+  gap: 18px;
 }
 
-/* Top match tag styling */
-.top-match-tag {
-  display: inline-block;
-  background-color: #ffcc00;
-  color: #000;
-  padding: 2px 6px;
-  font-size: 10px;
-  font-weight: bold;
-  border-radius: 3px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  border: 1px solid #d4a900;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-  animation: shine 3s infinite;
-  margin-right: 2px;
+.panel {
+  background: rgba(255,253,248,.92);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 18px;
+  box-shadow: 0 10px 40px rgba(0,0,0,.05);
+  min-height: 320px;
 }
 
-@keyframes shine {
-  0% { box-shadow: 0 0 6px rgba(255, 215, 0, 0.5); }
-  50% { box-shadow: 0 0 15px rgba(255, 215, 0, 0.8); }
-  100% { box-shadow: 0 0 6px rgba(255, 215, 0, 0.5); }
-}
-
-/* Genre tag styling */
-.genre-tag {
-  background-color: #3a5976; /* Slightly different from unique tags */
-  color: var(--steam-blue-light);
-  padding: 2px 6px;
-  font-size: 11px;
-  font-weight: bold;
-  border-radius: 3px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
-  transition: var(--transition-standard);
-}
-
-/* Unique tags styling */
-.unique-tag {
-  background-color: var(--steam-blue);
-  color: var(--steam-blue-dark);
-  padding: 2px 6px;
-  font-size: 11px;
-  font-weight: bold;
-  border-radius: 3px;
-  box-shadow: 0 2px 6px rgba(102, 192, 244, 0.3);
-  transition: var(--transition-standard);
-}
-
-.unique-tag:hover {
-  background-color: #32a0f2;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 192, 244, 0.6);
-}
-
-/* Remove the Unknown/genre line at bottom of card */
-.game-card .unknown-genre-bar {
-  display: none; /* Hide this element completely */
-}
-
-/* Tag bars styling */
-.tag-bars {
-  margin: 2px 0;
-}
-
-.tag-bar {
-  display: flex;
-  align-items: center;
-  margin: 2px 0;
-}
-
-.bar {
-  height: 8px;
-  border-radius: 3px;
-  flex: 1;
-  background-color: rgba(62, 78, 90, 0.5);
-  overflow: hidden;
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
-  margin: 0 6px;
-}
-
-.bar-fill {
-  background-color: var(--steam-blue);
-  height: 100%;
-  transition: width 0.5s ease-out;
-  box-shadow: 0 0 8px rgba(102, 192, 244, 0.4);
-}
-
-.tag-label {
-  min-width: 90px;
-  text-align: left;
-  font-size: 11px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.tag-percent {
-  min-width: 35px;
-  text-align: right;
-  font-size: 11px;
-}
-
-/* Game metadata */
-.game-meta {
-  margin-top: 6px;
-  font-size: 12px;
-  color: #bfc9d4;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.meta-item {
-  position: relative;
-}
-
-.meta-item:not(:last-child)::after {
-  content: "•";
-  position: absolute;
-  right: -9px;
-  opacity: 0.5;
-}
-
-.meta-item a {
-  color: var(--steam-blue);
-  text-decoration: none;
-  transition: color 0.2s ease;
-}
-
-.meta-item a:hover {
-  color: #32a0f2;
-  text-decoration: underline;
-}
-
-/* Game actions panel */
-.game-actions {
-  padding: 8px;
-  min-width: 160px;
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  justify-content: space-between;
-  background-color: rgba(0, 0, 0, 0.15);
-  border-left: 1px solid rgba(0, 0, 0, 0.2);
-}
-
-/* Reviews section */
-.reviews-section {
-  margin-bottom: 6px;
-}
-
-.review-header {
-  font-size: 13px;
-  font-weight: 500;
-  color: #ffffff;
-  margin-bottom: 4px;
-  text-align: center;
-}
-
-.review-bar {
+.search-input {
   width: 100%;
-  height: 7px;
-  background-color: #3e3e3e;
-  border-radius: 3px;
-  overflow: hidden;
-  display: flex;
-  margin-bottom: 4px;
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
-  position: relative;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: white;
+  font: inherit;
 }
 
-.review-positive {
-  background-color: var(--steam-positive);
-  height: 100%;
-  transition: width 0.5s ease;
-  position: relative;
+.loading {
+  display: none;
+  margin: 8px 0 0;
+  color: var(--muted);
 }
-
-.review-negative {
-  background-color: var(--steam-negative);
-  height: 100%;
-  transition: width 0.5s ease;
-}
-
-/* Review indicators */
-.review-bar::before {
-  content: "👍";
-  position: absolute;
-  left: -16px;
-  top: -4px;
-  font-size: 11px;
-}
-
-.review-bar::after {
-  content: "👎";
-  position: absolute;
-  right: -16px;
-  top: -4px;
-  font-size: 11px;
-}
-
-.review-label {
-  font-size: 11px;
-  color: var(--steam-blue-light);
-  margin-bottom: 4px;
-  text-align: center;
-}
-
-.positive-count {
-  color: var(--steam-positive);
-  font-weight: 500;
-}
-
-.negative-count {
-  color: var(--steam-negative);
-  font-weight: 500;
-}
-
-/* Pricing section */
-.price-section {
-  margin-bottom: 6px;
-  text-align: center;
-}
-
-.price-discounted {
-  color: #a4f3a4;
-  font-weight: bold;
-  font-size: 16px;
-  text-shadow: 0 0 10px rgba(164, 243, 164, 0.4);
-  text-align: center;
-}
-
-.price-original {
-  color: #8f98a0;
-  font-size: 12px;
-  margin-bottom: 4px;
-  text-align: center;
-}
-
-.discount-tag {
-  background-color: #3dcf50;
-  color: #1b2838;
-  font-weight: bold;
-  padding: 2px 6px;
-  border-radius: 3px;
-  margin-bottom: 2px;
-  font-size: 12px;
-  animation: pulse 2s infinite;
-  text-align: center;
-  display: inline-block;
-  margin-left: auto;
-  margin-right: auto;
-}
-
-@keyframes pulse {
-  0% { opacity: 0.8; }
-  50% { opacity: 1; transform: scale(1.05); }
-  100% { opacity: 0.8; }
-}
-
-.price-full {
-  color: #ffffff;
-  font-size: 16px;
-  font-weight: bold;
-  margin-bottom: 6px;
-  text-align: center;
-}
-
-/* Steam button */
-.check-steam {
-  background-color: rgba(23, 26, 33, 0.7);
-  border: 1px solid rgba(102, 192, 244, 0.6);
-  color: var(--steam-blue-light);
-  padding: 6px 10px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 500;
-  transition: var(--transition-standard);
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
-  width: 90%;
-  letter-spacing: 0.5px;
-  margin: 1px auto 0 auto;
-  text-align: center;
-  text-decoration: none;
+.htmx-request.loading,
+.htmx-request .loading {
   display: block;
 }
 
-.check-steam:hover {
-  background-color: var(--steam-blue);
-  color: var(--steam-blue-dark);
-  box-shadow: 0 0 14px rgba(102, 192, 244, 0.6);
-  transform: translateY(-2px);
+.search-results,
+.recommendations {
+  list-style: none;
+  padding: 0;
+  margin: 14px 0 0;
+  display: grid;
+  gap: 10px;
 }
 
-.check-steam:active {
-  transform: translateY(1px);
+.search-hit,
+.recommendation-card {
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: white;
+  padding: 12px;
 }
 
-/* Responsive adjustments */
-@media (max-width: 1024px) {
-  .page-wrapper {
-    padding: 0 20px;
-    margin: 20px auto 40px auto;
-  }
-  
-  .card-header {
-    flex-direction: column;
-  }
-  
-  .unique-tags {
-    margin-top: 10px;
-  }
+.search-hit {
+  cursor: pointer;
 }
 
-@media (max-width: 768px) {
-  .game-card {
-    flex-direction: column;
-    min-height: auto;
-  }
-  
-  .game-thumb {
-    width: 100%;
-    max-width: 100%;
-    height: 120px;
-  }
-  
-  .game-actions {
-    width: 100%;
-    border-left: none;
-    border-top: 1px solid rgba(0, 0, 0, 0.2);
-  }
-  
-  .top-banner {
-    padding: 15px;
-    flex-direction: column;
-    gap: 10px;
-  }
-  
-  .app-header {
-    flex-direction: column;
-    gap: 10px;
-  }
-  
-  .user-profile {
-    padding: 15px;
-  }
-  
-  .tag-label {
-    width: 80px;
-  }
-  
-  .container {
-    margin: 40px 20px;
-    padding: 30px 20px;
-  }
-  
+.search-hit:hover,
+.primary-button:hover {
+  border-color: var(--accent);
 }
 
-@media (max-width: 480px) {
-  .card-header h2 {
-    font-size: 20px;
-  }
-  
-  .tag-label {
-    width: 70px;
-    font-size: 12px;
-  }
-  
-  .tag-percent {
-    font-size: 12px;
-  }
-  
-  .game-meta {
-    flex-direction: column;
-    gap: 5px;
-  }
-  
-  .meta-item:not(:last-child)::after {
-    display: none;
-  }
-  
-  .user-title h2 {
-    font-size: 18px;
-  }
-  
-  .game-info, .game-actions {
-    padding: 15px;
-  }
-  
-  .app-header h1 {
-    font-size: 20px;
-  }
-  
-  .app-logo img {
-    height: 40px;
-  }
-  
-  .unique-tag {
-    font-size: 12px;
-  }
-  
-  .container h1 {
-    font-size: 26px;
-  }
-  
-  input[type="text"] {
-    font-size: 16px;
-    padding: 12px;
-  }
-}
-/* Additional CSS to ensure 'Unknown · Action-RPG' is hidden */
+.game-name { display: block; font-weight: 700; }
+.appid, .meta, .score { color: var(--muted); font-size: .92rem; }
 
-/* Hide any potential unknown-genre display at bottom of game info */
-.game-info .unknown-genre-display,
-.game-info .game-genre-display,
-.game-info > .text-sm:last-child,  /* Common pattern for smaller text at bottom */
-.game-info > div:last-child:not(.game-meta):not(.tag-bars):not(.tag-container):not(.card-header) {
-  display: none !important;
+.block {
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+  margin-top: 16px;
 }
 
-/* Hide the specific Unknown · Action-RPG line */
-.game-info:after {
-  display: none !important;
-}
-
-/* For the specific "Unknown" text that might be directly in the DOM */
-.game-info > .text-unknown,
-.game-info > span:contains("Unknown"),
-.game-info > small:contains("Unknown") {
-  display: none !important;
-}
-
-/* Just in case it's using flexbox to create that line */
-.game-info {
+.chip-row,
+.vector-grid {
   display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.chip,
+.vector-card {
+  display: inline-flex;
   flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: white;
 }
 
-/* Make sure no extra space is left at bottom */
-.game-info {
-  padding-bottom: 6px;
-}
-.game-info::after {
-  display: none !important;
-  content: none !important;
+.vector-card {
+  min-width: 180px;
 }
 
-/* Prevent any text directly in game-info that's not in a container */
-.game-info > :not(.card-header):not(.tag-container):not(.tag-bars):not(.game-meta) {
-  display: none !important;
+.vector-tag { font-weight: 700; }
+.vector-weight,
+.slider-label { font-size: .86rem; color: var(--muted); }
+
+.actions {
+  margin-top: 18px;
 }
 
-/* Coffee link styling - ADD THIS TO YOUR CSS */
-.coffee-link {
-  position: absolute;
-  top: 80px;
-  right: 20px;
+.primary-button {
+  border: 1px solid var(--accent);
+  color: white;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  border-radius: 999px;
+  padding: 12px 18px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.row {
   display: flex;
-  align-items: center;
-  color: #000000;
-  text-decoration: none;
-  font-weight: bold;
-  transition: all 0.3s ease;
-  z-index: 100;
-  background-color: rgba(255, 221, 51, 0.9);
-  padding: 8px 12px;
-  border-radius: 6px;
-  box-shadow: var(--shadow-small);
-  backdrop-filter: blur(5px);
-  border: 1px solid rgba(255, 221, 51, 0.3);
+  justify-content: space-between;
+  gap: 12px;
 }
 
-.coffee-link:hover {
-  color: #000000;
-  background-color: rgba(255, 221, 51, 1);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(255, 221, 51, 0.4);
-}
-
-/* Update mobile responsive section - ADD THIS TOO */
-@media (max-width: 768px) {
-  .coffee-link {
-    top: 130px;
-  }
-}
-/* -------- TOP-RIGHT NAVIGATION BUTTONS -------- */
-
-/* Github link styling */
-.github-link {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  display: flex;
-  align-items: center;
-  color: var(--steam-blue-light);
-  text-decoration: none;
-  font-weight: bold;
-  transition: all 0.3s ease;
-  z-index: 1000;
-  background-color: rgba(27, 40, 56, 0.9);
-  padding: 8px 12px;
-  border-radius: 6px;
-  box-shadow: var(--shadow-small);
-  backdrop-filter: blur(5px);
-  border: 1px solid rgba(102, 192, 244, 0.2);
-}
-
-.github-link:hover {
-  color: var(--steam-blue);
-  background-color: rgba(27, 40, 56, 1);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-}
-
-.github-icon {
-  width: 20px;
-  height: 20px;
-  margin-right: 6px;
-}
-
-/* Coffee link styling */
-.coffee-link {
-  position: fixed;
-  top: 20px;
-  right: 140px;
-  display: flex;
-  align-items: center;
-  color: #000000;
-  text-decoration: none;
-  font-weight: bold;
-  transition: all 0.3s ease;
-  z-index: 1000;
-  background-color: rgba(255, 221, 51, 0.95);
-  padding: 8px 12px;
-  border-radius: 6px;
-  box-shadow: var(--shadow-small);
-  backdrop-filter: blur(5px);
-  border: 1px solid rgba(255, 200, 0, 0.4);
-}
-
-.coffee-link:hover {
-  color: #000000;
-  background-color: rgba(255, 221, 51, 1);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(255, 221, 51, 0.5);
-}
-
-.coffee-icon {
-  width: 20px;
-  height: 20px;
-  margin-right: 6px;
-}
-
-/* Mobile Responsive Design */
-@media (max-width: 768px) {
-  .github-link {
-    position: fixed;
-    top: 15px;
-    right: 15px;
-    padding: 6px 10px;
-    font-size: 14px;
-  }
-  
-  .coffee-link {
-    position: fixed;
-    top: 65px;
-    right: 15px;
-    padding: 6px 10px;
-    font-size: 14px;
-  }
-  
-  .github-icon,
-  .coffee-icon {
-    width: 18px;
-    height: 18px;
-    margin-right: 5px;
-  }
-}
-
-@media (max-width: 480px) {
-  .github-link {
-    top: 10px;
-    right: 10px;
-    padding: 5px 8px;
-    font-size: 12px;
-  }
-  
-  .coffee-link {
-    top: 55px;
-    right: 10px;
-    padding: 5px 8px;
-    font-size: 12px;
-  }
-  
-  .github-icon,
-  .coffee-icon {
-    width: 16px;
-    height: 16px;
-    margin-right: 4px;
+@media (max-width: 1100px) {
+  .layout {
+    grid-template-columns: 1fr;
   }
 }

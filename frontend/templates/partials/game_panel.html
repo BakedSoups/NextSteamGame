@@ -1,0 +1,53 @@
+<h2>{{ game.name }}</h2>
+<p class="meta">App ID {{ game.appid }}</p>
+
+<form
+  id="preference-form"
+  hx-get="/recommend"
+  hx-target="#recommendations"
+  hx-swap="innerHTML">
+  <input type="hidden" name="appid" value="{{ game.appid }}">
+
+  <section class="block">
+    <h3>Genre Tree</h3>
+    <p class="muted">Traits are full weight. Subgenres get a 10% penalty. Primary genres get a 20% penalty.</p>
+
+    {% for branch in ["primary", "sub", "traits"] %}
+    <div class="branch">
+      <h4>{{ branch }}</h4>
+      <div class="chip-row">
+        {% for tag in game.metadata.genre_tree.get(branch, []) %}
+        <label class="chip">
+          <input type="checkbox" name="genre_{{ branch }}" value="{{ tag }}" checked>
+          <span>{{ tag }}</span>
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </section>
+
+  <section class="block">
+    <h3>Vectors</h3>
+    <p class="muted">Use the sliders to ask for more of a specific vector tag.</p>
+    {% for context, tag_weights in game.vectors.items() %}
+    <div class="branch">
+      <h4>{{ context }}</h4>
+      <div class="vector-grid">
+        {% for tag, weight in tag_weights.items() %}
+        <label class="vector-card">
+          <span class="vector-tag">{{ tag }}</span>
+          <span class="vector-weight">base {{ weight }}</span>
+          <input type="range" min="100" max="180" step="5" value="100" name="boost__{{ context }}__{{ tag }}">
+          <span class="slider-label">boost %</span>
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </section>
+
+  <div class="actions">
+    <button class="primary-button" type="submit">Update Recommendations</button>
+  </div>
+</form>

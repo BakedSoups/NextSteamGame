@@ -1,81 +1,18 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Steam Game Recommender{% endblock %}</title>
-    
-    <!-- Gaming-focused meta tags for better ad targeting -->
-    <meta name="description" content="Find similar Steam games based on gameplay elements. Discover new PC games, indie games, and Steam recommendations tailored to your preferences.">
-    <meta name="keywords" content="steam games, pc games, game recommendations, steam game finder, similar games, indie games, gaming, video games, game discovery">
-    <meta name="theme-color" content="#66c0f4">
-    
-    <!-- Open Graph for gaming content -->
-    <meta property="og:type" content="website">
-    <meta property="og:title" content="Steam Game Recommender - Find Similar Games">
-    <meta property="og:description" content="Discover Steam games similar to ones you love. Get personalized game recommendations based on gameplay elements.">
-    <meta property="og:image" content="{{ url_for('static', filename='logo.png') if url_for else '/static/logo.png' }}">
-    
-    <!-- Schema.org structured data for gaming -->
-    <script type="application/ld+json">
-    {
-        "@context": "https://schema.org",
-        "@type": "WebApplication",
-        "name": "Steam Game Recommender",
-        "description": "Find Steam games similar to ones you enjoy based on gameplay elements and tags",
-        "applicationCategory": "GameApplication",
-        "operatingSystem": "Web Browser",
-        "keywords": "steam, games, recommendations, pc gaming, game discovery"
-    }
-    </script>
-    
-    <!-- Google AdSense Auto Placement -->
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2034273389649557"
-            crossorigin="anonymous"></script>
-    
-    <!-- Custom CSS -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') if url_for else '/static/styles.css' }}">
-    
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        'steam-blue': '#66c0f4',
-                        'steam-blue-dark': '#1b2838',
-                        'steam-blue-darker': '#0f1a25',
-                        'steam-blue-medium': '#2a475e',
-                        'steam-blue-light': '#c7d5e0',
-                        'steam-positive': '#4fa94d',
-                        'steam-negative': '#d9534f',
-                    },
-                    boxShadow: {
-                        'steam-small': '0 2px 8px rgba(0, 0, 0, 0.2)',
-                        'steam-medium': '0 4px 16px rgba(0, 0, 0, 0.4)',
-                        'steam-large': '0 6px 24px rgba(0, 0, 0, 0.6)',
-                    }
-                }
-            }
-        }
-    </script>
-    
-    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
-    
-    {% block head %}{% endblock %}
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title or "Steam Canon Recommender" }}</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <script src="https://unpkg.com/idiomorph@0.3.0/dist/idiomorph-ext.min.js"></script>
+  <script src="https://unpkg.com/htmx.org/dist/ext/idiomorph.js"></script>
+  <script src="https://unpkg.com/hyperscript.org@0.9.12"></script>
 </head>
-<body class="{% block body_class %}dark-theme{% endblock %}">
-    <!-- Hidden gaming keywords for ad targeting -->
-    <div style="display: none;">
-        Steam games, PC gaming, video games, game recommendations, indie games, 
-        gaming accessories, gaming hardware, game reviews, Steam sales, 
-        game discovery, multiplayer games, single player games
-    </div>
-    
+<body>
+  <main class="shell">
     {% block content %}{% endblock %}
-    
-    {% block scripts %}{% endblock %}
+  </main>
 </body>
 </html>

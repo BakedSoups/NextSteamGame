@@ -1,0 +1,25 @@
+<h2>Recommendations</h2>
+{% if unavailable %}
+<p class="muted">No recommendations are available because this game does not have canonical vectors and genre data in the final DB yet.</p>
+{% elif results %}
+<ol class="recommendations">
+  {% for game in results %}
+  <li class="recommendation-card">
+    <div class="row">
+      <strong>{{ game.name }}</strong>
+      <span class="score">{{ "%.4f"|format(game.total_score) }}</span>
+    </div>
+    <p class="muted">
+      vector {{ "%.4f"|format(game.vector_score) }}
+      · genre {{ "%.4f"|format(game.genre_score) }}
+    </p>
+    <p class="muted">
+      primary {{ game.metadata.genre_tree.get("primary", [])[:3] }}
+      · sub {{ game.metadata.genre_tree.get("sub", [])[:3] }}
+    </p>
+  </li>
+  {% endfor %}
+</ol>
+{% else %}
+<p class="muted">No recommendations yet.</p>
+{% endif %}

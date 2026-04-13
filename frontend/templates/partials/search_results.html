@@ -1,16 +1,19 @@
-{% if games %}
-    {% for game in games %}
-        <div class="search-result-item group hover:bg-steam-blue-medium transition-all" data-game-name="{{ game.name }}">
-            <img src="{{ game.header_image if game.header_image else '/static/logo.png' }}" alt="{{ game.name }}" class="rounded shadow group-hover:scale-105 transition-transform">
-            <div class="search-result-details">
-                <div class="search-result-name">{{ game.name }}</div>
-                <div style="flex-grow: 1;"></div>
-                {% if game.genre %}
-                <div class="search-result-genre text-xs text-steam-blue opacity-80 mt-auto">{{ game.genre }}</div>
-                {% endif %}
-            </div>
-        </div>
-    {% endfor %}
+{% if results %}
+<ul class="search-results">
+  {% for game in results %}
+  <li>
+    <button
+      class="search-hit"
+      hx-get="/game/{{ game.appid }}"
+      hx-target="#selected-game"
+      hx-swap="innerHTML"
+      hx-on:click="htmx.ajax('GET', '/recommend?appid={{ game.appid }}', {target:'#recommendations'})">
+      <span class="game-name">{{ game.name }}</span>
+      <span class="appid">#{{ game.appid }}</span>
+    </button>
+  </li>
+  {% endfor %}
+</ul>
 {% else %}
-    <div class="search-no-results p-3 text-center text-steam-blue-light opacity-80">No games found</div>
+<p class="muted">No games match this search yet.</p>
 {% endif %}
