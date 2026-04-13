@@ -168,17 +168,6 @@ class InitialNoncanonDbBuilder:
             row = connection.execute("SELECT COUNT(*) AS count FROM raw_game_semantics").fetchone()
         return int(row["count"])
 
-    def store_profile(self, appid: int, game_name: str, profile: Dict) -> None:
-        self.store_profiles(
-            [
-                {
-                    "appid": appid,
-                    "game_name": game_name,
-                    "profile": profile,
-                }
-            ]
-        )
-
     def store_profiles(self, profiles: List[Dict]) -> None:
         if not profiles:
             return

@@ -6,7 +6,7 @@ from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 
 # APP_ID = "893180"
-MAX_REVIEWS_PER_GAME = 350
+MAX_REVIEWS_PER_GAME = 250
 
 # --- load embedding model once at the top
 model = SentenceTransformer("all-mpnet-base-v2")
