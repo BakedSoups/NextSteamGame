@@ -4,7 +4,7 @@ import json
 import sqlite3
 from collections import Counter
 from pathlib import Path
-from typing import Dict, Sequence
+from typing import Dict, Iterator, Sequence
 
 
 def normalize_tag_text(tag: str) -> str:
@@ -48,6 +48,35 @@ def load_rows(db_path: Path, sample_size: int | None = None) -> Sequence[sqlite3
         else:
             query += " ORDER BY appid"
         return connection.execute(query, params).fetchall()
+    finally:
+        connection.close()
+
+
+def count_rows(db_path: Path) -> int:
+    connection = sqlite3.connect(db_path)
+    try:
+        row = connection.execute("SELECT COUNT(*) FROM raw_game_semantics").fetchone()
+        return int(row[0]) if row else 0
+    finally:
+        connection.close()
+
+
+def iter_row_batches(db_path: Path, batch_size: int) -> Iterator[list[sqlite3.Row]]:
+    connection = sqlite3.connect(db_path)
+    connection.row_factory = sqlite3.Row
+    try:
+        cursor = connection.execute(
+            """
+            SELECT appid, name, vectors_json, metadata_json
+            FROM raw_game_semantics
+            ORDER BY appid
+            """
+        )
+        while True:
+            rows = cursor.fetchmany(batch_size)
+            if not rows:
+                break
+            yield rows
     finally:
         connection.close()
 

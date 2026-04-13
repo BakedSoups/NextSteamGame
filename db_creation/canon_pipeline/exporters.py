@@ -21,7 +21,12 @@ def collapse_export_members(context: str, group: Group) -> tuple[list[str], Coun
 
 
 def write_preview_csv(path: Path, groups: Sequence[Group], preview_limit: int) -> None:
+    write_groups_csv(path, groups, limit=preview_limit)
+
+
+def write_groups_csv(path: Path, groups: Sequence[Group], limit: int | None = None) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
+    selected_groups = groups if limit is None else groups[:limit]
     with path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.writer(handle)
         writer.writerow(
@@ -35,7 +40,7 @@ def write_preview_csv(path: Path, groups: Sequence[Group], preview_limit: int) -
                 "member_occurrences",
             ]
         )
-        for index, group in enumerate(groups[:preview_limit], start=1):
+        for index, group in enumerate(selected_groups, start=1):
             ordered_members, collapsed_counts = collapse_export_members(group.context, group)
             writer.writerow(
                 [
