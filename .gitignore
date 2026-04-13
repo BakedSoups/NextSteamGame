@@ -1,50 +1,61 @@
-# Environment variables
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+*.so
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Test / tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Environment files
 .env
 .env.local
 .env.*.local
 
-# Ignore JSON files
-*.json
-
-# Ignore database files
-*.db
-
-# Ignore Python cache
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
-*.so
-
-# Ignore virtual environments
-venv/
-env/
-ENV/
-.venv/
-
-# Ignore logs
-logs/
+# Logs
 *.log
+logs/
 
-# Ignore data directory
-data/
-
-# Ignore Go build/cache files (if any legacy Go files remain)
-*.exe
-*.out
-*.test
-
-# Ignore IDE/editor files
+# OS / editor files
+.DS_Store
+Thumbs.db
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 
-# OS files
-.DS_Store
-Thumbs.db
+# Local databases and SQLite sidecar files
+data/
+temp/
+*.db
+*.sqlite
+*.sqlite3
+*.db-shm
+*.db-wal
+*.sqlite-shm
+*.sqlite-wal
+*.wal
+*.shm
 
-# Ignore pickle files (vectorizers)
+# Generated analysis outputs
+db_creation/analysis/
+
+# Common generated data artifacts
+*.csv
 *.pkl
+
+# Frontend / JS tooling
+node_modules/

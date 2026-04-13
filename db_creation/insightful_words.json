@@ -1,0 +1,75 @@
+{
+  "descriptive": {
+    "core": [
+      "immersive","detailed","precise","vivid","rich","layered","nuanced",
+      "engaging","captivating","compelling","deep","complex","subtle",
+      "meaningful","emotional","well-written","thoughtful"
+    ],
+    "context": [
+      "story","writing","dialogue","narrative","characters","world",
+      "experience","gameplay","moments","scenes","interactions",
+      "plot","lore","text","description","lines"
+    ],
+    "modifiers": [
+      "feels","feeling","very","super","extremely","incredibly",
+      "really","so","quite","kind of","sort of","almost",
+      "perfectly","beautifully","amazingly","surprisingly"
+    ]
+  },
+
+  "artistic": {
+    "core": [
+      "noir","colorful","cel-shaded","stylized","minimalist","surreal",
+      "abstract","realistic","hand-drawn","anime","cinematic","moody",
+      "vibrant","aesthetic","beautiful","gorgeous","distinctive",
+      "creative","imaginative","atmospheric"
+    ],
+    "context": [
+      "art","style","visuals","graphics","design","look","aesthetic",
+      "colors","lighting","environment","character design","ui",
+      "animation","cutscenes","presentation"
+    ],
+    "modifiers": [
+      "looks","looking","feels like","gives","vibes","style is",
+      "art is","design is","visually","super","really","very",
+      "insanely","crazy","clean","smooth","sharp","soft"
+    ]
+  },
+
+  "music": {
+    "core": [
+      "jazz","rock","jazz fusion","lofi","ambient","orchestral",
+      "electronic","synth","hip hop","classical","piano","guitar",
+      "melodic","catchy","memorable","soundtrack","score","bgm"
+    ],
+    "context": [
+      "music","sound","audio","soundtrack","songs","tracks",
+      "beats","theme","background","sound design","audio design",
+      "voice","voices","dialogue audio","effects","sfx"
+    ],
+    "modifiers": [
+      "sounds like","feels like","goes hard","slaps","hits",
+      "is fire","is amazing","is great","is good","is bad",
+      "is beautiful","is relaxing","is intense","is loud",
+      "is quiet","is crisp","is clean","is immersive"
+    ]
+  },
+
+  "explainability": {
+    "core": [
+      "because","since","therefore","however","although",
+      "thus","hence","so","why","reason","cause"
+    ],
+    "context": [
+      "this is why","the reason","which makes",
+      "as a result","due to","leads to",
+      "results in","causes","explains","means that"
+    ],
+    "modifiers": [
+      "i think","i feel","in my opinion",
+      "personally","for me","what makes this",
+      "the way it","it works because",
+      "it fails because"
+    ]
+  }
+}
