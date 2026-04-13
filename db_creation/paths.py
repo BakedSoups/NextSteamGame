@@ -34,6 +34,10 @@ def initial_noncanon_db_path() -> Path:
     return data_dir() / "steam_initial_noncanon.db"
 
 
+def final_canon_db_path() -> Path:
+    return data_dir() / "steam_final_canon.db"
+
+
 def insightful_words_path() -> Path:
     return DB_CREATION_ROOT / "insightful_words.json"
 
