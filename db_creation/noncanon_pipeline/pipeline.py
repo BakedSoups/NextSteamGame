@@ -27,22 +27,23 @@ def build_skipped_profile(status: str) -> Dict:
         },
         "metadata": {
             "status": status,
-        "micro_tags": [],
-        "signature_tag": "",
-        "appeal_axes": {
-            "challenge": 50,
-            "complexity": 50,
-            "pace": 50,
-            "narrative_focus": 50,
-            "social_energy": 50,
-            "creativity": 50,
-        },
-        "soundtrack_tags": [],
-        "genre_tree": {
-            "primary": [],
-            "sub": [],
-            "traits": [],
-        },
+            "micro_tags": [],
+            "signature_tag": "",
+            "appeal_axes": {
+                "challenge": 50,
+                "complexity": 50,
+                "pace": 50,
+                "narrative_focus": 50,
+                "social_energy": 50,
+                "creativity": 50,
+            },
+            "soundtrack_tags": [],
+            "genre_tree": {
+                "primary": [],
+                "sub": [],
+                "sub_sub": [],
+                "traits": [],
+            },
         },
     }
 

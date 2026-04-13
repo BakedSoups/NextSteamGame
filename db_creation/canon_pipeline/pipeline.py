@@ -36,6 +36,7 @@ METADATA_THRESHOLDS = {
     "micro_tags": 0.82,
     "genre_tree.primary": 0.88,
     "genre_tree.sub": 0.84,
+    "genre_tree.sub_sub": 0.85,
     "genre_tree.traits": 0.83,
 }
 

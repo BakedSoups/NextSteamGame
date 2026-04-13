@@ -99,6 +99,7 @@ def collect_metadata_counters(rows: Sequence[sqlite3.Row]) -> Dict[str, Counter]
         "soundtrack_tags": Counter(),
         "genre_tree.primary": Counter(),
         "genre_tree.sub": Counter(),
+        "genre_tree.sub_sub": Counter(),
         "genre_tree.traits": Counter(),
     }
     for row in rows:
@@ -111,7 +112,7 @@ def collect_metadata_counters(rows: Sequence[sqlite3.Row]) -> Dict[str, Counter]
         for tag in metadata.get("soundtrack_tags", []):
             counters["soundtrack_tags"][tag] += 1
         genre_tree = metadata.get("genre_tree", {})
-        for branch in ("primary", "sub", "traits"):
+        for branch in ("primary", "sub", "sub_sub", "traits"):
             for tag in genre_tree.get(branch, []):
                 counters[f"genre_tree.{branch}"][tag] += 1
     return counters
