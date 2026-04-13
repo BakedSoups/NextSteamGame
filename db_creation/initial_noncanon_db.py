@@ -7,7 +7,7 @@ from paths import initial_noncanon_db_path, metadata_db_path
 METADATA_DB_PATH = metadata_db_path()
 OUTPUT_DB_PATH = initial_noncanon_db_path()
 LIMIT = None
-MAX_WORKERS = None
+MAX_WORKERS = 10
 NOTES = None
 
 

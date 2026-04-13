@@ -32,6 +32,7 @@ def utcnow_iso() -> str:
 
 class InitialNoncanonDbBuilder:
     WRITE_BATCH_SIZE = 100
+    RESULT_QUEUE_MAXSIZE = 500
 
     def __init__(
         self,
@@ -283,11 +284,82 @@ class InitialNoncanonDbBuilder:
             finally:
                 task_queue.task_done()
 
+    def _writer_loop(
+        self,
+        result_queue: queue.Queue,
+        writer_summary: Dict[str, int],
+        writer_errors: List[BaseException],
+    ) -> None:
+        pending_profiles: List[Dict] = []
+
+        def flush_pending_profiles() -> None:
+            nonlocal pending_profiles
+            if not pending_profiles:
+                return
+            self.store_profiles(pending_profiles)
+            for entry in pending_profiles:
+                print(f"Stored {entry['game_name']} ({entry['appid']})")
+            pending_profiles = []
+
+        try:
+            while True:
+                result = result_queue.get()
+                try:
+                    if result is None:
+                        flush_pending_profiles()
+                        return
+
+                    writer_summary["processed_results"] += 1
+
+                    if result["kind"] == "skipped":
+                        continue
+
+                    writer_summary["attempted_games"] += 1
+                    appid = int(result["appid"])
+                    game_name = str(result["game_name"])
+
+                    if result["kind"] == "success":
+                        pending_profiles.append(
+                            {
+                                "appid": appid,
+                                "game_name": game_name,
+                                "profile": result["profile"],
+                            }
+                        )
+                        writer_summary["completed_games"] += 1
+                        if len(pending_profiles) >= self.WRITE_BATCH_SIZE:
+                            flush_pending_profiles()
+                        continue
+
+                    flush_pending_profiles()
+                    writer_summary["error_count"] += 1
+
+                    if result["kind"] == "quota_exhausted":
+                        writer_summary["status"] = "paused_quota_exhausted"
+                        print(f"Stopping run at {game_name} ({appid}): {result['error']}")
+                    else:
+                        print(f"Skipped {game_name} ({appid}): {result['error']}")
+
+                    self.record_error(writer_summary["run_id"], appid, game_name, str(result["error"]))
+                finally:
+                    result_queue.task_done()
+        except BaseException as exc:
+            writer_errors.append(exc)
+
     def _build_with_workers(self, rows: List[sqlite3.Row], insightful_words: Dict, run_id: int) -> Dict[str, int | str]:
         task_queue: queue.Queue = queue.Queue()
-        result_queue: queue.Queue = queue.Queue()
+        result_queue: queue.Queue = queue.Queue(maxsize=self.RESULT_QUEUE_MAXSIZE)
         stop_event = threading.Event()
         workers: List[threading.Thread] = []
+        writer_errors: List[BaseException] = []
+        writer_summary: Dict[str, int | str] = {
+            "run_id": run_id,
+            "attempted_games": 0,
+            "completed_games": 0,
+            "error_count": 0,
+            "processed_results": 0,
+            "status": "completed",
+        }
 
         for row in rows:
             task_queue.put(row)
@@ -303,67 +375,28 @@ class InitialNoncanonDbBuilder:
             worker.start()
             workers.append(worker)
 
-        attempted_games = 0
-        completed_games = 0
-        error_count = 0
-        processed_results = 0
-        status = "completed"
-        pending_profiles: List[Dict] = []
+        writer = threading.Thread(
+            target=self._writer_loop,
+            args=(result_queue, writer_summary, writer_errors),
+            daemon=True,
+        )
+        writer.start()
 
-        def flush_pending_profiles() -> None:
-            nonlocal pending_profiles
-            if not pending_profiles:
-                return
-            self.store_profiles(pending_profiles)
-            for entry in pending_profiles:
-                print(f"Stored {entry['game_name']} ({entry['appid']})")
-            pending_profiles = []
-
-        while processed_results < len(rows):
-            result = result_queue.get()
-            processed_results += 1
-
-            if result["kind"] == "skipped":
-                continue
-
-            attempted_games += 1
-            appid = int(result["appid"])
-            game_name = str(result["game_name"])
-
-            if result["kind"] == "success":
-                pending_profiles.append(
-                    {
-                        "appid": appid,
-                        "game_name": game_name,
-                        "profile": result["profile"],
-                    }
-                )
-                if len(pending_profiles) >= self.WRITE_BATCH_SIZE:
-                    flush_pending_profiles()
-                completed_games += 1
-                continue
-
-            flush_pending_profiles()
-            error_count += 1
-            self.record_error(run_id, appid, game_name, str(result["error"]))
-
-            if result["kind"] == "quota_exhausted":
-                print(f"Stopping run at {game_name} ({appid}): {result['error']}")
-                status = "paused_quota_exhausted"
-                continue
-
-            print(f"Skipped {game_name} ({appid}): {result['error']}")
-
-        flush_pending_profiles()
-        stop_event.set()
         for worker in workers:
             worker.join()
+        stop_event.set()
+
+        result_queue.put(None)
+        writer.join()
+
+        if writer_errors:
+            raise writer_errors[0]
 
         return {
-            "attempted_games": attempted_games,
-            "completed_games": completed_games,
-            "error_count": error_count,
-            "status": status,
+            "attempted_games": int(writer_summary["attempted_games"]),
+            "completed_games": int(writer_summary["completed_games"]),
+            "error_count": int(writer_summary["error_count"]),
+            "status": str(writer_summary["status"]),
         }
 
     def build(self, limit: Optional[int] = None, notes: Optional[str] = None) -> Dict:
