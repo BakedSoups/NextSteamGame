@@ -96,6 +96,7 @@ def collect_metadata_counters(rows: Sequence[sqlite3.Row]) -> Dict[str, Counter]
     counters: Dict[str, Counter] = {
         "micro_tags": Counter(),
         "signature_tag": Counter(),
+        "soundtrack_tags": Counter(),
         "genre_tree.primary": Counter(),
         "genre_tree.sub": Counter(),
         "genre_tree.traits": Counter(),
@@ -107,6 +108,8 @@ def collect_metadata_counters(rows: Sequence[sqlite3.Row]) -> Dict[str, Counter]
         signature_tag = str(metadata.get("signature_tag", "")).strip()
         if signature_tag:
             counters["signature_tag"][signature_tag] += 1
+        for tag in metadata.get("soundtrack_tags", []):
+            counters["soundtrack_tags"][tag] += 1
         genre_tree = metadata.get("genre_tree", {})
         for branch in ("primary", "sub", "traits"):
             for tag in genre_tree.get(branch, []):

@@ -9,23 +9,24 @@ from paths import insightful_words_path
 INSIGHTFUL_WORDS_PATH = insightful_words_path()
 
 
-NO_STEAM_REVIEW_PROFILE = {
-    "review_samples": {
-        "status": "no_steam_review",
-        "descriptive": [],
-        "artistic": [],
-        "music": [],
-    },
-    "vectors": {
-        "status": "no_steam_review",
-        "mechanics": {},
-        "narrative": {},
-        "vibe": {},
-        "structure_loop": {},
-        "uniqueness": {},
-    },
-    "metadata": {
-        "status": "no_steam_review",
+def build_skipped_profile(status: str) -> Dict:
+    return {
+        "review_samples": {
+            "status": status,
+            "descriptive": [],
+            "artistic": [],
+            "music": [],
+        },
+        "vectors": {
+            "status": status,
+            "mechanics": {},
+            "narrative": {},
+            "vibe": {},
+            "structure_loop": {},
+            "uniqueness": {},
+        },
+        "metadata": {
+            "status": status,
         "micro_tags": [],
         "signature_tag": "",
         "appeal_axes": {
@@ -36,13 +37,14 @@ NO_STEAM_REVIEW_PROFILE = {
             "social_energy": 50,
             "creativity": 50,
         },
+        "soundtrack_tags": [],
         "genre_tree": {
             "primary": [],
             "sub": [],
             "traits": [],
         },
-    },
-}
+        },
+    }
 
 
 def load_insightful_words() -> Dict:
@@ -55,11 +57,12 @@ def build_game_output(appid: str, insightful_words: Dict) -> Dict:
     try:
         reviews = fetch_steam_reviews(appid)
     except SteamReviewsUnavailableError:
+        skipped = build_skipped_profile("no_steam_review")
         return {
             "appid": int(appid),
-            "review_samples": NO_STEAM_REVIEW_PROFILE["review_samples"],
-            "vectors": NO_STEAM_REVIEW_PROFILE["vectors"],
-            "metadata": NO_STEAM_REVIEW_PROFILE["metadata"],
+            "review_samples": skipped["review_samples"],
+            "vectors": skipped["vectors"],
+            "metadata": skipped["metadata"],
         }
     except NoReviewsAfterFilteringError as exc:
         raise NoReviewsError(str(exc)) from exc

@@ -27,6 +27,7 @@ APPEAL_AXIS_KEYS = (
 class GenreTree(BaseModel):
     primary: List[str]
     sub: List[str]
+    sub_sub: List[str]
     traits: List[str]
 
 
@@ -34,6 +35,7 @@ class GameMetadata(BaseModel):
     micro_tags: List[str]
     signature_tag: str
     appeal_axes: Dict[str, int]
+    soundtrack_tags: List[str]
     genre_tree: GenreTree
 
     @field_validator("micro_tags")
@@ -58,6 +60,21 @@ class GameMetadata(BaseModel):
                 score = 50
             cleaned[key] = max(0, min(100, score))
         return cleaned
+
+    @field_validator("soundtrack_tags")
+    def validate_soundtrack_tags(cls, value: List[str]) -> List[str]:
+        cleaned = []
+        seen = set()
+        for item in value:
+            tag = " ".join(str(item).strip().split())
+            if not tag:
+                continue
+            lowered = tag.lower()
+            if lowered in seen:
+                continue
+            seen.add(lowered)
+            cleaned.append(tag)
+        return cleaned[:8]
 
 
 class GameVectors(BaseModel):
@@ -99,6 +116,7 @@ RULES:
 - signature_tag must be a short 2-4 word phrase describing the game's defining hook
 - appeal_axes must include exactly these integer 0-100 keys:
   challenge, complexity, pace, narrative_focus, social_energy, creativity
+- soundtrack_tags must be short genre/style/instrumentation tags for the music
 - genre_tree must stay flat
 - vector weights must be integers
 - EACH vector object sums to EXACTLY 100 on its own
@@ -106,10 +124,11 @@ RULES:
 - every vector category should usually contain 3-6 tags, not one placeholder tag
 
 OUTPUT JSON:
+These example values are only here to show the intended level of specificity and structure.
 {{
   "metadata": {{
     "micro_tags": [tags],
-    "signature_tag": "portal platformer",
+    "signature_tag": "team shooter",
     "appeal_axes": {{
       "challenge": 55,
       "complexity": 40,
@@ -118,18 +137,20 @@ OUTPUT JSON:
       "social_energy": 10,
       "creativity": 85
     }},
+    "soundtrack_tags": ["orchestral", "electronic", "jazz"],
     "genre_tree": {{
       "primary": [broad genres],
       "sub": [recognized subgenres],
+      "sub_sub": [more specific playstyle lanes],
       "traits": [defining traits]
     }}
   }},
   "vectors": {{
-    "mechanics": {{"combat": 40, "movement": 35, "timing": 25}},
-    "narrative": {{"betrayal": 50, "mystery": 30, "grief": 20}},
-    "vibe": {{"tense": 45, "bleak": 30, "melancholic": 25}},
-    "structure_loop": {{"mission based": 45, "exploration": 30, "backtracking": 25}},
-    "uniqueness": {{"time loop": 50, "memory shifts": 30, "identity play": 20}}
+    "mechanics": {{"squad tactics": 40, "stealth routing": 35, "factory automation": 25}},
+    "narrative": {{"political intrigue": 40, "coming of age": 35, "moral ambiguity": 25}},
+    "vibe": {{"melancholic": 40, "bleak": 35, "dreamlike": 25}},
+    "structure_loop": {{"mission based": 40, "daily cycle": 35, "zone extraction": 25}},
+    "uniqueness": {{"time rewind": 40, "portal traversal": 35, "creature evolution": 25}}
   }}
 }}
 
@@ -140,7 +161,7 @@ metadata.signature_tag:
 - exactly one concise hook
 - 2-4 words when possible
 - should capture the game's defining identity, not just restate a broad genre
-- examples: "portal platformer", "city life sim", "time loop mystery"
+- examples: "team shooter", "city life sim", "factory builder", "kart racer"
 
 metadata.appeal_axes:
 - challenge = how demanding or punishing it feels
@@ -151,9 +172,16 @@ metadata.appeal_axes:
 - creativity = how much expression, experimentation, or player-made problem solving it invites
 - use integer values from 0 to 100
 
+metadata.soundtrack_tags:
+- short music genre/style/instrumentation descriptors
+- prefer concrete tags like "bossa nova", "phonk", "jazz", "orchestral", "piano", "metal"
+- avoid vague mood words like "good music" or "emotional"
+- keep to at most 8 tags
+
 metadata.genre_tree:
 - primary = broad categories like Action, RPG, Strategy
 - sub = recognized subgenres like Soulslike, Roguelike, Metroidvania
+- sub_sub = narrower genre/playstyle identities like Sandbox Infiltration, Deckbuilder Roguelite, Extraction Shooter
 - traits = defining structural or gameplay traits
 
 vectors:
@@ -237,7 +265,7 @@ def _generate_semantics(sampled_reviews: List[str]) -> Dict:
                 "You generate structured game metadata and semantic vectors. "
                 "Return one JSON object with exactly two top-level keys: "
                 "metadata and vectors. metadata must contain micro_tags, "
-                "signature_tag, appeal_axes, and genre_tree. vectors must contain "
+                "signature_tag, appeal_axes, soundtrack_tags, and genre_tree. vectors must contain "
                 "mechanics, narrative, vibe, structure_loop, and uniqueness."
             ),
         },

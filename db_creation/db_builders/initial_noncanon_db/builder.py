@@ -23,7 +23,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from noncanon_pipeline.pipeline import build_game_output, load_insightful_words
+from noncanon_pipeline.pipeline import build_game_output, build_skipped_profile, load_insightful_words
 from noncanon_pipeline.llm.errors import CreditsExhaustedError, NoReviewsError
 
 
@@ -270,6 +270,10 @@ class InitialNoncanonDbBuilder:
                         "appid": appid,
                         "game_name": game_name,
                         "error": str(exc),
+                        "profile": {
+                            "appid": appid,
+                            **build_skipped_profile(str(exc).lower().replace(" ", "_")),
+                        },
                     }
                 )
             except Exception as exc:
@@ -327,6 +331,17 @@ class InitialNoncanonDbBuilder:
                             f"Skipped {result['game_name']} ({result['appid']}): "
                             f"{result['error']}"
                         )
+                        writer_summary["attempted_games"] += 1
+                        writer_summary["completed_games"] += 1
+                        pending_profiles.append(
+                            {
+                                "appid": int(result["appid"]),
+                                "game_name": str(result["game_name"]),
+                                "profile": result["profile"],
+                            }
+                        )
+                        if len(pending_profiles) >= self.WRITE_BATCH_SIZE:
+                            flush_pending_profiles()
                         continue
 
                     writer_summary["attempted_games"] += 1

@@ -110,6 +110,14 @@ def _canonicalize_metadata(metadata: Dict, mapping: Dict[str, Dict[str, str]]) -
                 seen_branch.add(canonical)
                 canon_tree[branch].append(canonical)
 
+    canon_soundtrack = []
+    seen_soundtrack = set()
+    for tag in metadata.get("soundtrack_tags", []):
+        canonical = mapping.get("soundtrack_tags", {}).get(normalize_tag_text(tag), tag)
+        if canonical not in seen_soundtrack:
+            seen_soundtrack.add(canonical)
+            canon_soundtrack.append(canonical)
+
     raw_signature_tag = str(metadata.get("signature_tag", "")).strip()
     canonical_signature_tag = ""
     if raw_signature_tag:
@@ -123,6 +131,7 @@ def _canonicalize_metadata(metadata: Dict, mapping: Dict[str, Dict[str, str]]) -
         "micro_tags": canon_micro,
         "signature_tag": canonical_signature_tag,
         "appeal_axes": appeal_axes,
+        "soundtrack_tags": canon_soundtrack,
         "genre_tree": canon_tree,
     }
 
