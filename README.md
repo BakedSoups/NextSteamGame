@@ -193,3 +193,83 @@ erDiagram
 
     SYNC_RUNS ||--o{ SYNC_ERRORS : logs
 ```
+
+## Planned Frontend
+
+The frontend plan is HTMX-first and intentionally light on boilerplate.
+
+Target flow:
+
+1. search for a game from the final canonical DB
+2. open that game as the starting profile
+3. show the game's canonical vectors and genre tree
+4. let the user adjust what they want more or less of
+5. rerun scoring and update results without a full page reload
+
+For the first UI pass:
+
+- ignore `micro_tags`
+- use only `genre_tree.primary`, `genre_tree.sub`, and `genre_tree.traits`
+- apply a 10% penalty each step back in the genre hierarchy
+  - `traits` = full weight
+  - `sub` = 0.9
+  - `primary` = 0.8
+
+### HTMX Stack
+
+Planned stack:
+
+- `HTMX` for request/response-driven UI updates
+- `Jinja` or small server-rendered partial templates for result fragments
+- `idiomorph` for cleaner DOM morphing on fragment refresh
+- `_hyperscript` for tiny local interactions without adding a large JS framework
+- optional HTMX extensions later if needed for long-running jobs or advanced swaps
+
+This keeps the UI server-rendered, fast to iterate on, and avoids a large SPA codebase.
+
+### Planned Screen Flow
+
+Search screen:
+
+- search input
+- live result list
+- click a game to set the base profile
+
+Profile screen:
+
+- show selected game's canonical vectors
+- show selected game's genre tree
+- allow add/remove adjustments
+- allow increasing certain vector tags
+
+Results screen:
+
+- ranked recommended games
+- score breakdown
+- vector overlap
+- genre-tree overlap
+
+### Backend Shape
+
+Planned endpoints:
+
+- `GET /`
+  - shell page
+- `GET /search`
+  - returns search results partial
+- `GET /game/{appid}`
+  - returns selected game profile partial
+- `POST /score`
+  - returns reranked recommendations partial
+
+### Prototype Before UI
+
+Before implementing the frontend, the recommendation logic is being prototyped in `test.py`.
+
+That script:
+
+- loads `data/steam_final_canon.db`
+- starts from `Counter-Strike`
+- ignores `micro_tags`
+- applies the current genre hierarchy penalty model
+- prints ranked matches so the scoring logic can be tuned before wiring HTMX templates
