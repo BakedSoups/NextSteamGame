@@ -8,3 +8,7 @@ class NoReviewsError(RuntimeError):
 
 class SteamReviewsUnavailableError(RuntimeError):
     pass
+
+
+class NoReviewsAfterFilteringError(RuntimeError):
+    pass

@@ -2,7 +2,7 @@ import json
 from typing import Dict
 
 from .llm.game_semantics import generate_game_semantics
-from .llm.errors import NoReviewsError, SteamReviewsUnavailableError
+from .llm.errors import NoReviewsAfterFilteringError, NoReviewsError, SteamReviewsUnavailableError
 from .steam_review import fetch_steam_reviews, select_review_samples
 from paths import insightful_words_path
 
@@ -27,6 +27,15 @@ NO_STEAM_REVIEW_PROFILE = {
     "metadata": {
         "status": "no_steam_review",
         "micro_tags": [],
+        "signature_tag": "",
+        "appeal_axes": {
+            "challenge": 50,
+            "complexity": 50,
+            "pace": 50,
+            "narrative_focus": 50,
+            "social_energy": 50,
+            "creativity": 50,
+        },
         "genre_tree": {
             "primary": [],
             "sub": [],
@@ -42,6 +51,7 @@ def load_insightful_words() -> Dict:
 
 
 def build_game_output(appid: str, insightful_words: Dict) -> Dict:
+    print(f"[{appid}] Fetching Steam reviews")
     try:
         reviews = fetch_steam_reviews(appid)
     except SteamReviewsUnavailableError:
@@ -51,15 +61,25 @@ def build_game_output(appid: str, insightful_words: Dict) -> Dict:
             "vectors": NO_STEAM_REVIEW_PROFILE["vectors"],
             "metadata": NO_STEAM_REVIEW_PROFILE["metadata"],
         }
+    except NoReviewsAfterFilteringError as exc:
+        raise NoReviewsError(str(exc)) from exc
 
     if not reviews:
         raise NoReviewsError("No reviews")
 
+    print(f"[{appid}] Filtered reviews ready: {len(reviews)}")
     review_samples = select_review_samples(reviews, insightful_words)
     if not any(review_samples.get(category) for category in ("descriptive", "artistic", "music")):
         raise NoReviewsError("No insightful reviews")
 
+    sample_counts = {
+        category: len(review_samples.get(category, []))
+        for category in ("descriptive", "artistic", "music")
+    }
+    print(f"[{appid}] Review samples selected: {sample_counts}")
+    print(f"[{appid}] Requesting semantics")
     semantics = generate_game_semantics(review_samples)
+    print(f"[{appid}] Semantics generated")
 
     return {
         "appid": int(appid),

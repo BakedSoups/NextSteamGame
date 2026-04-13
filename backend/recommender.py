@@ -11,6 +11,16 @@ VECTOR_CONTEXT_MULTIPLIERS = {
     "uniqueness": 0.55,
 }
 
+VECTOR_CONTEXT_ORDER = tuple(VECTOR_CONTEXT_MULTIPLIERS.keys())
+APPEAL_AXIS_ORDER = (
+    "challenge",
+    "complexity",
+    "pace",
+    "narrative_focus",
+    "social_energy",
+    "creativity",
+)
+
 DEFAULT_VECTOR_BOOSTS = {
     "mechanics": {
         "teamplay": 1.30,
@@ -31,7 +41,44 @@ GENRE_BRANCH_WEIGHTS = {
 }
 
 VECTOR_SCORE_WEIGHT = 0.55
-GENRE_SCORE_WEIGHT = 0.45
+GENRE_SCORE_WEIGHT = 0.30
+APPEAL_SCORE_WEIGHT = 0.15
+
+
+def default_context_percentages() -> dict[str, int]:
+    total = sum(VECTOR_CONTEXT_MULTIPLIERS.values()) or 1.0
+    raw = {
+        context: (weight / total) * 100.0
+        for context, weight in VECTOR_CONTEXT_MULTIPLIERS.items()
+    }
+    rounded = {context: int(round(value)) for context, value in raw.items()}
+    delta = 100 - sum(rounded.values())
+    if delta != 0:
+        ranked = sorted(raw, key=lambda context: raw[context] - rounded[context], reverse=(delta > 0))
+        for context in ranked[: abs(delta)]:
+            rounded[context] += 1 if delta > 0 else -1
+    return rounded
+
+
+def context_percentages_to_multipliers(percentages: dict[str, float | int]) -> dict[str, float]:
+    if not percentages:
+        return VECTOR_CONTEXT_MULTIPLIERS.copy()
+    total = sum(float(value) for value in percentages.values())
+    if total <= 0:
+        return VECTOR_CONTEXT_MULTIPLIERS.copy()
+    context_count = max(len(VECTOR_CONTEXT_MULTIPLIERS), 1)
+    return {
+        context: (float(percentages.get(context, 0.0)) / total) * context_count
+        for context in VECTOR_CONTEXT_MULTIPLIERS
+    }
+
+
+def default_appeal_axes(metadata: dict) -> dict[str, int]:
+    stored = dict(metadata.get("appeal_axes") or {})
+    return {
+        axis: max(0, min(100, int(stored.get(axis, 50))))
+        for axis in APPEAL_AXIS_ORDER
+    }
 
 
 def _top_branch_tags(metadata: dict, branch: str, limit: int) -> list[str]:
@@ -49,12 +96,14 @@ def _normalize_weights(tag_weights: dict[str, int | float]) -> dict[str, float]:
 def _build_vector_preferences(
     vectors: dict[str, dict[str, int]],
     extra_boosts: dict[str, dict[str, float]] | None = None,
+    context_multipliers: dict[str, float] | None = None,
 ) -> dict[str, dict[str, float]]:
     boosts = extra_boosts or {}
+    multipliers = context_multipliers or VECTOR_CONTEXT_MULTIPLIERS
     preferences: dict[str, dict[str, float]] = {}
     for context, tag_weights in vectors.items():
         normalized = _normalize_weights(tag_weights)
-        context_multiplier = VECTOR_CONTEXT_MULTIPLIERS.get(context, 1.0)
+        context_multiplier = multipliers.get(context, 1.0)
         adjusted: dict[str, float] = {}
         for tag, weight in normalized.items():
             adjusted_weight = weight * context_multiplier
@@ -83,6 +132,17 @@ def _build_genre_preferences(
             for tag in sorted(branch_tags)
         }
     return preferences
+
+
+def _appeal_match_score(candidate_metadata: dict, target_axes: dict[str, int]) -> float:
+    if not target_axes:
+        return 0.0
+    candidate_axes = default_appeal_axes(candidate_metadata)
+    total = 0.0
+    for axis, target in target_axes.items():
+        candidate = candidate_axes.get(axis, 50)
+        total += max(0.0, 1.0 - (abs(candidate - target) / 100.0))
+    return total / max(len(target_axes), 1)
 
 
 def _vector_match_score(
@@ -168,12 +228,20 @@ def recommend_games(
     candidate_games: Iterable[dict],
     *,
     extra_vector_boosts: dict[str, dict[str, float]] | None = None,
+    context_percentages: dict[str, float | int] | None = None,
+    appeal_axes: dict[str, int] | None = None,
     added_genres: dict[str, list[str]] | None = None,
     removed_genres: dict[str, list[str]] | None = None,
     limit: int = 15,
 ) -> list[dict]:
-    vector_preferences = _build_vector_preferences(base_game["vectors"], extra_vector_boosts)
+    context_multipliers = context_percentages_to_multipliers(context_percentages or default_context_percentages())
+    vector_preferences = _build_vector_preferences(
+        base_game["vectors"],
+        extra_vector_boosts,
+        context_multipliers=context_multipliers,
+    )
     genre_preferences = _build_genre_preferences(base_game["metadata"], added_genres, removed_genres)
+    target_appeal_axes = appeal_axes or default_appeal_axes(base_game["metadata"])
 
     scored = []
     for game in candidate_games:
@@ -182,7 +250,12 @@ def recommend_games(
 
         vector_score = _vector_match_score(game["vectors"], vector_preferences)
         genre_score = _genre_match_score(game["metadata"], genre_preferences)
-        total_score = (vector_score * VECTOR_SCORE_WEIGHT) + (genre_score * GENRE_SCORE_WEIGHT)
+        appeal_score = _appeal_match_score(game["metadata"], target_appeal_axes)
+        total_score = (
+            (vector_score * VECTOR_SCORE_WEIGHT)
+            + (genre_score * GENRE_SCORE_WEIGHT)
+            + (appeal_score * APPEAL_SCORE_WEIGHT)
+        )
         total_score = _apply_penalties(total_score, base_game["metadata"], game["metadata"])
 
         scored.append(
@@ -192,6 +265,7 @@ def recommend_games(
                 "total_score": total_score,
                 "vector_score": vector_score,
                 "genre_score": genre_score,
+                "appeal_score": appeal_score,
                 "vectors": game["vectors"],
                 "metadata": game["metadata"],
             }

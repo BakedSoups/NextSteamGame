@@ -18,6 +18,7 @@ import os
 import queue
 import sqlite3
 import threading
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -31,7 +32,8 @@ def utcnow_iso() -> str:
 
 
 class InitialNoncanonDbBuilder:
-    WRITE_BATCH_SIZE = 100
+    WRITE_BATCH_SIZE = 20
+    WRITE_IDLE_FLUSH_SECONDS = 3.0
     RESULT_QUEUE_MAXSIZE = 500
 
     def __init__(
@@ -289,19 +291,27 @@ class InitialNoncanonDbBuilder:
         writer_errors: List[BaseException],
     ) -> None:
         pending_profiles: List[Dict] = []
+        last_flush_at = time.monotonic()
 
         def flush_pending_profiles() -> None:
-            nonlocal pending_profiles
+            nonlocal pending_profiles, last_flush_at
             if not pending_profiles:
                 return
+            print(f"Writing {len(pending_profiles)} profiles to SQLite")
             self.store_profiles(pending_profiles)
             for entry in pending_profiles:
                 print(f"Stored {entry['game_name']} ({entry['appid']})")
             pending_profiles = []
+            last_flush_at = time.monotonic()
 
         try:
             while True:
-                result = result_queue.get()
+                try:
+                    result = result_queue.get(timeout=1.0)
+                except queue.Empty:
+                    if pending_profiles and (time.monotonic() - last_flush_at) >= self.WRITE_IDLE_FLUSH_SECONDS:
+                        flush_pending_profiles()
+                    continue
                 try:
                     if result is None:
                         flush_pending_profiles()
@@ -370,6 +380,7 @@ class InitialNoncanonDbBuilder:
             task_queue.put(row)
 
         worker_count = min(self.max_workers, max(1, len(rows)))
+        print(f"Starting worker pool with {worker_count} workers")
         for _ in range(worker_count):
             task_queue.put(None)
             worker = threading.Thread(
@@ -380,6 +391,7 @@ class InitialNoncanonDbBuilder:
             worker.start()
             workers.append(worker)
 
+        print("Starting SQLite writer thread")
         writer = threading.Thread(
             target=self._writer_loop,
             args=(result_queue, writer_summary, writer_errors),
@@ -405,10 +417,14 @@ class InitialNoncanonDbBuilder:
         }
 
     def build(self, limit: Optional[int] = None, notes: Optional[str] = None) -> Dict:
+        print("Preparing non-canon DB schema")
         self.create_schema()
+        print("Loading insightful words")
         insightful_words = load_insightful_words()
+        print("Counting existing stored profiles")
         existing_profiles = self.count_existing_profiles()
 
+        print("Starting run record")
         run_id = self.start_run(notes=notes)
         attempted_games = 0
         completed_games = 0
@@ -416,7 +432,11 @@ class InitialNoncanonDbBuilder:
         status = "completed"
 
         try:
+            print("Loading candidate games from metadata DB")
             rows = self.load_games(limit=limit)
+            print(f"Queued {len(rows)} games after resume filtering")
+            if not rows:
+                print("No new games to process")
             summary = self._build_with_workers(rows, insightful_words, run_id)
             attempted_games = int(summary["attempted_games"])
             completed_games = int(summary["completed_games"])

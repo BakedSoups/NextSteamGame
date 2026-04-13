@@ -14,6 +14,10 @@ NOTES = None
 def main() -> int:
     from db_builders.initial_noncanon_db import InitialNoncanonDbBuilder
 
+    print("Starting initial non-canonical DB build")
+    print(f"Metadata DB: {METADATA_DB_PATH}")
+    print(f"Output DB: {OUTPUT_DB_PATH}")
+    print(f"Max workers: {MAX_WORKERS}")
     builder = InitialNoncanonDbBuilder(
         metadata_db_path=METADATA_DB_PATH,
         output_db_path=OUTPUT_DB_PATH,

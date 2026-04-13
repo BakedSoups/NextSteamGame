@@ -110,8 +110,19 @@ def _canonicalize_metadata(metadata: Dict, mapping: Dict[str, Dict[str, str]]) -
                 seen_branch.add(canonical)
                 canon_tree[branch].append(canonical)
 
+    raw_signature_tag = str(metadata.get("signature_tag", "")).strip()
+    canonical_signature_tag = ""
+    if raw_signature_tag:
+        canonical_signature_tag = mapping.get("signature_tag", {}).get(
+            normalize_tag_text(raw_signature_tag),
+            raw_signature_tag,
+        )
+    appeal_axes = dict(metadata.get("appeal_axes") or {})
+
     return {
         "micro_tags": canon_micro,
+        "signature_tag": canonical_signature_tag,
+        "appeal_axes": appeal_axes,
         "genre_tree": canon_tree,
     }
 

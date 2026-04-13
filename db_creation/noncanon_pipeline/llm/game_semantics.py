@@ -14,6 +14,15 @@ from .review_sampling import sample_reviews
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
+APPEAL_AXIS_KEYS = (
+    "challenge",
+    "complexity",
+    "pace",
+    "narrative_focus",
+    "social_energy",
+    "creativity",
+)
+
 
 class GenreTree(BaseModel):
     primary: List[str]
@@ -23,11 +32,32 @@ class GenreTree(BaseModel):
 
 class GameMetadata(BaseModel):
     micro_tags: List[str]
+    signature_tag: str
+    appeal_axes: Dict[str, int]
     genre_tree: GenreTree
 
     @field_validator("micro_tags")
     def validate_micro_tags(cls, value: List[str]) -> List[str]:
         return list(dict.fromkeys(value))[:15]
+
+    @field_validator("signature_tag")
+    def validate_signature_tag(cls, value: str) -> str:
+        cleaned = " ".join(str(value).strip().split())
+        if not cleaned:
+            raise ValueError("signature_tag must not be empty")
+        return cleaned[:80]
+
+    @field_validator("appeal_axes")
+    def validate_appeal_axes(cls, value: Dict[str, int]) -> Dict[str, int]:
+        cleaned: Dict[str, int] = {}
+        for key in APPEAL_AXIS_KEYS:
+            raw = value.get(key, 50)
+            try:
+                score = int(raw)
+            except (TypeError, ValueError):
+                score = 50
+            cleaned[key] = max(0, min(100, score))
+        return cleaned
 
 
 class GameVectors(BaseModel):
@@ -52,6 +82,7 @@ class GameSemantics(BaseModel):
 
 VECTOR_KEYS = ("mechanics", "narrative", "vibe", "structure_loop", "uniqueness")
 RETRY_DELAY_SECONDS = 2.0
+MAX_SEMANTICS_RETRIES = 6
 
 
 def _build_prompt(reviews: List[str]) -> str:
@@ -65,6 +96,9 @@ RULES:
 - be specific, not generic
 - avoid duplicates and close synonyms
 - micro_tags must contain at most 15 entries
+- signature_tag must be a short 2-4 word phrase describing the game's defining hook
+- appeal_axes must include exactly these integer 0-100 keys:
+  challenge, complexity, pace, narrative_focus, social_energy, creativity
 - genre_tree must stay flat
 - vector weights must be integers
 - EACH vector object sums to EXACTLY 100 on its own
@@ -75,6 +109,15 @@ OUTPUT JSON:
 {{
   "metadata": {{
     "micro_tags": [tags],
+    "signature_tag": "portal platformer",
+    "appeal_axes": {{
+      "challenge": 55,
+      "complexity": 40,
+      "pace": 65,
+      "narrative_focus": 20,
+      "social_energy": 10,
+      "creativity": 85
+    }},
     "genre_tree": {{
       "primary": [broad genres],
       "sub": [recognized subgenres],
@@ -92,6 +135,21 @@ OUTPUT JSON:
 
 metadata.micro_tags:
 - short, searchable descriptors
+
+metadata.signature_tag:
+- exactly one concise hook
+- 2-4 words when possible
+- should capture the game's defining identity, not just restate a broad genre
+- examples: "portal platformer", "city life sim", "time loop mystery"
+
+metadata.appeal_axes:
+- challenge = how demanding or punishing it feels
+- complexity = how mentally/systemically dense it feels
+- pace = how fast and energetic moment-to-moment play feels
+- narrative_focus = how strongly the game centers story/characters
+- social_energy = how much the experience depends on other players or social dynamics
+- creativity = how much expression, experimentation, or player-made problem solving it invites
+- use integer values from 0 to 100
 
 metadata.genre_tree:
 - primary = broad categories like Action, RPG, Strategy
@@ -178,9 +236,9 @@ def _generate_semantics(sampled_reviews: List[str]) -> Dict:
             "content": (
                 "You generate structured game metadata and semantic vectors. "
                 "Return one JSON object with exactly two top-level keys: "
-                "metadata and vectors. metadata must contain micro_tags and "
-                "genre_tree. vectors must contain mechanics, narrative, vibe, "
-                "structure_loop, and uniqueness."
+                "metadata and vectors. metadata must contain micro_tags, "
+                "signature_tag, appeal_axes, and genre_tree. vectors must contain "
+                "mechanics, narrative, vibe, structure_loop, and uniqueness."
             ),
         },
         {
@@ -190,8 +248,9 @@ def _generate_semantics(sampled_reviews: List[str]) -> Dict:
     ]
 
     attempt = 0
-    while True:
+    while attempt < MAX_SEMANTICS_RETRIES:
         attempt += 1
+        print(f"Generating semantics attempt {attempt}")
         try:
             response = client.chat.completions.create(
                 model="gpt-4o-mini",
@@ -215,6 +274,10 @@ def _generate_semantics(sampled_reviews: List[str]) -> Dict:
             raise
         except Exception as exc:
             print(f"\nRetrying invalid semantics response (attempt {attempt}): {exc}")
+            if attempt >= MAX_SEMANTICS_RETRIES:
+                raise RuntimeError(
+                    f"Failed to generate valid semantics after {MAX_SEMANTICS_RETRIES} attempts."
+                ) from exc
             messages.append(
                 {
                     "role": "assistant",
@@ -233,6 +296,10 @@ def _generate_semantics(sampled_reviews: List[str]) -> Dict:
                 }
             )
             time.sleep(RETRY_DELAY_SECONDS)
+
+    raise RuntimeError(
+        f"Failed to generate valid semantics after {MAX_SEMANTICS_RETRIES} attempts."
+    )
 
 
 def generate_game_semantics(review_samples: Dict) -> Dict:

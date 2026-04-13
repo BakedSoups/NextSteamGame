@@ -1,20 +1,66 @@
 import re
 import time
+import threading
 
 import requests
 
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 
-from .llm.errors import SteamReviewsUnavailableError
+from .llm.errors import NoReviewsAfterFilteringError, SteamReviewsUnavailableError
 
 # APP_ID = "893180"
-MAX_REVIEWS_PER_GAME = 250
+MAX_RAW_REVIEWS_PER_GAME = 400
+TARGET_FILTERED_REVIEWS = 20
 STEAM_REVIEW_RETRIES = 3
 STEAM_REVIEW_RETRY_DELAY = 2.0
+STEAM_REQUEST_SPACING_SECONDS = 0.75
+STEAM_REQUEST_TIMEOUT = (10, 20)
+MAX_CONCURRENT_STEAM_FETCHES = 3
+STRICT_MIN_WORDS = 50
+RELAXED_MIN_WORDS = 20
+MIN_PLAYTIME_MINUTES = 60
 
 # --- load embedding model once at the top
 model = SentenceTransformer("all-mpnet-base-v2")
+STEAM_FETCH_SEMAPHORE = threading.Semaphore(MAX_CONCURRENT_STEAM_FETCHES)
+
+
+def _is_ascii_art(text):
+    letters = len(re.findall(r'[a-zA-Z]', text))
+    total = len(text.strip())
+    if total == 0:
+        return True
+    return (letters / total) < 0.5
+
+
+def _filter_reviews(reviews, min_words):
+    counts = {"raw": len(reviews)}
+
+    filtered = [r for r in reviews if not r["refunded"]]
+    counts["not_refunded"] = len(filtered)
+
+    filtered = [r for r in filtered if len(r["review"].split()) >= min_words]
+    counts[f"min_words_{min_words}"] = len(filtered)
+
+    filtered = [
+        r for r in filtered
+        if r["author"]["playtime_forever"] >= MIN_PLAYTIME_MINUTES
+    ]
+    counts[f"playtime_{MIN_PLAYTIME_MINUTES}m"] = len(filtered)
+
+    filtered = [r for r in filtered if not _is_ascii_art(r["review"])]
+    counts["not_ascii_art"] = len(filtered)
+
+    seen = set()
+    unique_reviews = []
+    for review in filtered:
+        text = review["review"].strip()
+        if text not in seen:
+            seen.add(text)
+            unique_reviews.append(review)
+    counts["deduped"] = len(unique_reviews)
+    return unique_reviews, counts
 
 
 def fetch_steam_reviews(APP_ID):
@@ -25,26 +71,42 @@ def fetch_steam_reviews(APP_ID):
         "num_per_page": 100,
         "language": "english",
         "filter": "all",
+        "review_type": "all",
+        "purchase_type": "steam",
     }
 
-    all_reviews = []
+    raw_reviews = []
+    seen_recommendations = set()
     cursor = "*"
 
-    while len(all_reviews) < MAX_REVIEWS_PER_GAME:
+    while len(raw_reviews) < MAX_RAW_REVIEWS_PER_GAME:
         params["cursor"] = cursor
         res = None
         for attempt in range(1, STEAM_REVIEW_RETRIES + 1):
             try:
-                response = requests.get(url, params=params, timeout=30)
-                response.raise_for_status()
-                body = response.text.strip()
-                if not body:
-                    raise SteamReviewsUnavailableError("No steam review")
-                res = response.json()
+                with STEAM_FETCH_SEMAPHORE:
+                    time.sleep(STEAM_REQUEST_SPACING_SECONDS)
+                    print(f"[{APP_ID}] Steam HTTP request attempt {attempt} cursor={cursor}")
+                    response = requests.get(
+                        url,
+                        params=params,
+                        timeout=STEAM_REQUEST_TIMEOUT,
+                        headers={
+                            "User-Agent": "SteamRecommender/1.0 (+local build pipeline)",
+                            "Accept": "application/json",
+                        },
+                    )
+                    response.raise_for_status()
+                    body = response.text.strip()
+                    if not body:
+                        raise SteamReviewsUnavailableError("No steam review")
+                    res = response.json()
+                    print(f"[{APP_ID}] Steam HTTP response OK")
                 break
             except KeyboardInterrupt:
                 raise
             except Exception as exc:
+                print(f"[{APP_ID}] Steam fetch retry {attempt}/{STEAM_REVIEW_RETRIES}: {exc}")
                 if attempt == STEAM_REVIEW_RETRIES:
                     raise SteamReviewsUnavailableError("No steam review") from exc
                 time.sleep(STEAM_REVIEW_RETRY_DELAY)
@@ -53,42 +115,52 @@ def fetch_steam_reviews(APP_ID):
         if not reviews:
             break
 
-        all_reviews.extend(reviews)
-        if len(all_reviews) >= MAX_REVIEWS_PER_GAME:
-            all_reviews = all_reviews[:MAX_REVIEWS_PER_GAME]
+        before_count = len(raw_reviews)
+        for review in reviews:
+            recommendation_id = review.get("recommendationid")
+            if recommendation_id in seen_recommendations:
+                continue
+            seen_recommendations.add(recommendation_id)
+            raw_reviews.append(review)
+            if len(raw_reviews) >= MAX_RAW_REVIEWS_PER_GAME:
+                break
+        if len(raw_reviews) == before_count:
+            print(f"[{APP_ID}] No new reviews from cursor; stopping pagination")
             break
+
+        strict_reviews, _ = _filter_reviews(raw_reviews, STRICT_MIN_WORDS)
+        if len(strict_reviews) >= TARGET_FILTERED_REVIEWS:
+            break
+
+        relaxed_reviews, _ = _filter_reviews(raw_reviews, RELAXED_MIN_WORDS)
+        if len(relaxed_reviews) >= TARGET_FILTERED_REVIEWS:
+            break
+
         cursor = res.get("cursor")
+        if not cursor:
+            break
 
-    # --- basic filters
-    all_reviews = [r for r in all_reviews if not r['refunded']]
-    all_reviews = [r for r in all_reviews if len(r['review'].split()) >= 50]
+    if raw_reviews:
+        print(
+            f"Fetched {len(raw_reviews)} raw reviews for {APP_ID} "
+            f"(target filtered {TARGET_FILTERED_REVIEWS})"
+        )
 
-    # --- playtime >= 60 minutes
-    all_reviews = [
-        r for r in all_reviews
-        if r["author"]["playtime_forever"] >= 60
-    ]
+    if not raw_reviews:
+        return []
 
-    # --- ascii filter
-    def is_ascii_art(text):
-        letters = len(re.findall(r'[a-zA-Z]', text))
-        total = len(text.strip())
-        if total == 0:
-            return True
-        return (letters / total) < 0.5
+    strict_reviews, strict_counts = _filter_reviews(raw_reviews, STRICT_MIN_WORDS)
+    if strict_reviews:
+        return strict_reviews
 
-    all_reviews = [r for r in all_reviews if not is_ascii_art(r['review'])]
+    relaxed_reviews, relaxed_counts = _filter_reviews(raw_reviews, RELAXED_MIN_WORDS)
+    if relaxed_reviews:
+        return relaxed_reviews
 
-    # --- deduplicate reviews
-    seen = set()
-    unique_reviews = []
-    for r in all_reviews:
-        text = r["review"].strip()
-        if text not in seen:
-            seen.add(text)
-            unique_reviews.append(r)
-
-    return unique_reviews
+    raise NoReviewsAfterFilteringError(
+        "No reviews after filtering "
+        f"(strict={strict_counts}; relaxed={relaxed_counts})"
+    )
 
 
 def score_category(text, category):

@@ -12,7 +12,11 @@
     <p class="muted">
       vector {{ "%.4f"|format(game.vector_score) }}
       · genre {{ "%.4f"|format(game.genre_score) }}
+      · appeal {{ "%.4f"|format(game.appeal_score) }}
     </p>
+    {% if game.metadata.get("signature_tag") %}
+    <p class="muted">signature {{ game.metadata.get("signature_tag") }}</p>
+    {% endif %}
     <p class="muted">
       primary {{ game.metadata.genre_tree.get("primary", [])[:3] }}
       · sub {{ game.metadata.genre_tree.get("sub", [])[:3] }}

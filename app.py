@@ -10,7 +10,13 @@ from wsgiref.simple_server import make_server
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from backend.db import FinalGameStore
-from backend.recommender import recommend_games
+from backend.recommender import (
+    APPEAL_AXIS_ORDER,
+    VECTOR_CONTEXT_ORDER,
+    default_appeal_axes,
+    default_context_percentages,
+    recommend_games,
+)
 from db_creation.paths import final_canon_db_path, metadata_db_path
 
 
@@ -52,10 +58,14 @@ def parse_request_data(environ) -> dict[str, list[str]]:
     return parse_qs(environ.get("QUERY_STRING", ""), keep_blank_values=True)
 
 
-def parse_adjustments(data: dict[str, list[str]]) -> tuple[dict[str, dict[str, float]], dict[str, list[str]], bool]:
+def parse_adjustments(
+    data: dict[str, list[str]],
+) -> tuple[dict[str, dict[str, float]], dict[str, list[str]], bool, dict[str, int], dict[str, int]]:
     extra_vector_boosts: dict[str, dict[str, float]] = {}
     selected_genres = {"primary": [], "sub": [], "traits": []}
     saw_genre_input = False
+    context_percentages = default_context_percentages()
+    appeal_axes = {axis: 50 for axis in APPEAL_AXIS_ORDER}
 
     for key, values in data.items():
         if key.startswith("boost__"):
@@ -70,8 +80,20 @@ def parse_adjustments(data: dict[str, list[str]]) -> tuple[dict[str, dict[str, f
             if branch in selected_genres:
                 saw_genre_input = True
                 selected_genres[branch] = values
+        elif key.startswith("context_weight__"):
+            context = key.split("__", 1)[1]
+            try:
+                context_percentages[context] = max(0, min(100, int(values[-1])))
+            except (TypeError, ValueError):
+                pass
+        elif key.startswith("appeal_axis__"):
+            axis = key.split("__", 1)[1]
+            try:
+                appeal_axes[axis] = max(0, min(100, int(values[-1])))
+            except (TypeError, ValueError):
+                pass
 
-    return extra_vector_boosts, selected_genres, saw_genre_input
+    return extra_vector_boosts, selected_genres, saw_genre_input, context_percentages, appeal_axes
 
 
 def handle_index(start_response):
@@ -92,7 +114,14 @@ def handle_game(appid: int, start_response):
     if game is None:
         body = render("partials/game_placeholder.html", selected_appid=appid, unavailable=True)
         return response(start_response, body)
-    body = render("partials/game_panel.html", game=game)
+    body = render(
+        "partials/game_panel.html",
+        game=game,
+        appeal_axis_order=APPEAL_AXIS_ORDER,
+        appeal_axes=default_appeal_axes(game["metadata"]),
+        context_order=VECTOR_CONTEXT_ORDER,
+        context_percentages=default_context_percentages(),
+    )
     return response(start_response, body)
 
 
@@ -109,7 +138,7 @@ def handle_recommend(environ, start_response):
         body = render("partials/recommendations.html", results=[], unavailable=True)
         return response(start_response, body)
 
-    extra_vector_boosts, selected_genres, saw_genre_input = parse_adjustments(data)
+    extra_vector_boosts, selected_genres, saw_genre_input, context_percentages, appeal_axes = parse_adjustments(data)
     added_genres = {"primary": [], "sub": [], "traits": []}
     removed_genres = {"primary": [], "sub": [], "traits": []}
     if saw_genre_input:
@@ -124,6 +153,8 @@ def handle_recommend(environ, start_response):
         game,
         ALL_GAMES,
         extra_vector_boosts=extra_vector_boosts,
+        context_percentages=context_percentages,
+        appeal_axes=appeal_axes,
         added_genres=added_genres,
         removed_genres=removed_genres,
         limit=20,

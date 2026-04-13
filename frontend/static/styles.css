@@ -111,10 +111,16 @@ h1, h2, h3, h4 { margin: 0 0 12px; }
 }
 
 .chip-row,
-.vector-grid {
+.vector-grid,
+.context-grid {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+.context-total {
+  margin: 0 0 12px;
+  color: var(--muted);
 }
 
 .chip,
@@ -130,6 +136,18 @@ h1, h2, h3, h4 { margin: 0 0 12px; }
 
 .vector-card {
   min-width: 180px;
+}
+
+.context-card {
+  min-width: 210px;
+}
+
+.context-card input[type="range"] {
+  width: 100%;
+}
+
+.appeal-card input[type="range"] {
+  width: 100%;
 }
 
 .vector-tag { font-weight: 700; }

@@ -1,12 +1,40 @@
 <h2>{{ game.name }}</h2>
 <p class="meta">App ID {{ game.appid }}</p>
+{% if game.metadata.get("signature_tag") %}
+<p class="meta">Signature tag: <strong>{{ game.metadata.get("signature_tag") }}</strong></p>
+{% endif %}
 
 <form
   id="preference-form"
   hx-get="/recommend"
   hx-target="#recommendations"
+  hx-trigger="change delay:200ms, submit"
   hx-swap="innerHTML">
   <input type="hidden" name="appid" value="{{ game.appid }}">
+
+  <section class="block">
+    <h3>Context Weighting</h3>
+    <p class="muted">These sliders always rebalance to a 100 total. Push one up and the others step down.</p>
+    <p class="context-total">Total <strong id="context-weight-total">100</strong>%</p>
+    <div class="context-grid" id="context-weight-grid">
+      {% for context in context_order %}
+      {% set percentage = context_percentages.get(context, 0) %}
+      <label class="vector-card context-card">
+        <span class="vector-tag">{{ context }}</span>
+        <span class="vector-weight"><output id="context_output__{{ context }}">{{ percentage }}</output>%</span>
+        <input
+          class="context-slider"
+          type="range"
+          min="0"
+          max="100"
+          step="1"
+          value="{{ percentage }}"
+          name="context_weight__{{ context }}"
+          data-context="{{ context }}">
+      </label>
+      {% endfor %}
+    </div>
+  </section>
 
   <section class="block">
     <h3>Genre Tree</h3>
@@ -25,6 +53,29 @@
       </div>
     </div>
     {% endfor %}
+  </section>
+
+  <section class="block">
+    <h3>Appeal Axes</h3>
+    <p class="muted">These are review-derived feel sliders. Move them to ask for games that feel more or less like this profile.</p>
+    <div class="vector-grid">
+      {% for axis in appeal_axis_order %}
+      {% set axis_value = appeal_axes.get(axis, 50) %}
+      <label class="vector-card appeal-card">
+        <span class="vector-tag">{{ axis.replace("_", " ") }}</span>
+        <span class="vector-weight"><output id="appeal_output__{{ axis }}">{{ axis_value }}</output></span>
+        <input
+          class="appeal-slider"
+          type="range"
+          min="0"
+          max="100"
+          step="1"
+          value="{{ axis_value }}"
+          name="appeal_axis__{{ axis }}"
+          data-axis="{{ axis }}">
+      </label>
+      {% endfor %}
+    </div>
   </section>
 
   <section class="block">
@@ -51,3 +102,85 @@
     <button class="primary-button" type="submit">Update Recommendations</button>
   </div>
 </form>
+
+<script>
+(() => {
+  const form = document.getElementById('preference-form');
+  const container = document.getElementById('context-weight-grid');
+  if (!form || !container) return;
+
+  const sliders = Array.from(container.querySelectorAll('.context-slider'));
+  const totalOutput = document.getElementById('context-weight-total');
+  const totalTarget = 100;
+  const appealSliders = Array.from(form.querySelectorAll('.appeal-slider'));
+
+  function refreshOutputs() {
+    let total = 0;
+    for (const slider of sliders) {
+      total += Number(slider.value);
+      const output = document.getElementById(`context_output__${slider.dataset.context}`);
+      if (output) output.textContent = slider.value;
+    }
+    if (totalOutput) totalOutput.textContent = String(total);
+  }
+
+  function rebalance(activeSlider) {
+    const activeValue = Number(activeSlider.value);
+    const others = sliders.filter((slider) => slider !== activeSlider);
+    const otherTotal = others.reduce((sum, slider) => sum + Number(slider.value), 0);
+    const remaining = Math.max(0, totalTarget - activeValue);
+
+    if (others.length === 0) {
+      activeSlider.value = String(totalTarget);
+      refreshOutputs();
+      return;
+    }
+
+    if (otherTotal <= 0) {
+      const even = Math.floor(remaining / others.length);
+      let spill = remaining - (even * others.length);
+      for (const slider of others) {
+        const nextValue = even + (spill > 0 ? 1 : 0);
+        slider.value = String(nextValue);
+        if (spill > 0) spill -= 1;
+      }
+    } else {
+      let assigned = 0;
+      for (let index = 0; index < others.length; index += 1) {
+        const slider = others[index];
+        let nextValue = Math.round((Number(slider.value) / otherTotal) * remaining);
+        if (index === others.length - 1) {
+          nextValue = remaining - assigned;
+        }
+        nextValue = Math.max(0, nextValue);
+        slider.value = String(nextValue);
+        assigned += nextValue;
+      }
+    }
+
+    const normalized = sliders.reduce((sum, slider) => sum + Number(slider.value), 0);
+    if (normalized !== totalTarget) {
+      const delta = totalTarget - normalized;
+      const fallback = sliders.find((slider) => slider !== activeSlider) || activeSlider;
+      fallback.value = String(Math.max(0, Number(fallback.value) + delta));
+    }
+
+    refreshOutputs();
+  }
+
+  sliders.forEach((slider) => {
+    slider.addEventListener('input', () => rebalance(slider));
+  });
+
+  appealSliders.forEach((slider) => {
+    slider.addEventListener('input', () => {
+      const output = document.getElementById(`appeal_output__${slider.dataset.axis}`);
+      if (output) output.textContent = slider.value;
+    });
+    const output = document.getElementById(`appeal_output__${slider.dataset.axis}`);
+    if (output) output.textContent = slider.value;
+  });
+
+  refreshOutputs();
+})();
+</script>
