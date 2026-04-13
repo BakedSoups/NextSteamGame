@@ -309,7 +309,6 @@ def _generate_semantics(sampled_reviews: List[str], appid: str | int | None = No
     attempt = 0
     while attempt < MAX_SEMANTICS_RETRIES:
         attempt += 1
-        log_stage("semantics", f"attempt {attempt}", appid=appid)
         try:
             response = client.chat.completions.create(
                 model="gpt-4o-mini",
@@ -332,7 +331,7 @@ def _generate_semantics(sampled_reviews: List[str], appid: str | int | None = No
         except KeyboardInterrupt:
             raise
         except Exception as exc:
-            log_stage("semantics", f"invalid response on attempt {attempt}: {exc}", appid=appid)
+            log_stage("semantics", appid=appid, detail=f"retrying semantics ({attempt}/{MAX_SEMANTICS_RETRIES})")
             if attempt >= MAX_SEMANTICS_RETRIES:
                 raise RuntimeError(
                     f"Failed to generate valid semantics after {MAX_SEMANTICS_RETRIES} attempts."

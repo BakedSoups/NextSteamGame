@@ -25,7 +25,7 @@ from typing import Dict, List, Optional
 
 from noncanon_pipeline.pipeline import build_game_output, build_skipped_profile, load_insightful_words
 from noncanon_pipeline.llm.errors import CreditsExhaustedError, NoReviewsError
-from noncanon_pipeline.progress import advance_appid, complete_appid, fail_appid, log_banner, log_stage
+from noncanon_pipeline.progress import advance_appid, complete_appid, fail_appid, log_banner, log_stage, update_status
 
 
 def utcnow_iso() -> str:
@@ -217,6 +217,8 @@ class InitialNoncanonDbBuilder:
         result_queue: queue.Queue,
         insightful_words: Dict,
         stop_event: threading.Event,
+        runtime_state: Dict[str, int],
+        runtime_lock: threading.Lock,
     ) -> None:
         while True:
             try:
@@ -245,6 +247,8 @@ class InitialNoncanonDbBuilder:
                 continue
 
             try:
+                with runtime_lock:
+                    runtime_state["active_workers"] += 1
                 profile = build_game_output(str(appid), insightful_words)
                 result_queue.put(
                     {
@@ -287,6 +291,8 @@ class InitialNoncanonDbBuilder:
                     }
                 )
             finally:
+                with runtime_lock:
+                    runtime_state["active_workers"] = max(0, runtime_state["active_workers"] - 1)
                 task_queue.task_done()
 
     def _writer_loop(
@@ -294,6 +300,8 @@ class InitialNoncanonDbBuilder:
         result_queue: queue.Queue,
         writer_summary: Dict[str, int],
         writer_errors: List[BaseException],
+        runtime_state: Dict[str, int],
+        runtime_lock: threading.Lock,
     ) -> None:
         pending_profiles: List[Dict] = []
         last_flush_at = time.monotonic()
@@ -302,14 +310,18 @@ class InitialNoncanonDbBuilder:
             nonlocal pending_profiles, last_flush_at
             if not pending_profiles:
                 return
-            log_stage("sqlite", f"writing batch size={len(pending_profiles)}")
+            log_stage("sqlite", detail=f"writing batch size={len(pending_profiles)}")
+            with runtime_lock:
+                runtime_state["sqlite_pending"] = len(pending_profiles)
             for entry in pending_profiles:
                 advance_appid(entry["appid"], "sqlite", "arrived at sqlite writer")
             self.store_profiles(pending_profiles)
             for entry in pending_profiles:
-                complete_appid(entry["appid"], "completed", entry["game_name"])
+                complete_appid(entry["appid"], detail=entry["game_name"])
             pending_profiles = []
             last_flush_at = time.monotonic()
+            with runtime_lock:
+                runtime_state["sqlite_pending"] = 0
 
         try:
             while True:
@@ -330,7 +342,7 @@ class InitialNoncanonDbBuilder:
                         continue
 
                     if result["kind"] == "no_reviews":
-                        log_stage("skip", f"{result['game_name']} :: {result['error']}", appid=result["appid"])
+                        log_stage("skip", appid=result["appid"], detail=f"{result['game_name']} :: {result['error']}")
                         writer_summary["attempted_games"] += 1
                         writer_summary["completed_games"] += 1
                         pending_profiles.append(
@@ -349,7 +361,7 @@ class InitialNoncanonDbBuilder:
                     game_name = str(result["game_name"])
 
                     if result["kind"] == "success":
-                        log_stage("queue", f"{game_name} ready for sqlite", appid=appid)
+                        log_stage("queue", appid=appid, detail="ready for sqlite")
                         pending_profiles.append(
                             {
                                 "appid": appid,
@@ -367,11 +379,11 @@ class InitialNoncanonDbBuilder:
 
                     if result["kind"] == "quota_exhausted":
                         writer_summary["status"] = "paused_quota_exhausted"
-                        log_stage("quota", f"{game_name} :: {result['error']}", appid=appid)
-                        fail_appid(appid, "quota_exhausted", game_name)
+                        log_stage("quota", appid=appid, detail=f"{game_name} :: {result['error']}")
+                        fail_appid(appid, detail=f"quota_exhausted :: {game_name}")
                     else:
-                        log_stage("error", f"{game_name} :: {result['error']}", appid=appid)
-                        fail_appid(appid, "error", game_name)
+                        log_stage("error", appid=appid, detail=f"{game_name} :: {result['error']}")
+                        fail_appid(appid, detail=f"error :: {game_name}")
 
                     self.record_error(writer_summary["run_id"], appid, game_name, str(result["error"]))
                 finally:
@@ -383,8 +395,14 @@ class InitialNoncanonDbBuilder:
         task_queue: queue.Queue = queue.Queue()
         result_queue: queue.Queue = queue.Queue(maxsize=self.RESULT_QUEUE_MAXSIZE)
         stop_event = threading.Event()
+        monitor_stop_event = threading.Event()
         workers: List[threading.Thread] = []
         writer_errors: List[BaseException] = []
+        runtime_lock = threading.Lock()
+        runtime_state: Dict[str, int] = {
+            "active_workers": 0,
+            "sqlite_pending": 0,
+        }
         writer_summary: Dict[str, int | str] = {
             "run_id": run_id,
             "attempted_games": 0,
@@ -398,24 +416,43 @@ class InitialNoncanonDbBuilder:
             task_queue.put(row)
 
         worker_count = min(self.max_workers, max(1, len(rows)))
-        print(f"Starting worker pool with {worker_count} workers")
+        log_stage("setup", detail=f"starting worker pool with {worker_count} workers")
         for _ in range(worker_count):
             task_queue.put(None)
             worker = threading.Thread(
                 target=self._worker_loop,
-                args=(task_queue, result_queue, insightful_words, stop_event),
+                args=(task_queue, result_queue, insightful_words, stop_event, runtime_state, runtime_lock),
                 daemon=True,
             )
             worker.start()
             workers.append(worker)
 
-        print("Starting SQLite writer thread")
+        log_stage("setup", detail="starting SQLite writer thread")
         writer = threading.Thread(
             target=self._writer_loop,
-            args=(result_queue, writer_summary, writer_errors),
+            args=(result_queue, writer_summary, writer_errors, runtime_state, runtime_lock),
             daemon=True,
         )
         writer.start()
+
+        def monitor_loop() -> None:
+            while not monitor_stop_event.is_set():
+                with runtime_lock:
+                    active_workers = runtime_state["active_workers"]
+                    sqlite_pending = runtime_state["sqlite_pending"]
+                update_status(
+                    "remaining="
+                    f"{task_queue.qsize()} "
+                    f"in_flight={active_workers} "
+                    f"writer_queue={result_queue.qsize()} "
+                    f"sqlite_pending={sqlite_pending} "
+                    f"stored={writer_summary['completed_games']} "
+                    f"errors={writer_summary['error_count']}"
+                )
+                time.sleep(1.0)
+
+        monitor = threading.Thread(target=monitor_loop, daemon=True)
+        monitor.start()
 
         for worker in workers:
             worker.join()
@@ -423,6 +460,8 @@ class InitialNoncanonDbBuilder:
 
         result_queue.put(None)
         writer.join()
+        monitor_stop_event.set()
+        monitor.join(timeout=1.0)
 
         if writer_errors:
             raise writer_errors[0]

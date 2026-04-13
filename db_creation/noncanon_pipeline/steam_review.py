@@ -87,7 +87,6 @@ def fetch_steam_reviews(APP_ID):
             try:
                 with STEAM_FETCH_SEMAPHORE:
                     time.sleep(STEAM_REQUEST_SPACING_SECONDS)
-                    log_stage("http", f"request attempt={attempt} cursor={cursor}", appid=APP_ID)
                     response = requests.get(
                         url,
                         params=params,
@@ -102,12 +101,11 @@ def fetch_steam_reviews(APP_ID):
                     if not body:
                         raise SteamReviewsUnavailableError("No steam review")
                     res = response.json()
-                    log_stage("http", "response OK", appid=APP_ID)
                 break
             except KeyboardInterrupt:
                 raise
             except Exception as exc:
-                log_stage("http", f"retry {attempt}/{STEAM_REVIEW_RETRIES}: {exc}", appid=APP_ID)
+                log_stage("fetch", appid=APP_ID, detail=f"retry {attempt}/{STEAM_REVIEW_RETRIES}")
                 if attempt == STEAM_REVIEW_RETRIES:
                     raise SteamReviewsUnavailableError("No steam review") from exc
                 time.sleep(STEAM_REVIEW_RETRY_DELAY)
@@ -126,7 +124,6 @@ def fetch_steam_reviews(APP_ID):
             if len(raw_reviews) >= MAX_RAW_REVIEWS_PER_GAME:
                 break
         if len(raw_reviews) == before_count:
-            log_stage("http", "no new reviews from cursor; stopping pagination", appid=APP_ID)
             break
 
         strict_reviews, _ = _filter_reviews(raw_reviews, STRICT_MIN_WORDS)
@@ -140,13 +137,6 @@ def fetch_steam_reviews(APP_ID):
         cursor = res.get("cursor")
         if not cursor:
             break
-
-    if raw_reviews:
-        log_stage(
-            "fetch",
-            f"collected {len(raw_reviews)} raw reviews (target filtered {TARGET_FILTERED_REVIEWS})",
-            appid=APP_ID,
-        )
 
     if not raw_reviews:
         return []

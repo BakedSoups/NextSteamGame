@@ -26,7 +26,7 @@ _progress = Progress(
     BarColumn(bar_width=24),
     TextColumn("{task.completed}/{task.total}"),
     TextColumn("{task.fields[stage]}"),
-    TextColumn("{task.fields[detail]}", overflow="fold"),
+    TextColumn("{task.fields[detail]}"),
     TimeElapsedColumn(),
     console=_console,
     transient=False,
@@ -35,6 +35,7 @@ _progress.start()
 
 _lock = threading.RLock()
 _tasks: Dict[str, TaskID] = {}
+_status_task: Optional[TaskID] = None
 
 
 def _render_appid(appid: str | int) -> str:
@@ -90,6 +91,28 @@ def _schedule_removal(appid: str | int) -> None:
 def log_banner(message: str) -> None:
     with _lock:
         _console.print(f"[bold cyan]{message}[/bold cyan]")
+
+
+def update_status(detail: str) -> None:
+    global _status_task
+    with _lock:
+        if _status_task is None:
+            _status_task = _progress.add_task(
+                "",
+                total=1,
+                completed=1,
+                appid="[status]",
+                stage="summary",
+                detail=detail,
+            )
+        else:
+            _progress.update(
+                _status_task,
+                completed=1,
+                stage="summary",
+                detail=detail,
+                refresh=True,
+            )
 
 
 def start_appid(appid: str | int, detail: str = "starting") -> None:
