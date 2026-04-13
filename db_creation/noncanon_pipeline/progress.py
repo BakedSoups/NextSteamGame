@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import atexit
 import threading
+import time
 
 
 STAGE_ORDER = ("fetch", "filter", "sample", "semantics", "sqlite")
@@ -16,6 +17,7 @@ STAGE_LABELS = {
 _LOCK = threading.Lock()
 _STATE: dict[str, dict[str, str]] = {}
 _TASK_IDS: dict[str, int] = {}
+_REMOVE_AFTER_SECONDS = 2.0
 
 try:
     from rich.console import Console
@@ -40,6 +42,20 @@ try:
             _PROGRESS.stop()
         except Exception:
             pass
+
+    def _schedule_task_removal(appid: str | int) -> None:
+        def _remove() -> None:
+            time.sleep(_REMOVE_AFTER_SECONDS)
+            with _LOCK:
+                task_id = _TASK_IDS.pop(str(appid), None)
+                _STATE.pop(str(appid), None)
+            if task_id is not None:
+                try:
+                    _PROGRESS.remove_task(task_id)
+                except Exception:
+                    pass
+
+        threading.Thread(target=_remove, daemon=True).start()
 
 except Exception:
     _RICH_AVAILABLE = False
@@ -151,6 +167,7 @@ def complete_appid(appid: str | int, result: str = "completed", detail: str = ""
             item[stage] = "done"
         if _RICH_AVAILABLE:
             _rich_update(appid, completed=len(STAGE_ORDER), stage=result, detail=detail)
+            _schedule_task_removal(appid)
             return
         bar = _render_stage_bar(appid)
     suffix = f" :: {detail}" if detail else ""
@@ -171,6 +188,7 @@ def fail_appid(appid: str | int, result: str, detail: str = "") -> None:
                 break
         if _RICH_AVAILABLE:
             _rich_update(appid, completed=completed, stage=result, detail=detail)
+            _schedule_task_removal(appid)
             return
         bar = _render_stage_bar(appid)
     suffix = f" :: {detail}" if detail else ""
