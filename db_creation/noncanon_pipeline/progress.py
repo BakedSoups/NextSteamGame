@@ -3,214 +3,152 @@ from __future__ import annotations
 import atexit
 import threading
 import time
+from typing import Dict, Optional
+
+from rich.console import Console
+from rich.progress import (
+    BarColumn,
+    Progress,
+    SpinnerColumn,
+    TaskID,
+    TextColumn,
+    TimeElapsedColumn,
+)
+
+STAGES = ("fetch", "filter", "sample", "semantics", "sqlite")
+STAGE_INDEX = {stage: index for index, stage in enumerate(STAGES)}
+REMOVE_DELAY_SECONDS = 2.0
+
+_console = Console()
+_progress = Progress(
+    SpinnerColumn(),
+    TextColumn("[bold]{task.fields[appid]}[/bold]"),
+    BarColumn(bar_width=24),
+    TextColumn("{task.completed}/{task.total}"),
+    TextColumn("{task.fields[stage]}"),
+    TextColumn("{task.fields[detail]}", overflow="fold"),
+    TimeElapsedColumn(),
+    console=_console,
+    transient=False,
+)
+_progress.start()
+
+_lock = threading.RLock()
+_tasks: Dict[str, TaskID] = {}
 
 
-STAGE_ORDER = ("fetch", "filter", "sample", "semantics", "sqlite")
-STAGE_LABELS = {
-    "fetch": "fetch",
-    "filter": "filter",
-    "sample": "sample",
-    "semantics": "semantics",
-    "sqlite": "sqlite",
-}
-
-_LOCK = threading.Lock()
-_STATE: dict[str, dict[str, str]] = {}
-_TASK_IDS: dict[str, int] = {}
-_REMOVE_AFTER_SECONDS = 2.0
-
-try:
-    from rich.console import Console
-    from rich.progress import BarColumn, Progress, TaskProgressColumn, TextColumn
-
-    _RICH_AVAILABLE = True
-    _CONSOLE = Console()
-    _PROGRESS = Progress(
-        TextColumn("{task.fields[appid]}", justify="right"),
-        BarColumn(bar_width=24),
-        TaskProgressColumn(),
-        TextColumn("{task.fields[stage]}"),
-        TextColumn("{task.fields[detail]}"),
-        console=_CONSOLE,
-        transient=False,
-    )
-    _PROGRESS.start()
-
-    @atexit.register
-    def _stop_progress() -> None:
-        try:
-            _PROGRESS.stop()
-        except Exception:
-            pass
-
-    def _schedule_task_removal(appid: str | int) -> None:
-        def _remove() -> None:
-            time.sleep(_REMOVE_AFTER_SECONDS)
-            with _LOCK:
-                task_id = _TASK_IDS.pop(str(appid), None)
-                _STATE.pop(str(appid), None)
-            if task_id is not None:
-                try:
-                    _PROGRESS.remove_task(task_id)
-                except Exception:
-                    pass
-
-        threading.Thread(target=_remove, daemon=True).start()
-
-except Exception:
-    _RICH_AVAILABLE = False
-    _CONSOLE = None
-    _PROGRESS = None
+def _render_appid(appid: str | int) -> str:
+    return f"appid={appid}"
 
 
-def _prefix(stage: str) -> str:
-    return f"[{stage:<10}]"
+def _get_or_create_task(appid: str | int, detail: str = "") -> TaskID:
+    appid_key = str(appid)
+    with _lock:
+        existing = _tasks.get(appid_key)
+        if existing is not None:
+            return existing
 
-
-def _render_stage_bar(appid: str | int) -> str:
-    key = str(appid)
-    item = _STATE.setdefault(key, {})
-    cells = []
-    for stage in STAGE_ORDER:
-        status = item.get(stage, "pending")
-        label = STAGE_LABELS[stage]
-        if status == "done":
-            cells.append(f"[x] {label}")
-        elif status == "active":
-            cells.append(f"[>] {label}")
-        elif status == "skipped":
-            cells.append(f"[-] {label}")
-        else:
-            cells.append(f"[ ] {label}")
-    return " | ".join(cells)
-
-
-def _ensure_rich_task(appid: str | int) -> int:
-    key = str(appid)
-    task_id = _TASK_IDS.get(key)
-    if task_id is not None:
+        task_id = _progress.add_task(
+            "",
+            total=len(STAGES),
+            completed=0,
+            appid=_render_appid(appid),
+            stage="queued",
+            detail=detail,
+        )
+        _tasks[appid_key] = task_id
         return task_id
-    task_id = _PROGRESS.add_task(
-        "",
-        total=len(STAGE_ORDER),
-        completed=0,
-        appid=f"appid={appid}",
-        stage="starting",
-        detail="",
-    )
-    _TASK_IDS[key] = task_id
-    return task_id
 
 
-def _rich_update(appid: str | int, *, completed: int, stage: str, detail: str) -> None:
-    if not _RICH_AVAILABLE:
-        return
-    task_id = _ensure_rich_task(appid)
-    _PROGRESS.update(
-        task_id,
-        completed=completed,
-        stage=stage,
-        detail=detail,
-        refresh=True,
-    )
+def _set_stage(appid: str | int, stage: str, detail: str = "", completed: Optional[int] = None) -> None:
+    task_id = _get_or_create_task(appid, detail=detail)
+    update_kwargs = {
+        "stage": stage,
+        "detail": detail,
+        "refresh": True,
+    }
+    if completed is not None:
+        update_kwargs["completed"] = completed
+    with _lock:
+        _progress.update(task_id, **update_kwargs)
 
 
-def log_stage(stage: str, message: str, *, appid: str | int | None = None) -> None:
-    if _RICH_AVAILABLE:
-        if appid is None:
-            _CONSOLE.print(f"{_prefix(stage)} {message}")
-        else:
-            _CONSOLE.print(f"{_prefix(stage)} appid={appid} {message}")
-        return
-    scope = f" appid={appid}" if appid is not None else ""
-    print(f"{_prefix(stage)}{scope} {message}", flush=True)
+def _schedule_removal(appid: str | int) -> None:
+    appid_key = str(appid)
 
+    def _remove_later() -> None:
+        time.sleep(REMOVE_DELAY_SECONDS)
+        with _lock:
+            task_id = _tasks.pop(appid_key, None)
+            if task_id is not None:
+                _progress.remove_task(task_id)
 
-def advance_appid(appid: str | int, stage: str, detail: str = "") -> None:
-    with _LOCK:
-        key = str(appid)
-        item = _STATE.setdefault(key, {})
-        completed = 0
-        active_stage = stage
-        for current_stage in STAGE_ORDER:
-            if current_stage == stage:
-                item[current_stage] = "done"
-                completed += 1
-                break
-            if item.get(current_stage) in ("done", "skipped"):
-                completed += 1
-                continue
-            item[current_stage] = "done"
-            completed += 1
-        next_index = STAGE_ORDER.index(stage) + 1
-        if next_index < len(STAGE_ORDER):
-            next_stage = STAGE_ORDER[next_index]
-            if item.get(next_stage, "pending") == "pending":
-                item[next_stage] = "active"
-            active_stage = next_stage
-        else:
-            active_stage = "done"
-
-        if _RICH_AVAILABLE:
-            _rich_update(appid, completed=completed, stage=active_stage, detail=detail)
-            return
-        bar = _render_stage_bar(appid)
-    suffix = f" :: {detail}" if detail else ""
-    print(f"[progress  ] appid={appid} {bar}{suffix}", flush=True)
-
-
-def complete_appid(appid: str | int, result: str = "completed", detail: str = "") -> None:
-    with _LOCK:
-        key = str(appid)
-        item = _STATE.setdefault(key, {})
-        for stage in STAGE_ORDER:
-            item[stage] = "done"
-        if _RICH_AVAILABLE:
-            _rich_update(appid, completed=len(STAGE_ORDER), stage=result, detail=detail)
-            _schedule_task_removal(appid)
-            return
-        bar = _render_stage_bar(appid)
-    suffix = f" :: {detail}" if detail else ""
-    print(f"[completed ] appid={appid} {bar} => {result}{suffix}", flush=True)
-
-
-def fail_appid(appid: str | int, result: str, detail: str = "") -> None:
-    with _LOCK:
-        key = str(appid)
-        item = _STATE.setdefault(key, {})
-        completed = 0
-        for stage in STAGE_ORDER:
-            status = item.get(stage, "pending")
-            if status == "done":
-                completed += 1
-            elif status == "active":
-                item[stage] = "skipped"
-                break
-        if _RICH_AVAILABLE:
-            _rich_update(appid, completed=completed, stage=result, detail=detail)
-            _schedule_task_removal(appid)
-            return
-        bar = _render_stage_bar(appid)
-    suffix = f" :: {detail}" if detail else ""
-    print(f"[completed ] appid={appid} {bar} => {result}{suffix}", flush=True)
-
-
-def start_appid(appid: str | int) -> None:
-    with _LOCK:
-        key = str(appid)
-        item = {stage: "pending" for stage in STAGE_ORDER}
-        item["fetch"] = "active"
-        _STATE[key] = item
-        if _RICH_AVAILABLE:
-            _rich_update(appid, completed=0, stage="fetch", detail="starting")
-            return
-        bar = _render_stage_bar(appid)
-    print(f"[progress  ] appid={appid} {bar} :: starting", flush=True)
+    thread = threading.Thread(target=_remove_later, daemon=True)
+    thread.start()
 
 
 def log_banner(message: str) -> None:
-    rule = "=" * 72
-    if _RICH_AVAILABLE:
-        _CONSOLE.print(f"\n{rule}\n{message}\n{rule}")
+    with _lock:
+        _console.print(f"[bold cyan]{message}[/bold cyan]")
+
+
+def start_appid(appid: str | int, detail: str = "starting") -> None:
+    _get_or_create_task(appid, detail=detail)
+    _set_stage(appid, "queued", detail=detail, completed=0)
+
+
+def log_stage(stage: str, appid: str | int | None = None, detail: str = "") -> None:
+    if appid is None:
+        with _lock:
+            _console.print(f"[cyan][{stage:<10}][/cyan] {detail}")
         return
-    print(f"\n{rule}\n{message}\n{rule}", flush=True)
+
+    appid_str = str(appid)
+    if stage in STAGE_INDEX:
+        completed = STAGE_INDEX[stage]
+        _set_stage(appid_str, stage, detail=detail, completed=completed)
+        return
+
+    _set_stage(appid_str, stage, detail=detail)
+
+
+def advance_appid(appid: str | int, stage: str, detail: str = "") -> None:
+    if stage not in STAGE_INDEX:
+        raise ValueError(f"Unknown stage: {stage}")
+
+    completed = STAGE_INDEX[stage] + 1
+    _set_stage(appid, stage, detail=detail, completed=completed)
+
+
+def complete_appid(appid: str | int, detail: str = "completed") -> None:
+    task_id = _get_or_create_task(appid, detail=detail)
+    with _lock:
+        _progress.update(
+            task_id,
+            completed=len(STAGES),
+            stage="completed",
+            detail=detail,
+            refresh=True,
+        )
+    _schedule_removal(appid)
+
+
+def fail_appid(appid: str | int, detail: str = "error") -> None:
+    task_id = _get_or_create_task(appid, detail=detail)
+    with _lock:
+        _progress.update(
+            task_id,
+            stage="error",
+            detail=detail,
+            refresh=True,
+        )
+    _schedule_removal(appid)
+
+
+@atexit.register
+def _stop_progress() -> None:
+    with _lock:
+        try:
+            _progress.stop()
+        except Exception:
+            pass
