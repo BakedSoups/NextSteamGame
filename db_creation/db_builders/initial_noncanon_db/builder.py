@@ -31,6 +31,8 @@ def utcnow_iso() -> str:
 
 
 class InitialNoncanonDbBuilder:
+    WRITE_BATCH_SIZE = 100
+
     def __init__(
         self,
         metadata_db_path: Path,
@@ -166,9 +168,35 @@ class InitialNoncanonDbBuilder:
         return int(row["count"])
 
     def store_profile(self, appid: int, game_name: str, profile: Dict) -> None:
+        self.store_profiles(
+            [
+                {
+                    "appid": appid,
+                    "game_name": game_name,
+                    "profile": profile,
+                }
+            ]
+        )
+
+    def store_profiles(self, profiles: List[Dict]) -> None:
+        if not profiles:
+            return
+
         timestamp = utcnow_iso()
+        rows = [
+            (
+                int(entry["appid"]),
+                str(entry["game_name"]),
+                json.dumps(entry["profile"]["review_samples"], ensure_ascii=True, sort_keys=True),
+                json.dumps(entry["profile"]["vectors"], ensure_ascii=True, sort_keys=True),
+                json.dumps(entry["profile"]["metadata"], ensure_ascii=True, sort_keys=True),
+                timestamp,
+                timestamp,
+            )
+            for entry in profiles
+        ]
         with self.output_conn() as connection:
-            connection.execute(
+            connection.executemany(
                 """
                 INSERT INTO raw_game_semantics (
                     appid,
@@ -187,15 +215,7 @@ class InitialNoncanonDbBuilder:
                     metadata_json = excluded.metadata_json,
                     updated_at = excluded.updated_at
                 """,
-                (
-                    appid,
-                    game_name,
-                    json.dumps(profile["review_samples"], ensure_ascii=True, sort_keys=True),
-                    json.dumps(profile["vectors"], ensure_ascii=True, sort_keys=True),
-                    json.dumps(profile["metadata"], ensure_ascii=True, sort_keys=True),
-                    timestamp,
-                    timestamp,
-                ),
+                rows,
             )
 
     def _worker_loop(
@@ -288,6 +308,16 @@ class InitialNoncanonDbBuilder:
         error_count = 0
         processed_results = 0
         status = "completed"
+        pending_profiles: List[Dict] = []
+
+        def flush_pending_profiles() -> None:
+            nonlocal pending_profiles
+            if not pending_profiles:
+                return
+            self.store_profiles(pending_profiles)
+            for entry in pending_profiles:
+                print(f"Stored {entry['game_name']} ({entry['appid']})")
+            pending_profiles = []
 
         while processed_results < len(rows):
             result = result_queue.get()
@@ -301,11 +331,19 @@ class InitialNoncanonDbBuilder:
             game_name = str(result["game_name"])
 
             if result["kind"] == "success":
-                self.store_profile(appid, game_name, result["profile"])
+                pending_profiles.append(
+                    {
+                        "appid": appid,
+                        "game_name": game_name,
+                        "profile": result["profile"],
+                    }
+                )
+                if len(pending_profiles) >= self.WRITE_BATCH_SIZE:
+                    flush_pending_profiles()
                 completed_games += 1
-                print(f"Stored {game_name} ({appid})")
                 continue
 
+            flush_pending_profiles()
             error_count += 1
             self.record_error(run_id, appid, game_name, str(result["error"]))
 
@@ -316,6 +354,7 @@ class InitialNoncanonDbBuilder:
 
             print(f"Skipped {game_name} ({appid}): {result['error']}")
 
+        flush_pending_profiles()
         stop_event.set()
         for worker in workers:
             worker.join()
