@@ -34,6 +34,8 @@ VECTOR_THRESHOLDS = {
 
 METADATA_THRESHOLDS = {
     "micro_tags": 0.82,
+    "signature_tag": 0.86,
+    "soundtrack_tags": 0.88,
     "genre_tree.primary": 0.88,
     "genre_tree.sub": 0.84,
     "genre_tree.sub_sub": 0.85,

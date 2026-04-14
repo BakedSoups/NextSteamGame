@@ -475,14 +475,14 @@ class InitialNoncanonDbBuilder:
 
     def build(self, limit: Optional[int] = None, notes: Optional[str] = None) -> Dict:
         log_banner("Initial Non-Canonical DB Build")
-        log_stage("setup", "preparing non-canon DB schema")
+        log_stage("setup", detail="preparing non-canon DB schema")
         self.create_schema()
-        log_stage("setup", "loading insightful words")
+        log_stage("setup", detail="loading insightful words")
         insightful_words = load_insightful_words()
-        log_stage("setup", "counting existing stored profiles")
+        log_stage("setup", detail="counting existing stored profiles")
         existing_profiles = self.count_existing_profiles()
 
-        log_stage("setup", "starting run record")
+        log_stage("setup", detail="starting run record")
         run_id = self.start_run(notes=notes)
         attempted_games = 0
         completed_games = 0
@@ -490,11 +490,11 @@ class InitialNoncanonDbBuilder:
         status = "completed"
 
         try:
-            log_stage("setup", "loading candidate games from metadata DB")
+            log_stage("setup", detail="loading candidate games from metadata DB")
             rows = self.load_games(limit=limit)
-            log_stage("setup", f"queued {len(rows)} games after resume filtering")
+            log_stage("setup", detail=f"queued {len(rows)} games after resume filtering")
             if not rows:
-                log_stage("setup", "no new games to process")
+                log_stage("setup", detail="no new games to process")
             summary = self._build_with_workers(rows, insightful_words, run_id)
             attempted_games = int(summary["attempted_games"])
             completed_games = int(summary["completed_games"])

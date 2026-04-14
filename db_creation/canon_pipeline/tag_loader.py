@@ -83,9 +83,12 @@ def iter_row_batches(db_path: Path, batch_size: int) -> Iterator[list[sqlite3.Ro
 
 def collect_vector_counters(rows: Sequence[sqlite3.Row]) -> Dict[str, Counter]:
     counters: Dict[str, Counter] = {}
+    valid_contexts = {"mechanics", "narrative", "vibe", "structure_loop", "uniqueness"}
     for row in rows:
         vectors = json.loads(row["vectors_json"])
         for context, tag_weights in vectors.items():
+            if context not in valid_contexts or not isinstance(tag_weights, dict):
+                continue
             bucket = counters.setdefault(context, Counter())
             for tag in tag_weights:
                 bucket[tag] += 1
@@ -104,6 +107,8 @@ def collect_metadata_counters(rows: Sequence[sqlite3.Row]) -> Dict[str, Counter]
     }
     for row in rows:
         metadata = json.loads(row["metadata_json"])
+        if not isinstance(metadata, dict):
+            continue
         for tag in metadata.get("micro_tags", []):
             counters["micro_tags"][tag] += 1
         signature_tag = str(metadata.get("signature_tag", "")).strip()

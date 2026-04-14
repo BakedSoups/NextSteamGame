@@ -148,6 +148,11 @@ def build_groups(
 ) -> List[Group]:
     groups: List[Group] = []
     for context in sorted(counters):
+        if context not in thresholds:
+            raise KeyError(
+                f"Missing grouping threshold for context {context!r}. "
+                "Add it to the pipeline thresholds map."
+            )
         groups.extend(
             create_groups_for_context(
                 context=context,

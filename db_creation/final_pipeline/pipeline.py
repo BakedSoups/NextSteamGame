@@ -92,6 +92,7 @@ def load_group_csv(csv_path: Path, family: str) -> dict:
 
 
 def _canonicalize_metadata(metadata: Dict, mapping: Dict[str, Dict[str, str]]) -> Dict:
+    status = str(metadata.get("status", "")).strip()
     canon_micro = []
     seen_micro = set()
     for tag in metadata.get("micro_tags", []):
@@ -100,8 +101,8 @@ def _canonicalize_metadata(metadata: Dict, mapping: Dict[str, Dict[str, str]]) -
             seen_micro.add(canonical)
             canon_micro.append(canonical)
 
-    canon_tree = {"primary": [], "sub": [], "traits": []}
-    for branch in ("primary", "sub", "traits"):
+    canon_tree = {"primary": [], "sub": [], "sub_sub": [], "traits": []}
+    for branch in ("primary", "sub", "sub_sub", "traits"):
         seen_branch = set()
         context = f"genre_tree.{branch}"
         for tag in metadata.get("genre_tree", {}).get(branch, []):
@@ -127,18 +128,25 @@ def _canonicalize_metadata(metadata: Dict, mapping: Dict[str, Dict[str, str]]) -
         )
     appeal_axes = dict(metadata.get("appeal_axes") or {})
 
-    return {
+    canonical_metadata = {
         "micro_tags": canon_micro,
         "signature_tag": canonical_signature_tag,
         "appeal_axes": appeal_axes,
         "soundtrack_tags": canon_soundtrack,
         "genre_tree": canon_tree,
     }
+    if status:
+        canonical_metadata["status"] = status
+    return canonical_metadata
 
 
 def _canonicalize_vectors(vectors: Dict, mapping: Dict[str, Dict[str, str]]) -> Dict:
+    valid_contexts = {"mechanics", "narrative", "vibe", "structure_loop", "uniqueness"}
     canonical_vectors: Dict[str, Dict[str, int]] = {}
+    status = str(vectors.get("status", "")).strip()
     for context, tag_weights in vectors.items():
+        if context not in valid_contexts or not isinstance(tag_weights, dict):
+            continue
         merged: Dict[str, int] = {}
         for tag, weight in tag_weights.items():
             canonical = mapping.get(context, {}).get(normalize_tag_text(tag), tag)
@@ -149,6 +157,8 @@ def _canonicalize_vectors(vectors: Dict, mapping: Dict[str, Dict[str, str]]) -> 
         canonical_vectors[context] = dict(
             sorted(merged.items(), key=lambda item: (-item[1], item[0]))
         )
+    if status:
+        canonical_vectors["status"] = status
     return canonical_vectors
 
 

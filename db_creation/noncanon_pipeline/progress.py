@@ -121,6 +121,10 @@ def start_appid(appid: str | int, detail: str = "starting") -> None:
 
 
 def log_stage(stage: str, appid: str | int | None = None, detail: str = "") -> None:
+    if detail == "" and isinstance(appid, str) and not appid.strip().isdigit():
+        detail = appid
+        appid = None
+
     if appid is None:
         with _lock:
             _console.print(f"[cyan][{stage:<10}][/cyan] {detail}")

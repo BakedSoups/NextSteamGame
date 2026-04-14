@@ -81,16 +81,24 @@ def _vector_context_counters(rows) -> dict[str, Counter]:
 def _metadata_context_counters(rows) -> dict[str, Counter]:
     counters = {
         "micro_tags": Counter(),
+        "signature_tag": Counter(),
+        "soundtrack_tags": Counter(),
         "genre_tree.primary": Counter(),
         "genre_tree.sub": Counter(),
+        "genre_tree.sub_sub": Counter(),
         "genre_tree.traits": Counter(),
     }
     for row in rows:
         payload = json.loads(row["canonical_metadata_json"])
         for tag in payload.get("micro_tags", []):
             counters["micro_tags"][tag] += 1
+        signature_tag = str(payload.get("signature_tag", "")).strip()
+        if signature_tag:
+            counters["signature_tag"][signature_tag] += 1
+        for tag in payload.get("soundtrack_tags", []):
+            counters["soundtrack_tags"][tag] += 1
         genre_tree = payload.get("genre_tree", {})
-        for branch in ("primary", "sub", "traits"):
+        for branch in ("primary", "sub", "sub_sub", "traits"):
             for tag in genre_tree.get(branch, []):
                 counters[f"genre_tree.{branch}"][tag] += 1
     return counters
