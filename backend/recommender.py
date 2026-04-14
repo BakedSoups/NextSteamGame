@@ -11,8 +11,10 @@ VECTOR_CONTEXT_MULTIPLIERS = {
     "structure_loop": 1.20,
     "uniqueness": 0.55,
 }
+SOUNDTRACK_CONTEXT_MULTIPLIER = 0.41
 
 VECTOR_CONTEXT_ORDER = tuple(VECTOR_CONTEXT_MULTIPLIERS.keys())
+CONTENT_CONTEXT_ORDER = VECTOR_CONTEXT_ORDER + ("music",)
 APPEAL_AXIS_ORDER = (
     "challenge",
     "complexity",
@@ -46,13 +48,51 @@ VECTOR_SCORE_WEIGHT = 0.55
 GENRE_SCORE_WEIGHT = 0.30
 APPEAL_SCORE_WEIGHT = 0.15
 SOUNDTRACK_SCORE_WEIGHT = 0.10
+COMPONENT_ORDER = ("vector", "genre", "appeal", "music")
+
+
+def default_component_percentages() -> dict[str, int]:
+    raw = {
+        "vector": VECTOR_SCORE_WEIGHT * 100.0,
+        "genre": GENRE_SCORE_WEIGHT * 100.0,
+        "appeal": APPEAL_SCORE_WEIGHT * 100.0,
+        "music": SOUNDTRACK_SCORE_WEIGHT * 100.0,
+    }
+    rounded = {component: int(round(value)) for component, value in raw.items()}
+    delta = 100 - sum(rounded.values())
+    if delta != 0:
+        ranked = sorted(raw, key=lambda component: raw[component] - rounded[component], reverse=(delta > 0))
+        for component in ranked[: abs(delta)]:
+            rounded[component] += 1 if delta > 0 else -1
+    return rounded
+
+
+def component_percentages_to_weights(percentages: dict[str, float | int] | None) -> dict[str, float]:
+    if not percentages:
+        return {
+            "vector": VECTOR_SCORE_WEIGHT,
+            "genre": GENRE_SCORE_WEIGHT,
+            "appeal": APPEAL_SCORE_WEIGHT,
+            "music": SOUNDTRACK_SCORE_WEIGHT,
+        }
+    total = sum(float(value) for value in percentages.values())
+    if total <= 0:
+        return component_percentages_to_weights(None)
+    return {
+        component: float(percentages.get(component, 0.0)) / total
+        for component in COMPONENT_ORDER
+    }
 
 
 def default_context_percentages() -> dict[str, int]:
-    total = sum(VECTOR_CONTEXT_MULTIPLIERS.values()) or 1.0
+    raw_weights = {
+        **VECTOR_CONTEXT_MULTIPLIERS,
+        "music": SOUNDTRACK_CONTEXT_MULTIPLIER,
+    }
+    total = sum(raw_weights.values()) or 1.0
     raw = {
         context: (weight / total) * 100.0
-        for context, weight in VECTOR_CONTEXT_MULTIPLIERS.items()
+        for context, weight in raw_weights.items()
     }
     rounded = {context: int(round(value)) for context, value in raw.items()}
     delta = 100 - sum(rounded.values())
@@ -65,14 +105,20 @@ def default_context_percentages() -> dict[str, int]:
 
 def context_percentages_to_multipliers(percentages: dict[str, float | int]) -> dict[str, float]:
     if not percentages:
-        return VECTOR_CONTEXT_MULTIPLIERS.copy()
+        return {
+            **VECTOR_CONTEXT_MULTIPLIERS,
+            "music": SOUNDTRACK_CONTEXT_MULTIPLIER,
+        }
     total = sum(float(value) for value in percentages.values())
     if total <= 0:
-        return VECTOR_CONTEXT_MULTIPLIERS.copy()
-    context_count = max(len(VECTOR_CONTEXT_MULTIPLIERS), 1)
+        return {
+            **VECTOR_CONTEXT_MULTIPLIERS,
+            "music": SOUNDTRACK_CONTEXT_MULTIPLIER,
+        }
+    context_count = max(len(CONTENT_CONTEXT_ORDER), 1)
     return {
         context: (float(percentages.get(context, 0.0)) / total) * context_count
-        for context in VECTOR_CONTEXT_MULTIPLIERS
+        for context in CONTENT_CONTEXT_ORDER
     }
 
 
@@ -140,6 +186,7 @@ def _build_genre_preferences(
 def _build_soundtrack_preferences(
     metadata: dict,
     extra_boosts: dict[str, float] | None = None,
+    soundtrack_multiplier: float = 1.0,
 ) -> dict[str, float]:
     boosts = extra_boosts or {}
     tags = metadata.get("soundtrack_tags", [])
@@ -151,7 +198,7 @@ def _build_soundtrack_preferences(
     for tag in tags:
         if not tag:
             continue
-        preferences[tag] = base_weight * boosts.get(tag, 1.0)
+        preferences[tag] = base_weight * soundtrack_multiplier * boosts.get(tag, 1.0)
     return preferences
 
 
@@ -312,6 +359,16 @@ def _metadata_confidence_multiplier(game: dict) -> float:
     return max(0.55, min(1.20, multiplier))
 
 
+def _percent_breakdown(values: dict[str, float]) -> dict[str, float]:
+    total = sum(max(float(value), 0.0) for value in values.values())
+    if total <= 0:
+        return {key: 0.0 for key in values}
+    return {
+        key: (max(float(value), 0.0) / total) * 100.0
+        for key, value in values.items()
+    }
+
+
 def recommend_games(
     base_game: dict,
     candidate_games: Iterable[dict],
@@ -319,12 +376,14 @@ def recommend_games(
     extra_vector_boosts: dict[str, dict[str, float]] | None = None,
     extra_soundtrack_boosts: dict[str, float] | None = None,
     context_percentages: dict[str, float | int] | None = None,
+    component_percentages: dict[str, float | int] | None = None,
     appeal_axes: dict[str, int] | None = None,
     added_genres: dict[str, list[str]] | None = None,
     removed_genres: dict[str, list[str]] | None = None,
     limit: int = 15,
 ) -> list[dict]:
     context_multipliers = context_percentages_to_multipliers(context_percentages or default_context_percentages())
+    component_weights = component_percentages_to_weights(component_percentages or default_component_percentages())
     vector_preferences = _build_vector_preferences(
         base_game["vectors"],
         extra_vector_boosts,
@@ -334,6 +393,7 @@ def recommend_games(
     soundtrack_preferences = _build_soundtrack_preferences(
         base_game["metadata"],
         extra_soundtrack_boosts,
+        soundtrack_multiplier=context_multipliers.get("music", 1.0),
     )
     target_appeal_axes = appeal_axes or default_appeal_axes(base_game["metadata"])
 
@@ -348,11 +408,17 @@ def recommend_games(
         appeal_score = _appeal_match_score(game["metadata"], target_appeal_axes)
         soundtrack_score = _soundtrack_match_score(game["metadata"], soundtrack_preferences)
         weighted_components = {
-            "vector": vector_score * VECTOR_SCORE_WEIGHT,
-            "genre": genre_score * GENRE_SCORE_WEIGHT,
-            "appeal": appeal_score * APPEAL_SCORE_WEIGHT,
-            "music": soundtrack_score * SOUNDTRACK_SCORE_WEIGHT,
+            "vector": vector_score * component_weights["vector"],
+            "genre": genre_score * component_weights["genre"],
+            "appeal": appeal_score * component_weights["appeal"],
+            "music": soundtrack_score * component_weights["music"],
         }
+        component_percentages = _percent_breakdown(weighted_components)
+        vector_component_weights = {
+            context: value * context_multipliers.get(context, 1.0)
+            for context, value in vector_breakdown.items()
+        }
+        vector_component_percentages = _percent_breakdown(vector_component_weights)
         total_score = (
             weighted_components["vector"]
             + weighted_components["genre"]
@@ -373,11 +439,17 @@ def recommend_games(
                 "appeal_score": appeal_score,
                 "soundtrack_score": soundtrack_score,
                 "vector_context_breakdown": vector_breakdown,
+                "weighted_component_percentages": component_percentages,
+                "vector_context_percentages": vector_component_percentages,
                 "weighted_components": weighted_components,
                 "confidence_multiplier": confidence_multiplier,
                 "active_context_percentages": {
                     context: int(round(float((context_percentages or default_context_percentages()).get(context, 0))))
-                    for context in VECTOR_CONTEXT_ORDER
+                    for context in CONTENT_CONTEXT_ORDER
+                },
+                "active_component_percentages": {
+                    component: int(round(float((component_percentages or default_component_percentages()).get(component, 0))))
+                    for component in COMPONENT_ORDER
                 },
                 "vectors": game["vectors"],
                 "metadata": game["metadata"],

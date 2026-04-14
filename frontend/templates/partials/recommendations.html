@@ -3,6 +3,17 @@
 <p class="muted">No recommendations are available because this game does not have canonical vectors and genre data in the final DB yet.</p>
 {% elif results %}
 <section class="block score-guide">
+  <h3>Active Match Weighting</h3>
+  <div class="weight-strip">
+    {% for component, percentage in component_percentages.items() %}
+    <div class="weight-chip">
+      <span>{{ component }}</span>
+      <strong>{{ percentage }}%</strong>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+<section class="block score-guide">
   <h3>Active Vector Weighting</h3>
   <div class="weight-strip">
     {% for context, percentage in context_percentages.items() %}
@@ -48,9 +59,9 @@
       <div class="contribution-item">
         <div class="row">
           <span class="score-label">{{ key }}</span>
-          <span>{{ "%.4f"|format(value) }}</span>
+          <span>{{ "%.1f"|format(game.weighted_component_percentages.get(key, 0)) }}% · {{ "%.4f"|format(value) }}</span>
         </div>
-        <div class="mini-bar"><span style="width: {{ (value * 100)|round(1) }}%"></span></div>
+        <div class="mini-bar"><span style="width: {{ game.weighted_component_percentages.get(key, 0)|round(1) }}%"></span></div>
       </div>
       {% endfor %}
     </div>
@@ -59,9 +70,9 @@
       <div class="contribution-item">
         <div class="row">
           <span class="score-label">{{ context }} vector</span>
-          <span>{{ game.active_context_percentages.get(context, 0) }}% weight · {{ "%.4f"|format(value) }}</span>
+          <span>{{ "%.1f"|format(game.vector_context_percentages.get(context, 0)) }}% of vector · {{ game.active_context_percentages.get(context, 0) }}% weight</span>
         </div>
-        <div class="mini-bar mini-bar-accent"><span style="width: {{ (value * 100)|round(1) }}%"></span></div>
+        <div class="mini-bar mini-bar-accent"><span style="width: {{ game.vector_context_percentages.get(context, 0)|round(1) }}%"></span></div>
       </div>
       {% endfor %}
     </div>

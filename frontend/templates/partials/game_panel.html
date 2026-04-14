@@ -21,9 +21,33 @@
   id="preference-form"
   hx-get="/recommend"
   hx-target="#recommendations"
-  hx-trigger="change delay:200ms, submit"
+  hx-trigger="load, change delay:200ms, submit"
   hx-swap="innerHTML">
   <input type="hidden" name="appid" value="{{ game.appid }}">
+
+  <section class="block">
+    <h3>Match Weighting</h3>
+    <p class="muted">These sliders control how much each scoring family affects the final match. They also rebalance to 100 total.</p>
+    <p class="context-total">Total <strong id="component-weight-total">100</strong>%</p>
+    <div class="context-grid" id="component-weight-grid">
+      {% for component in component_order %}
+      {% set percentage = component_percentages.get(component, 0) %}
+      <label class="vector-card context-card">
+        <span class="vector-tag">{{ component }}</span>
+        <span class="vector-weight"><output id="component_output__{{ component }}">{{ percentage }}</output>%</span>
+        <input
+          class="component-slider"
+          type="range"
+          min="0"
+          max="100"
+          step="1"
+          value="{{ percentage }}"
+          name="component_weight__{{ component }}"
+          data-component="{{ component }}">
+      </label>
+      {% endfor %}
+    </div>
+  </section>
 
   <section class="block">
     <h3>Context Weighting</h3>
@@ -102,8 +126,15 @@
         <label class="vector-card">
           <span class="vector-tag">{{ tag }}</span>
           <span class="vector-weight">base {{ weight }}</span>
-          <input type="range" min="100" max="180" step="5" value="100" name="boost__{{ context }}__{{ tag }}">
-          <span class="slider-label">boost %</span>
+          <span class="slider-label"><output data-boost-output>100</output>% effect</span>
+          <input
+            class="boost-slider"
+            type="range"
+            min="100"
+            max="180"
+            step="5"
+            value="100"
+            name="boost__{{ context }}__{{ tag }}">
         </label>
         {% endfor %}
       </div>
@@ -121,8 +152,15 @@
       <label class="vector-card">
         <span class="vector-tag">{{ tag }}</span>
         <span class="vector-weight">base soundtrack</span>
-        <input type="range" min="100" max="180" step="5" value="100" name="boost__soundtrack__{{ tag }}">
-        <span class="slider-label">boost %</span>
+        <span class="slider-label"><output data-boost-output>100</output>% effect</span>
+        <input
+          class="boost-slider"
+          type="range"
+          min="100"
+          max="180"
+          step="5"
+          value="100"
+          name="boost__soundtrack__{{ tag }}">
       </label>
       {% endfor %}
     </div>
@@ -143,7 +181,11 @@
   const sliders = Array.from(container.querySelectorAll('.context-slider'));
   const totalOutput = document.getElementById('context-weight-total');
   const totalTarget = 100;
+  const componentContainer = document.getElementById('component-weight-grid');
+  const componentSliders = Array.from(form.querySelectorAll('.component-slider'));
+  const componentTotalOutput = document.getElementById('component-weight-total');
   const appealSliders = Array.from(form.querySelectorAll('.appeal-slider'));
+  const boostSliders = Array.from(form.querySelectorAll('.boost-slider'));
 
   function refreshOutputs() {
     let total = 0;
@@ -156,14 +198,36 @@
   }
 
   function rebalance(activeSlider) {
+    rebalanceGroup(sliders, activeSlider, totalOutput, 'context');
+  }
+
+  function refreshComponentOutputs() {
+    let total = 0;
+    for (const slider of componentSliders) {
+      total += Number(slider.value);
+      const output = document.getElementById(`component_output__${slider.dataset.component}`);
+      if (output) output.textContent = slider.value;
+    }
+    if (componentTotalOutput) componentTotalOutput.textContent = String(total);
+  }
+
+  function rebalanceComponent(activeSlider) {
+    rebalanceGroup(componentSliders, activeSlider, componentTotalOutput, 'component');
+  }
+
+  function rebalanceGroup(groupSliders, activeSlider, groupTotalOutput, mode) {
     const activeValue = Number(activeSlider.value);
-    const others = sliders.filter((slider) => slider !== activeSlider);
+    const others = groupSliders.filter((slider) => slider !== activeSlider);
     const otherTotal = others.reduce((sum, slider) => sum + Number(slider.value), 0);
     const remaining = Math.max(0, totalTarget - activeValue);
 
     if (others.length === 0) {
       activeSlider.value = String(totalTarget);
-      refreshOutputs();
+      if (mode === 'context') {
+        refreshOutputs();
+      } else {
+        refreshComponentOutputs();
+      }
       return;
     }
 
@@ -189,18 +253,26 @@
       }
     }
 
-    const normalized = sliders.reduce((sum, slider) => sum + Number(slider.value), 0);
+    const normalized = groupSliders.reduce((sum, slider) => sum + Number(slider.value), 0);
     if (normalized !== totalTarget) {
       const delta = totalTarget - normalized;
-      const fallback = sliders.find((slider) => slider !== activeSlider) || activeSlider;
+      const fallback = groupSliders.find((slider) => slider !== activeSlider) || activeSlider;
       fallback.value = String(Math.max(0, Number(fallback.value) + delta));
     }
 
-    refreshOutputs();
+    if (mode === 'context') {
+      refreshOutputs();
+    } else {
+      refreshComponentOutputs();
+    }
   }
 
   sliders.forEach((slider) => {
     slider.addEventListener('input', () => rebalance(slider));
+  });
+
+  componentSliders.forEach((slider) => {
+    slider.addEventListener('input', () => rebalanceComponent(slider));
   });
 
   appealSliders.forEach((slider) => {
@@ -212,6 +284,16 @@
     if (output) output.textContent = slider.value;
   });
 
+  boostSliders.forEach((slider) => {
+    const updateBoostOutput = () => {
+      const output = slider.parentElement?.querySelector('[data-boost-output]');
+      if (output) output.textContent = slider.value;
+    };
+    slider.addEventListener('input', updateBoostOutput);
+    updateBoostOutput();
+  });
+
   refreshOutputs();
+  refreshComponentOutputs();
 })();
 </script>

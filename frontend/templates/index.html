@@ -59,6 +59,7 @@
 
   input.addEventListener('focus', openDropdown);
   input.addEventListener('input', () => {
+    window.__searchSelectionLockUntil = 0;
     shell.dataset.open = input.value.trim() ? 'true' : 'false';
   });
   input.addEventListener('keydown', (event) => {
@@ -76,6 +77,11 @@
 
   document.body.addEventListener('htmx:afterSwap', (event) => {
     if (event.target && event.target.id === 'search-results') {
+      if ((window.__searchSelectionLockUntil || 0) > Date.now()) {
+        closeDropdown();
+        results.innerHTML = '';
+        return;
+      }
       if (document.activeElement === input && input.value.trim() && results.innerHTML.trim()) {
         openDropdown();
       } else if (!results.innerHTML.trim()) {

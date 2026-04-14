@@ -12,8 +12,11 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 from backend.db import FinalGameStore
 from backend.recommender import (
     APPEAL_AXIS_ORDER,
+    COMPONENT_ORDER,
+    CONTENT_CONTEXT_ORDER,
     VECTOR_CONTEXT_ORDER,
     default_appeal_axes,
+    default_component_percentages,
     default_context_percentages,
     recommend_games,
 )
@@ -60,12 +63,13 @@ def parse_request_data(environ) -> dict[str, list[str]]:
 
 def parse_adjustments(
     data: dict[str, list[str]],
-) -> tuple[dict[str, dict[str, float]], dict[str, float], dict[str, list[str]], bool, dict[str, int], dict[str, int]]:
+) -> tuple[dict[str, dict[str, float]], dict[str, float], dict[str, list[str]], bool, dict[str, int], dict[str, int], dict[str, int]]:
     extra_vector_boosts: dict[str, dict[str, float]] = {}
     extra_soundtrack_boosts: dict[str, float] = {}
     selected_genres = {"primary": [], "sub": [], "sub_sub": [], "traits": []}
     saw_genre_input = False
     context_percentages = default_context_percentages()
+    component_percentages = default_component_percentages()
     appeal_axes = {axis: 50 for axis in APPEAL_AXIS_ORDER}
 
     for key, values in data.items():
@@ -90,6 +94,13 @@ def parse_adjustments(
                 context_percentages[context] = max(0, min(100, int(values[-1])))
             except (TypeError, ValueError):
                 pass
+        elif key.startswith("component_weight__"):
+            component = key.split("__", 1)[1]
+            if component in COMPONENT_ORDER:
+                try:
+                    component_percentages[component] = max(0, min(100, int(values[-1])))
+                except (TypeError, ValueError):
+                    pass
         elif key.startswith("appeal_axis__"):
             axis = key.split("__", 1)[1]
             try:
@@ -104,6 +115,7 @@ def parse_adjustments(
         saw_genre_input,
         context_percentages,
         appeal_axes,
+        component_percentages,
     )
 
 
@@ -130,8 +142,10 @@ def handle_game(appid: int, start_response):
         game=game,
         appeal_axis_order=APPEAL_AXIS_ORDER,
         appeal_axes=default_appeal_axes(game["metadata"]),
-        context_order=VECTOR_CONTEXT_ORDER,
+        context_order=CONTENT_CONTEXT_ORDER,
         context_percentages=default_context_percentages(),
+        component_order=COMPONENT_ORDER,
+        component_percentages=default_component_percentages(),
     )
     return response(start_response, body)
 
@@ -156,6 +170,7 @@ def handle_recommend(environ, start_response):
         saw_genre_input,
         context_percentages,
         appeal_axes,
+        component_percentages,
     ) = parse_adjustments(data)
     added_genres = {"primary": [], "sub": [], "sub_sub": [], "traits": []}
     removed_genres = {"primary": [], "sub": [], "sub_sub": [], "traits": []}
@@ -173,6 +188,7 @@ def handle_recommend(environ, start_response):
         extra_vector_boosts=extra_vector_boosts,
         extra_soundtrack_boosts=extra_soundtrack_boosts,
         context_percentages=context_percentages,
+        component_percentages=component_percentages,
         appeal_axes=appeal_axes,
         added_genres=added_genres,
         removed_genres=removed_genres,
@@ -183,6 +199,7 @@ def handle_recommend(environ, start_response):
         results=recommendations,
         base_game=game,
         context_percentages=context_percentages,
+        component_percentages=component_percentages,
     )
     return response(start_response, body)
 

@@ -9,6 +9,7 @@
       hx-swap="innerHTML"
       hx-on:click="
         htmx.ajax('GET', '/recommend?appid={{ game.appid }}', {target:'#recommendations'});
+        window.__searchSelectionLockUntil = Date.now() + 1200;
         const searchShell = document.querySelector('.search-shell');
         const searchInput = document.getElementById('game-search');
         const searchResults = document.getElementById('search-results');
