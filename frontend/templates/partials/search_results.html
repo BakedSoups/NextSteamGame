@@ -1,4 +1,4 @@
-{% if results %}
+{% if query and results %}
 <ul class="search-results">
   {% for game in results %}
   <li>
@@ -7,13 +7,35 @@
       hx-get="/game/{{ game.appid }}"
       hx-target="#selected-game"
       hx-swap="innerHTML"
-      hx-on:click="htmx.ajax('GET', '/recommend?appid={{ game.appid }}', {target:'#recommendations'})">
-      <span class="game-name">{{ game.name }}</span>
-      <span class="appid">#{{ game.appid }}</span>
+      hx-on:click="
+        htmx.ajax('GET', '/recommend?appid={{ game.appid }}', {target:'#recommendations'});
+        const searchShell = document.querySelector('.search-shell');
+        const searchInput = document.getElementById('game-search');
+        const searchResults = document.getElementById('search-results');
+        if (searchInput) searchInput.value = {{ game.name|tojson }};
+        if (searchInput) searchInput.blur();
+        if (searchShell) searchShell.dataset.open = 'false';
+        if (searchResults) searchResults.innerHTML = '';
+      ">
+      {% if game.capsule_image %}
+      <img class="search-thumb" src="{{ game.capsule_image }}" alt="{{ game.name }}">
+      {% endif %}
+      <span class="search-copy">
+        <span class="row">
+          <span class="game-name">{{ game.name }}</span>
+          <span class="appid">#{{ game.appid }}</span>
+        </span>
+        {% if game.signature_tag %}
+        <span class="pill">{{ game.signature_tag }}</span>
+        {% endif %}
+        {% if game.short_description %}
+        <span class="search-description">{{ game.short_description[:150] }}{% if game.short_description|length > 150 %}...{% endif %}</span>
+        {% endif %}
+      </span>
     </button>
   </li>
   {% endfor %}
 </ul>
-{% else %}
+{% elif query %}
 <p class="muted">No games match this search yet.</p>
 {% endif %}

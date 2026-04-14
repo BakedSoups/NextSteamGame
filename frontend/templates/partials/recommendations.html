@@ -2,25 +2,80 @@
 {% if unavailable %}
 <p class="muted">No recommendations are available because this game does not have canonical vectors and genre data in the final DB yet.</p>
 {% elif results %}
+<section class="block score-guide">
+  <h3>Active Vector Weighting</h3>
+  <div class="weight-strip">
+    {% for context, percentage in context_percentages.items() %}
+    <div class="weight-chip">
+      <span>{{ context }}</span>
+      <strong>{{ percentage }}%</strong>
+    </div>
+    {% endfor %}
+  </div>
+</section>
 <ol class="recommendations">
   {% for game in results %}
   <li class="recommendation-card">
-    <div class="row">
-      <strong>{{ game.name }}</strong>
-      <span class="score">{{ "%.4f"|format(game.total_score) }}</span>
+    <div class="recommendation-top">
+      {% if game.capsule_image %}
+      <img class="recommendation-thumb" src="{{ game.capsule_image }}" alt="{{ game.name }}">
+      {% endif %}
+      <div class="recommendation-copy">
+        <div class="row">
+          <strong>{{ game.name }}</strong>
+          <span class="score">{{ "%.4f"|format(game.total_score) }}</span>
+        </div>
+        {% if game.signature_tag %}
+        <p class="muted">unique category {{ game.signature_tag }}</p>
+        {% endif %}
+        {% if game.short_description %}
+        <p class="muted">{{ game.short_description[:170] }}{% if game.short_description|length > 170 %}...{% endif %}</p>
+        {% endif %}
+      </div>
     </div>
-    <p class="muted">
-      vector {{ "%.4f"|format(game.vector_score) }}
-      · genre {{ "%.4f"|format(game.genre_score) }}
-      · appeal {{ "%.4f"|format(game.appeal_score) }}
-    </p>
+    <div class="score-grid">
+      <div class="score-block">
+        <span class="score-label">Match score</span>
+        <strong>{{ "%.4f"|format(game.total_score) }}</strong>
+      </div>
+      <div class="score-block">
+        <span class="score-label">Confidence</span>
+        <strong>{{ "%.3f"|format(game.confidence_multiplier) }}x</strong>
+      </div>
+    </div>
+    <div class="contribution-list">
+      {% for key, value in game.weighted_components.items() %}
+      <div class="contribution-item">
+        <div class="row">
+          <span class="score-label">{{ key }}</span>
+          <span>{{ "%.4f"|format(value) }}</span>
+        </div>
+        <div class="mini-bar"><span style="width: {{ (value * 100)|round(1) }}%"></span></div>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="contribution-list">
+      {% for context, value in game.vector_context_breakdown.items() %}
+      <div class="contribution-item">
+        <div class="row">
+          <span class="score-label">{{ context }} vector</span>
+          <span>{{ game.active_context_percentages.get(context, 0) }}% weight · {{ "%.4f"|format(value) }}</span>
+        </div>
+        <div class="mini-bar mini-bar-accent"><span style="width: {{ (value * 100)|round(1) }}%"></span></div>
+      </div>
+      {% endfor %}
+    </div>
     {% if game.metadata.get("signature_tag") %}
     <p class="muted">signature {{ game.metadata.get("signature_tag") }}</p>
     {% endif %}
     <p class="muted">
       primary {{ game.metadata.genre_tree.get("primary", [])[:3] }}
       · sub {{ game.metadata.genre_tree.get("sub", [])[:3] }}
+      · sub-sub {{ game.metadata.genre_tree.get("sub_sub", [])[:3] }}
     </p>
+    {% if game.metadata.get("soundtrack_tags") %}
+    <p class="muted">music {{ game.metadata.get("soundtrack_tags", [])[:5] }}</p>
+    {% endif %}
   </li>
   {% endfor %}
 </ol>

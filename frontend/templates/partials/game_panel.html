@@ -1,8 +1,21 @@
-<h2>{{ game.name }}</h2>
-<p class="meta">App ID {{ game.appid }}</p>
-{% if game.metadata.get("signature_tag") %}
-<p class="meta">Signature tag: <strong>{{ game.metadata.get("signature_tag") }}</strong></p>
-{% endif %}
+<div class="game-header">
+  {% if game.header_image %}
+  <img class="game-hero" src="{{ game.header_image }}" alt="{{ game.name }}">
+  {% endif %}
+  <div class="game-header-copy">
+    <h2>{{ game.name }}</h2>
+    <p class="meta">App ID {{ game.appid }}</p>
+    {% if game.metadata.get("signature_tag") %}
+    <p class="meta">Unique category: <strong>{{ game.metadata.get("signature_tag") }}</strong></p>
+    {% endif %}
+    {% if game.release_date_text %}
+    <p class="meta">Released {{ game.release_date_text }}</p>
+    {% endif %}
+    {% if game.short_description %}
+    <p class="muted">{{ game.short_description }}</p>
+    {% endif %}
+  </div>
+</div>
 
 <form
   id="preference-form"
@@ -14,7 +27,7 @@
 
   <section class="block">
     <h3>Context Weighting</h3>
-    <p class="muted">These sliders always rebalance to a 100 total. Push one up and the others step down.</p>
+    <p class="muted">These sliders are the active taste vector. They always rebalance to 100 total, so pushing one up pulls the others down.</p>
     <p class="context-total">Total <strong id="context-weight-total">100</strong>%</p>
     <div class="context-grid" id="context-weight-grid">
       {% for context in context_order %}
@@ -40,7 +53,7 @@
     <h3>Genre Tree</h3>
     <p class="muted">Traits are full weight. Subgenres get a 10% penalty. Primary genres get a 20% penalty.</p>
 
-    {% for branch in ["primary", "sub", "traits"] %}
+    {% for branch in ["primary", "sub", "sub_sub", "traits"] %}
     <div class="branch">
       <h4>{{ branch }}</h4>
       <div class="chip-row">
@@ -97,6 +110,24 @@
     </div>
     {% endfor %}
   </section>
+
+  {% set soundtrack_tags = game.metadata.get("soundtrack_tags", []) %}
+  {% if soundtrack_tags %}
+  <section class="block">
+    <h3>Music</h3>
+    <p class="muted">Use these sliders to ask for more of the soundtrack styles attached to this game.</p>
+    <div class="vector-grid">
+      {% for tag in soundtrack_tags %}
+      <label class="vector-card">
+        <span class="vector-tag">{{ tag }}</span>
+        <span class="vector-weight">base soundtrack</span>
+        <input type="range" min="100" max="180" step="5" value="100" name="boost__soundtrack__{{ tag }}">
+        <span class="slider-label">boost %</span>
+      </label>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
 
   <div class="actions">
     <button class="primary-button" type="submit">Update Recommendations</button>

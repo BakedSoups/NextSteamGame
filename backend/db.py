@@ -11,6 +11,9 @@ class FinalGameStore:
     def __init__(self, db_path: Path, metadata_db_path: Path | None = None) -> None:
         self.db_path = db_path
         self.metadata_db_path = metadata_db_path or db_path
+        self._metadata_signals = self._load_metadata_signals()
+        self._preview_metadata = self._load_preview_metadata()
+        self._canonical_preview = self._load_canonical_preview()
         self._search_index = self._load_search_index()
 
     def _connect(self) -> sqlite3.Connection:
@@ -24,17 +27,29 @@ class FinalGameStore:
         return connection
 
     def _load_search_index(self) -> list[dict]:
-        with self._connect_metadata() as connection:
-            rows = connection.execute(
-                """
-                SELECT appid, name
-                FROM games
-                WHERE has_store_data = 1
-                  AND name IS NOT NULL
-                  AND trim(name) <> ''
-                ORDER BY appid
-                """
-            ).fetchall()
+        query = """
+            SELECT appid, name
+            FROM canonical_game_semantics
+            WHERE name IS NOT NULL
+              AND trim(name) <> ''
+            ORDER BY appid
+        """
+
+        try:
+            with self._connect() as connection:
+                rows = connection.execute(query).fetchall()
+        except sqlite3.Error:
+            with self._connect_metadata() as connection:
+                rows = connection.execute(
+                    """
+                    SELECT appid, name
+                    FROM games
+                    WHERE has_store_data = 1
+                      AND name IS NOT NULL
+                      AND trim(name) <> ''
+                    ORDER BY appid
+                    """
+                ).fetchall()
         return [
             {
                 "appid": int(row["appid"]),
@@ -43,6 +58,115 @@ class FinalGameStore:
             }
             for row in rows
         ]
+
+    def _load_metadata_signals(self) -> dict[int, dict]:
+        query = """
+            SELECT
+                appid,
+                metacritic_score,
+                recommendations_total,
+                steamspy_owner_estimate,
+                steamspy_ccu,
+                positive,
+                negative,
+                estimated_review_count,
+                release_date_parsed
+            FROM games
+        """
+        try:
+            with self._connect_metadata() as connection:
+                rows = connection.execute(query).fetchall()
+        except sqlite3.Error:
+            return {}
+
+        return {
+            int(row["appid"]): {
+                "metacritic_score": row["metacritic_score"],
+                "recommendations_total": row["recommendations_total"],
+                "steamspy_owner_estimate": row["steamspy_owner_estimate"],
+                "steamspy_ccu": row["steamspy_ccu"],
+                "positive": row["positive"],
+                "negative": row["negative"],
+                "estimated_review_count": row["estimated_review_count"],
+                "release_date_parsed": row["release_date_parsed"],
+            }
+            for row in rows
+        }
+
+    def _load_preview_metadata(self) -> dict[int, dict]:
+        query = """
+            SELECT
+                appid,
+                short_description,
+                header_image,
+                capsule_image,
+                developers_json,
+                publishers_json,
+                release_date_text
+            FROM games
+        """
+        try:
+            with self._connect_metadata() as connection:
+                rows = connection.execute(query).fetchall()
+        except sqlite3.Error:
+            return {}
+
+        previews: dict[int, dict] = {}
+        for row in rows:
+            def _load_json_list(raw: str | None) -> list[str]:
+                if not raw:
+                    return []
+                try:
+                    parsed = json.loads(raw)
+                except (TypeError, ValueError, json.JSONDecodeError):
+                    return []
+                return [str(item) for item in parsed if str(item).strip()]
+
+            previews[int(row["appid"])] = {
+                "short_description": (row["short_description"] or "").strip(),
+                "header_image": row["header_image"] or "",
+                "capsule_image": row["capsule_image"] or "",
+                "developers": _load_json_list(row["developers_json"]),
+                "publishers": _load_json_list(row["publishers_json"]),
+                "release_date_text": row["release_date_text"] or "",
+            }
+        return previews
+
+    def _load_canonical_preview(self) -> dict[int, dict]:
+        query = """
+            SELECT appid, canonical_metadata_json
+            FROM canonical_game_semantics
+        """
+        try:
+            with self._connect() as connection:
+                rows = connection.execute(query).fetchall()
+        except sqlite3.Error:
+            return {}
+
+        previews: dict[int, dict] = {}
+        for row in rows:
+            try:
+                metadata = json.loads(row["canonical_metadata_json"])
+            except (TypeError, ValueError, json.JSONDecodeError):
+                metadata = {}
+            previews[int(row["appid"])] = {
+                "signature_tag": metadata.get("signature_tag", ""),
+                "soundtrack_tags": metadata.get("soundtrack_tags", []) or [],
+            }
+        return previews
+
+    @staticmethod
+    def _row_to_game(row: sqlite3.Row, signals: dict | None = None, preview: dict | None = None) -> dict:
+        payload = {
+            "appid": int(row["appid"]),
+            "name": row["name"],
+            "vectors": json.loads(row["canonical_vectors_json"]),
+            "metadata": json.loads(row["canonical_metadata_json"]),
+            "signals": signals or {},
+        }
+        if preview:
+            payload.update(preview)
+        return payload
 
     @staticmethod
     def _normalize_search_text(text: str) -> str:
@@ -95,10 +219,20 @@ class FinalGameStore:
             scored.append((score, candidate))
 
         scored.sort(key=lambda item: (-item[0], len(item[1]["name"]), item[1]["name"].lower()))
-        return [
-            {"appid": candidate["appid"], "name": candidate["name"]}
-            for _, candidate in scored[:limit]
-        ]
+        results = []
+        for _, candidate in scored[:limit]:
+            preview = dict(self._preview_metadata.get(candidate["appid"], {}))
+            canonical = self._canonical_preview.get(candidate["appid"], {})
+            results.append(
+                {
+                    "appid": candidate["appid"],
+                    "name": candidate["name"],
+                    "signature_tag": canonical.get("signature_tag", ""),
+                    "soundtrack_tags": canonical.get("soundtrack_tags", []),
+                    **preview,
+                }
+            )
+        return results
 
     def get_game(self, appid: int) -> dict | None:
         with self._connect() as connection:
@@ -112,12 +246,15 @@ class FinalGameStore:
             ).fetchone()
         if row is None:
             return None
-        return {
-            "appid": int(row["appid"]),
-            "name": row["name"],
-            "vectors": json.loads(row["canonical_vectors_json"]),
-            "metadata": json.loads(row["canonical_metadata_json"]),
-        }
+        appid = int(row["appid"])
+        return self._row_to_game(
+            row,
+            self._metadata_signals.get(appid),
+            {
+                **self._preview_metadata.get(appid, {}),
+                **self._canonical_preview.get(appid, {}),
+            },
+        )
 
     def load_all_games(self) -> list[dict]:
         with self._connect() as connection:
@@ -129,11 +266,13 @@ class FinalGameStore:
                 """
             ).fetchall()
         return [
-            {
-                "appid": int(row["appid"]),
-                "name": row["name"],
-                "vectors": json.loads(row["canonical_vectors_json"]),
-                "metadata": json.loads(row["canonical_metadata_json"]),
-            }
+            self._row_to_game(
+                row,
+                self._metadata_signals.get(int(row["appid"])),
+                {
+                    **self._preview_metadata.get(int(row["appid"]), {}),
+                    **self._canonical_preview.get(int(row["appid"]), {}),
+                },
+            )
             for row in rows
         ]

@@ -60,9 +60,10 @@ def parse_request_data(environ) -> dict[str, list[str]]:
 
 def parse_adjustments(
     data: dict[str, list[str]],
-) -> tuple[dict[str, dict[str, float]], dict[str, list[str]], bool, dict[str, int], dict[str, int]]:
+) -> tuple[dict[str, dict[str, float]], dict[str, float], dict[str, list[str]], bool, dict[str, int], dict[str, int]]:
     extra_vector_boosts: dict[str, dict[str, float]] = {}
-    selected_genres = {"primary": [], "sub": [], "traits": []}
+    extra_soundtrack_boosts: dict[str, float] = {}
+    selected_genres = {"primary": [], "sub": [], "sub_sub": [], "traits": []}
     saw_genre_input = False
     context_percentages = default_context_percentages()
     appeal_axes = {axis: 50 for axis in APPEAL_AXIS_ORDER}
@@ -74,7 +75,10 @@ def parse_adjustments(
                 multiplier = float(values[-1]) / 100.0
             except (TypeError, ValueError):
                 multiplier = 1.0
-            extra_vector_boosts.setdefault(context, {})[tag] = multiplier
+            if context == "soundtrack":
+                extra_soundtrack_boosts[tag] = multiplier
+            else:
+                extra_vector_boosts.setdefault(context, {})[tag] = multiplier
         elif key.startswith("genre_"):
             branch = key.split("_", 1)[1]
             if branch in selected_genres:
@@ -93,7 +97,14 @@ def parse_adjustments(
             except (TypeError, ValueError):
                 pass
 
-    return extra_vector_boosts, selected_genres, saw_genre_input, context_percentages, appeal_axes
+    return (
+        extra_vector_boosts,
+        extra_soundtrack_boosts,
+        selected_genres,
+        saw_genre_input,
+        context_percentages,
+        appeal_axes,
+    )
 
 
 def handle_index(start_response):
@@ -105,7 +116,7 @@ def handle_search(environ, start_response):
     data = parse_request_data(environ)
     query = data.get("q", [""])[-1]
     results = store.search_games(query)
-    body = render("partials/search_results.html", results=results)
+    body = render("partials/search_results.html", results=results, query=query)
     return response(start_response, body)
 
 
@@ -138,12 +149,19 @@ def handle_recommend(environ, start_response):
         body = render("partials/recommendations.html", results=[], unavailable=True)
         return response(start_response, body)
 
-    extra_vector_boosts, selected_genres, saw_genre_input, context_percentages, appeal_axes = parse_adjustments(data)
-    added_genres = {"primary": [], "sub": [], "traits": []}
-    removed_genres = {"primary": [], "sub": [], "traits": []}
+    (
+        extra_vector_boosts,
+        extra_soundtrack_boosts,
+        selected_genres,
+        saw_genre_input,
+        context_percentages,
+        appeal_axes,
+    ) = parse_adjustments(data)
+    added_genres = {"primary": [], "sub": [], "sub_sub": [], "traits": []}
+    removed_genres = {"primary": [], "sub": [], "sub_sub": [], "traits": []}
     if saw_genre_input:
         base_tree = game["metadata"].get("genre_tree", {})
-        for branch in ("primary", "sub", "traits"):
+        for branch in ("primary", "sub", "sub_sub", "traits"):
             base_tags = set(base_tree.get(branch, []))
             selected_tags = set(selected_genres.get(branch, []))
             added_genres[branch] = sorted(selected_tags - base_tags)
@@ -153,13 +171,19 @@ def handle_recommend(environ, start_response):
         game,
         ALL_GAMES,
         extra_vector_boosts=extra_vector_boosts,
+        extra_soundtrack_boosts=extra_soundtrack_boosts,
         context_percentages=context_percentages,
         appeal_axes=appeal_axes,
         added_genres=added_genres,
         removed_genres=removed_genres,
         limit=20,
     )
-    body = render("partials/recommendations.html", results=recommendations, base_game=game)
+    body = render(
+        "partials/recommendations.html",
+        results=recommendations,
+        base_game=game,
+        context_percentages=context_percentages,
+    )
     return response(start_response, body)
 
 

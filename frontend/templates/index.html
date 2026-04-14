@@ -8,26 +8,26 @@
     This UI uses canonical vectors and genre tree tags from <code>steam_final_canon.db</code>.
     Micro tags are intentionally ignored for this first pass.
   </p>
-</section>
-
-<section class="layout">
-  <aside class="panel search-panel">
-    <h2>Search</h2>
+  <div class="search-shell" data-open="false">
+    <label class="search-label" for="game-search">Search</label>
     <input
+      id="game-search"
       class="search-input"
       type="search"
       name="q"
       value="{{ initial_query }}"
       placeholder="Search for a game"
       hx-get="/search"
-      hx-trigger="load, keyup changed delay:250ms"
+      hx-trigger="load, keyup changed delay:180ms"
       hx-target="#search-results"
       hx-indicator="#search-loading"
       autocomplete="off">
     <div id="search-loading" class="loading">Searching...</div>
-    <div id="search-results"></div>
-  </aside>
+    <div id="search-results" class="search-dropdown"></div>
+  </div>
+</section>
 
+<section class="layout">
   <section class="panel profile-panel">
     <div id="selected-game">
       {% include "partials/game_placeholder.html" %}
@@ -40,4 +40,49 @@
     </div>
   </section>
 </section>
+<script>
+(() => {
+  const shell = document.querySelector('.search-shell');
+  const input = document.getElementById('game-search');
+  const results = document.getElementById('search-results');
+  if (!shell || !input || !results) return;
+
+  function closeDropdown() {
+    shell.dataset.open = 'false';
+  }
+
+  function openDropdown() {
+    if (results.innerHTML.trim()) {
+      shell.dataset.open = 'true';
+    }
+  }
+
+  input.addEventListener('focus', openDropdown);
+  input.addEventListener('input', () => {
+    shell.dataset.open = input.value.trim() ? 'true' : 'false';
+  });
+  input.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      closeDropdown();
+      input.blur();
+    }
+  });
+
+  document.addEventListener('click', (event) => {
+    if (!shell.contains(event.target)) {
+      closeDropdown();
+    }
+  });
+
+  document.body.addEventListener('htmx:afterSwap', (event) => {
+    if (event.target && event.target.id === 'search-results') {
+      if (document.activeElement === input && input.value.trim() && results.innerHTML.trim()) {
+        openDropdown();
+      } else if (!results.innerHTML.trim()) {
+        closeDropdown();
+      }
+    }
+  });
+})();
+</script>
 {% endblock %}
