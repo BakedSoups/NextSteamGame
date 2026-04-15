@@ -5,7 +5,8 @@ import threading
 import time
 from typing import Dict, Optional
 
-from rich.console import Console
+from rich.console import Console, Group
+from rich.live import Live
 from rich.progress import (
     BarColumn,
     Progress,
@@ -14,6 +15,7 @@ from rich.progress import (
     TextColumn,
     TimeElapsedColumn,
 )
+from rich.text import Text
 
 STAGES = ("fetch", "filter", "sample", "semantics", "sqlite")
 STAGE_INDEX = {stage: index for index, stage in enumerate(STAGES)}
@@ -31,11 +33,23 @@ _progress = Progress(
     console=_console,
     transient=False,
 )
-_progress.start()
 
 _lock = threading.RLock()
 _tasks: Dict[str, TaskID] = {}
-_status_task: Optional[TaskID] = None
+_status_message = Text("")
+
+
+def _render_layout() -> Group:
+    return Group(_status_message, _progress)
+
+
+_live = Live(
+    _render_layout(),
+    console=_console,
+    transient=False,
+    refresh_per_second=10,
+)
+_live.start()
 
 
 def _render_appid(appid: str | int) -> str:
@@ -72,6 +86,7 @@ def _set_stage(appid: str | int, stage: str, detail: str = "", completed: Option
         update_kwargs["completed"] = completed
     with _lock:
         _progress.update(task_id, **update_kwargs)
+        _live.update(_render_layout(), refresh=True)
 
 
 def _schedule_removal(appid: str | int) -> None:
@@ -83,6 +98,7 @@ def _schedule_removal(appid: str | int) -> None:
             task_id = _tasks.pop(appid_key, None)
             if task_id is not None:
                 _progress.remove_task(task_id)
+                _live.update(_render_layout(), refresh=True)
 
     thread = threading.Thread(target=_remove_later, daemon=True)
     thread.start()
@@ -94,25 +110,10 @@ def log_banner(message: str) -> None:
 
 
 def update_status(detail: str) -> None:
-    global _status_task
+    global _status_message
     with _lock:
-        if _status_task is None:
-            _status_task = _progress.add_task(
-                "",
-                total=1,
-                completed=1,
-                appid="[status]",
-                stage="summary",
-                detail=detail,
-            )
-        else:
-            _progress.update(
-                _status_task,
-                completed=1,
-                stage="summary",
-                detail=detail,
-                refresh=True,
-            )
+        _status_message = Text(detail, style="cyan")
+        _live.update(_render_layout(), refresh=True)
 
 
 def start_appid(appid: str | int, detail: str = "starting") -> None:
@@ -128,6 +129,7 @@ def log_stage(stage: str, appid: str | int | None = None, detail: str = "") -> N
     if appid is None:
         with _lock:
             _console.print(f"[cyan][{stage:<10}][/cyan] {detail}")
+            _live.update(_render_layout(), refresh=True)
         return
 
     appid_str = str(appid)
@@ -157,6 +159,7 @@ def complete_appid(appid: str | int, detail: str = "completed") -> None:
             detail=detail,
             refresh=True,
         )
+        _live.update(_render_layout(), refresh=True)
     _schedule_removal(appid)
 
 
@@ -169,6 +172,7 @@ def fail_appid(appid: str | int, detail: str = "error") -> None:
             detail=detail,
             refresh=True,
         )
+        _live.update(_render_layout(), refresh=True)
     _schedule_removal(appid)
 
 
@@ -176,6 +180,6 @@ def fail_appid(appid: str | int, detail: str = "error") -> None:
 def _stop_progress() -> None:
     with _lock:
         try:
-            _progress.stop()
+            _live.stop()
         except Exception:
             pass

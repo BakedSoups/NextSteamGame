@@ -27,6 +27,7 @@ def main() -> int:
         store_delay=0.4,
         store_batch_delay=8.0,
         store_batch_size=25,
+        store_workers=5,
         price_regions=PRICE_REGIONS,
     )
 

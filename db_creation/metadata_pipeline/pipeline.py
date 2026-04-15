@@ -20,6 +20,7 @@ import re
 import sqlite3
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -131,6 +132,13 @@ class RetryConfig:
     timeout: int = 30
 
 
+def first_non_empty(*values: Any) -> Optional[str]:
+    for value in values:
+        if isinstance(value, str) and value.strip():
+            return value
+    return None
+
+
 class SteamMetadataBuilder:
     steamspy_url = "https://steamspy.com/api.php"
     appdetails_url = "https://store.steampowered.com/api/appdetails"
@@ -143,6 +151,7 @@ class SteamMetadataBuilder:
         store_delay: float = 0.4,
         store_batch_delay: float = 8.0,
         store_batch_size: int = 25,
+        store_workers: int = 5,
         price_regions: Optional[Sequence[str]] = None,
     ) -> None:
         self.db_path = db_path
@@ -151,6 +160,7 @@ class SteamMetadataBuilder:
         self.store_delay = store_delay
         self.store_batch_delay = store_batch_delay
         self.store_batch_size = store_batch_size
+        self.store_workers = max(1, store_workers)
         self.price_regions = [region.lower() for region in (price_regions or ["us"])]
 
         ensure_directory(db_path)
@@ -173,6 +183,35 @@ class SteamMetadataBuilder:
         conn.execute("PRAGMA foreign_keys = ON")
         conn.execute("PRAGMA synchronous = NORMAL")
         return conn
+
+    def _extract_store_art(self, app_data: Dict[str, Any]) -> Dict[str, Optional[str]]:
+        return {
+            "capsule_imagev5": first_non_empty(app_data.get("capsule_imagev5")),
+            "background_image": first_non_empty(
+                app_data.get("background_image"),
+                app_data.get("background"),
+            ),
+            "background_image_raw": first_non_empty(
+                app_data.get("background_image_raw"),
+                app_data.get("background_raw"),
+            ),
+            "logo_image": first_non_empty(
+                app_data.get("logo_image"),
+                app_data.get("logo"),
+            ),
+            "icon_image": first_non_empty(
+                app_data.get("icon_image"),
+                app_data.get("icon"),
+            ),
+            "library_hero_image": first_non_empty(
+                app_data.get("library_hero_image"),
+                app_data.get("library_hero"),
+            ),
+            "library_capsule_image": first_non_empty(
+                app_data.get("library_capsule_image"),
+                app_data.get("library_capsule"),
+            ),
+        }
 
     def create_schema(self) -> None:
         with self.connect() as conn:
@@ -242,6 +281,13 @@ class SteamMetadataBuilder:
                     supported_languages TEXT,
                     header_image TEXT,
                     capsule_image TEXT,
+                    capsule_imagev5 TEXT,
+                    background_image TEXT,
+                    background_image_raw TEXT,
+                    logo_image TEXT,
+                    icon_image TEXT,
+                    library_hero_image TEXT,
+                    library_capsule_image TEXT,
                     website TEXT,
                     developers_json TEXT,
                     publishers_json TEXT,
@@ -819,6 +865,7 @@ class SteamMetadataBuilder:
             developers = app_data.get("developers") or []
             publishers = app_data.get("publishers") or []
             is_free = bool(app_data.get("is_free"))
+            art = self._extract_store_art(app_data)
 
             self._upsert_price_row(cursor, appid, region_code, price, fetched_at, is_free)
 
@@ -830,7 +877,9 @@ class SteamMetadataBuilder:
                 INSERT INTO games (
                     appid, name, type, required_age, is_free, controller_support,
                     short_description, detailed_description, about_the_game,
-                    supported_languages, header_image, capsule_image, website,
+                    supported_languages, header_image, capsule_image, capsule_imagev5,
+                    background_image, background_image_raw, logo_image, icon_image,
+                    library_hero_image, library_capsule_image, website,
                     developers_json, publishers_json, price_currency,
                     price_initial, price_final, price_discount_percent,
                     release_date_text, release_date_is_coming_soon, release_date_parsed,
@@ -850,6 +899,13 @@ class SteamMetadataBuilder:
                     supported_languages = excluded.supported_languages,
                     header_image = excluded.header_image,
                     capsule_image = excluded.capsule_image,
+                    capsule_imagev5 = excluded.capsule_imagev5,
+                    background_image = excluded.background_image,
+                    background_image_raw = excluded.background_image_raw,
+                    logo_image = COALESCE(excluded.logo_image, games.logo_image),
+                    icon_image = COALESCE(excluded.icon_image, games.icon_image),
+                    library_hero_image = COALESCE(excluded.library_hero_image, games.library_hero_image),
+                    library_capsule_image = COALESCE(excluded.library_capsule_image, games.library_capsule_image),
                     website = excluded.website,
                     developers_json = excluded.developers_json,
                     publishers_json = excluded.publishers_json,
@@ -879,6 +935,13 @@ class SteamMetadataBuilder:
                     app_data.get("supported_languages"),
                     app_data.get("header_image"),
                     app_data.get("capsule_image"),
+                    art["capsule_imagev5"],
+                    art["background_image"],
+                    art["background_image_raw"],
+                    art["logo_image"],
+                    art["icon_image"],
+                    art["library_hero_image"],
+                    art["library_capsule_image"],
                     app_data.get("website"),
                     json_dumps(developers),
                     json_dumps(publishers),
@@ -1059,31 +1122,46 @@ class SteamMetadataBuilder:
 
         LOGGER.info("Store enrichment queue size: %s", len(appids))
 
-        for index, appid in enumerate(appids, start=1):
-            attempted += 1
-            try:
-                us_payload = self.fetch_app_details(appid, region_code="us")
-                success = self.upsert_store_details(appid, us_payload, region_code="us")
+        def process_appid(appid: int) -> bool:
+            us_payload = self.fetch_app_details(appid, region_code="us")
+            success = self.upsert_store_details(appid, us_payload, region_code="us")
 
-                if success:
-                    for region_code in self.price_regions:
-                        if region_code == "us":
-                            continue
-                        regional_payload = self.fetch_app_details(appid, region_code=region_code)
-                        self.upsert_store_details(appid, regional_payload, region_code=region_code)
-                    succeeded += 1
+            if success:
+                for region_code in self.price_regions:
+                    if region_code == "us":
+                        continue
+                    regional_payload = self.fetch_app_details(appid, region_code=region_code)
+                    self.upsert_store_details(appid, regional_payload, region_code=region_code)
 
-                LOGGER.info("Store %s/%s appid=%s success=%s", index, len(appids), appid, success)
-            except Exception as exc:
-                errors += 1
-                self.mark_store_failure(appid, str(exc))
-                self.record_error(sync_run_id, source="steam_store", error_message=str(exc), appid=appid)
-                LOGGER.error("Store enrichment failed for appid %s: %s", appid, exc)
+            return success
 
-            if index % self.store_batch_size == 0:
+        processed = 0
+        total = len(appids)
+
+        for batch in self._batched(appids, self.store_batch_size):
+            with ThreadPoolExecutor(max_workers=min(self.store_workers, len(batch))) as executor:
+                future_to_appid = {
+                    executor.submit(process_appid, appid): appid
+                    for appid in batch
+                }
+
+                for future in as_completed(future_to_appid):
+                    appid = future_to_appid[future]
+                    attempted += 1
+                    processed += 1
+                    try:
+                        success = bool(future.result())
+                        if success:
+                            succeeded += 1
+                        LOGGER.info("Store %s/%s appid=%s success=%s", processed, total, appid, success)
+                    except Exception as exc:
+                        errors += 1
+                        self.mark_store_failure(appid, str(exc))
+                        self.record_error(sync_run_id, source="steam_store", error_message=str(exc), appid=appid)
+                        LOGGER.error("Store enrichment failed for appid %s: %s", appid, exc)
+
+            if processed < total:
                 time.sleep(self.store_batch_delay)
-            else:
-                time.sleep(self.store_delay)
 
         return attempted, succeeded, errors
 
