@@ -163,7 +163,7 @@ export default function NextSteamGamePage() {
     selectedGame?.headerImage ||
     selectedGame?.image ||
     ""
-  const profileHeroHeight = "49%"
+  const profileHeroHeight = 570
   const profileHeroZoom = 1.06
   const profileHeroPosition = "center 18%"
   const profileLogoImage = selectedGame?.assets.logo || ""
@@ -616,7 +616,10 @@ export default function NextSteamGamePage() {
                     className="absolute inset-x-0 top-0 bg-[linear-gradient(180deg,rgba(9,14,20,0.02),rgba(9,14,20,0.10)_40%,rgba(9,14,20,0.26)_72%,rgba(9,14,20,0.66)_100%),linear-gradient(90deg,rgba(9,14,20,0.34)_0%,rgba(9,14,20,0.10)_36%,rgba(9,14,20,0.02)_68%,rgba(9,14,20,0.14)_100%)]"
                     style={{ height: profileHeroHeight }}
                   />
-                  <div className="absolute inset-x-0 top-[41%] h-40 bg-[linear-gradient(180deg,rgba(14,22,33,0)_0%,rgba(14,22,33,0.24)_34%,rgba(14,22,33,0.72)_100%)] blur-2xl" />
+                  <div
+                    className="absolute inset-x-0 h-40 bg-[linear-gradient(180deg,rgba(14,22,33,0)_0%,rgba(14,22,33,0.24)_34%,rgba(14,22,33,0.72)_100%)] blur-2xl"
+                    style={{ top: profileHeroHeight - 64 }}
+                  />
                 </>
               )}
 
