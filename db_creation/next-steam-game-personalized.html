@@ -1,0 +1,442 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NextSteamGame | Step 2 Calibration</title>
+    <style>
+        :root {
+            --accent: #d32f2f; /* P5 Red */
+            --steam-bg: #1b2838;
+            --steam-dark: #0b0e13;
+            --glass: rgba(0, 0, 0, 0.85);
+            --skew: -10deg;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background-color: var(--steam-dark);
+            color: #fff;
+            font-family: 'Motiva Sans', Arial, sans-serif;
+            overflow-x: hidden;
+        }
+
+        /* --- AMBIENT BACKGROUND LAYER --- */
+        .ambient-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            /* Utilizing background_image_raw for the deep ambient vibe */
+            background-image: linear-gradient(to bottom, rgba(11, 14, 19, 0.8), var(--steam-dark)), 
+                              url('https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1687950/page_bg_raw.jpg?t=1763530018');
+            background-size: cover;
+            background-position: center;
+            filter: blur(20px);
+            z-index: -1;
+            transform: scale(1.1);
+        }
+
+        /* --- CONTENT CONTAINER --- */
+        .wrapper {
+            max-width: 1200px;
+            margin: 0 auto;
+            position: relative;
+            min-height: 100vh;
+            padding: 36px 24px 100px;
+        }
+
+        /* --- STEAM HEADER BAR --- */
+        header {
+            height: 60px;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            align-items: center;
+            padding: 0 40px;
+            border-bottom: 1px solid var(--accent);
+            backdrop-filter: blur(10px);
+        }
+
+        .logo-text { font-weight: 800; font-style: italic; letter-spacing: 2px; }
+        .logo-text span { color: var(--accent); }
+
+        .box-hero {
+            position: relative;
+            margin: 24px 0 100px;
+            min-height: 760px;
+            padding: 40px;
+            border-radius: 18px;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.08);
+            box-shadow: 0 0 100px rgba(0,0,0,0.65);
+            background:
+                linear-gradient(180deg, rgba(5, 8, 13, 0.18), rgba(5, 8, 13, 0.78) 48%, rgba(5, 8, 13, 0.96) 100%),
+                linear-gradient(90deg, rgba(5, 8, 13, 0.92) 0%, rgba(5, 8, 13, 0.78) 30%, rgba(5, 8, 13, 0.28) 68%, rgba(5, 8, 13, 0.42) 100%),
+                url('https://store.akamai.steamstatic.com/images/storepagebackground/app/1687950?t=1763530018') no-repeat center top / cover;
+        }
+
+        .box-hero::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(circle at 16% 24%, rgba(211, 47, 47, 0.18), transparent 26%),
+                radial-gradient(circle at 86% 18%, rgba(255,255,255,0.08), transparent 20%);
+            pointer-events: none;
+        }
+
+        .box-hero > * {
+            position: relative;
+            z-index: 1;
+        }
+
+        .hero-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 24px;
+            margin-bottom: 90px;
+        }
+
+        .title-logo {
+            width: min(360px, 38vw);
+            filter: drop-shadow(0 0 15px rgba(211, 47, 47, 0.4));
+        }
+
+        .vector-badge {
+            display: inline-block;
+            background: var(--accent);
+            padding: 8px 16px;
+            font-size: 0.75rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            transform: skewX(var(--skew));
+        }
+
+        .intro-copy {
+            max-width: 620px;
+            margin: 0 auto 42px;
+            text-align: center;
+        }
+
+        .intro-copy h1 {
+            font-size: clamp(2.2rem, 4vw, 4rem);
+            margin-bottom: 18px;
+            letter-spacing: -0.03em;
+        }
+
+        .intro-copy .specs {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .spec-pill {
+            padding: 8px 14px;
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 1.4px;
+            border: 1px solid rgba(255,255,255,0.12);
+            background: rgba(255,255,255,0.06);
+            border-radius: 999px;
+            color: #d7dce3;
+        }
+
+        .intro-copy p {
+            color: #c5ced8;
+            line-height: 1.7;
+            font-size: 1rem;
+        }
+
+        /* --- INTERFACE CONTROLS --- */
+        .calibration-box {
+            background: var(--glass);
+            padding: 40px;
+            border-radius: 18px;
+            border: 1px solid rgba(255,255,255,0.08);
+            max-width: 940px;
+            margin: 0 auto;
+            backdrop-filter: blur(10px);
+        }
+
+        .mode-toggle {
+            display: flex;
+            gap: 2px;
+            margin-bottom: 40px;
+            border-bottom: 2px solid #333;
+        }
+
+        .tab {
+            padding: 15px 30px;
+            cursor: pointer;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            transition: 0.3s;
+            color: #777;
+        }
+
+        .tab.active {
+            color: #fff;
+            border-bottom: 2px solid var(--accent);
+            background: linear-gradient(to top, rgba(211, 47, 47, 0.1), transparent);
+        }
+
+        /* --- SIMPLE MODE: TRAITS --- */
+        .trait-group {
+            margin-bottom: 30px;
+        }
+
+        .trait-group h3 {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            color: var(--accent);
+            letter-spacing: 2px;
+            margin-bottom: 15px;
+        }
+
+        .chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .chip {
+            background: rgba(255,255,255,0.05);
+            padding: 10px 20px;
+            border: 1px solid rgba(255,255,255,0.1);
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: 0.2s;
+            clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+        }
+
+        .chip:hover { background: rgba(255,255,255,0.15); border-color: #fff; }
+        .chip.selected { 
+            background: var(--accent); 
+            border-color: #fff; 
+            font-weight: bold; 
+            color: white;
+            box-shadow: 0 0 20px rgba(211, 47, 47, 0.4);
+        }
+
+        /* --- ADVANCED MODE: SLIDERS --- */
+        .slider-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        .slider-item {
+            background: rgba(0,0,0,0.3);
+            padding: 20px;
+        }
+
+        .slider-item label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+        }
+
+        input[type=range] {
+            width: 100%;
+            height: 4px;
+            appearance: none;
+            background: #444;
+            outline: none;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--accent);
+            border: 2px solid #fff;
+            cursor: pointer;
+        }
+
+        /* --- FOOTER ACTION --- */
+        .footer-cta {
+            position: sticky;
+            bottom: 40px;
+            display: flex;
+            justify-content: flex-end;
+            pointer-events: none;
+            margin-top: 28px;
+        }
+
+        .btn-scan {
+            pointer-events: auto;
+            background: #fff;
+            color: #000;
+            padding: 20px 50px;
+            font-weight: 900;
+            text-transform: uppercase;
+            font-size: 1.2rem;
+            border: none;
+            cursor: pointer;
+            transform: skewX(var(--skew));
+            box-shadow: 10px 10px 0px var(--accent);
+            transition: 0.2s;
+        }
+
+        .btn-scan:hover {
+            transform: skewX(var(--skew)) translate(-5px, -5px);
+            box-shadow: 15px 15px 0px var(--accent);
+            background: var(--accent);
+            color: #fff;
+        }
+
+        .hidden { display: none; }
+
+        @media (max-width: 900px) {
+            .wrapper {
+                padding: 22px 14px 90px;
+            }
+
+            .box-hero {
+                padding: 26px 22px;
+                min-height: auto;
+            }
+
+            .hero-top {
+                flex-direction: column;
+                gap: 18px;
+                margin-bottom: 44px;
+            }
+
+            .title-logo {
+                width: min(280px, 60vw);
+                align-self: flex-end;
+            }
+
+            .calibration-box {
+                padding: 24px 20px;
+            }
+
+            .mode-toggle {
+                overflow-x: auto;
+            }
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="ambient-bg"></div>
+
+    <header>
+        <div class="logo-text">NEXT<span>STEAM</span>GAME</div>
+    </header>
+
+    <div class="wrapper">
+        <div class="box-hero">
+            <div class="hero-top">
+                <div class="vector-badge">Profile Decryption Active</div>
+                <img src="https://cdn.cloudflare.steamstatic.com/steam/apps/1687950/logo.png" class="title-logo" alt="P5R Logo">
+            </div>
+
+            <div class="intro-copy">
+                <h1>Persona 5 Royal</h1>
+                <div class="specs">
+                    <div class="spec-pill">JRPG</div>
+                    <div class="spec-pill">Social Sim</div>
+                    <div class="spec-pill">Urban Style</div>
+                    <div class="spec-pill">Jazz Identity</div>
+                    <div class="spec-pill">AppID 1687950</div>
+                </div>
+                <p>
+                    We've deconstructed <strong>Persona 5 Royal</strong> into its core semantic vectors. Refine the weighting to discover similar experiences in the multiverse. The background art now lives directly inside this Step 2 card so the entire screen reads like one Steam-native calibration surface.
+                </p>
+            </div>
+
+            <div class="calibration-box">
+                <div class="mode-toggle">
+                    <div class="tab active" id="tab-simple" onclick="setMode('simple')">Simple Discovery</div>
+                    <div class="tab" id="tab-advanced" onclick="setMode('advanced')">Advanced Vectors</div>
+                </div>
+
+                <div id="simple-content">
+                    <div class="trait-group">
+                        <h3>Mechanics DNA</h3>
+                        <div class="chips">
+                            <div class="chip selected" onclick="this.classList.toggle('selected')">Turn Based Combat</div>
+                            <div class="chip selected" onclick="this.classList.toggle('selected')">Social Sim</div>
+                            <div class="chip" onclick="this.classList.toggle('selected')">Dungeon Crawling</div>
+                            <div class="chip" onclick="this.classList.toggle('selected')">Daily Scheduling</div>
+                        </div>
+                    </div>
+
+                    <div class="trait-group">
+                        <h3>Vibe & Style</h3>
+                        <div class="chips">
+                            <div class="chip selected" onclick="this.classList.toggle('selected')">Stylish UI</div>
+                            <div class="chip selected" onclick="this.classList.toggle('selected')">Urban City Vibes</div>
+                            <div class="chip" onclick="this.classList.toggle('selected')">Rebellious</div>
+                            <div class="chip" onclick="this.classList.toggle('selected')">Acid Jazz</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="advanced-content" class="hidden">
+                    <div class="slider-grid">
+                        <div class="slider-item">
+                            <label>Mechanics Weight <span>90%</span></label>
+                            <input type="range" value="90">
+                        </div>
+                        <div class="slider-item">
+                            <label>Atmosphere Weight <span>100%</span></label>
+                            <input type="range" value="100">
+                        </div>
+                        <div class="slider-item">
+                            <label>Narrative Depth <span>85%</span></label>
+                            <input type="range" value="85">
+                        </div>
+                        <div class="slider-item">
+                            <label>Musical Influence <span>95%</span></label>
+                            <input type="range" value="95">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="footer-cta">
+                <button class="btn-scan">Find Match</button>
+            </div>
+
+            <div style="padding-top: 18px; opacity: 0.3; display: flex; align-items: center; gap: 20px; justify-content: center;">
+                <img src="https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1687950/capsule_231x87.jpg?t=1763530018" height="40">
+                <span style="font-size: 0.7rem;">APPID: 1687950 | DATA SOURCE: STEAM_DNA_SCANNER</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function setMode(mode) {
+            const sTab = document.getElementById('tab-simple');
+            const aTab = document.getElementById('tab-advanced');
+            const sContent = document.getElementById('simple-content');
+            const aContent = document.getElementById('advanced-content');
+
+            if (mode === 'simple') {
+                sTab.classList.add('active');
+                aTab.classList.remove('active');
+                sContent.classList.remove('hidden');
+                aContent.classList.add('hidden');
+            } else {
+                sTab.classList.remove('active');
+                aTab.classList.add('active');
+                sContent.classList.add('hidden');
+                aContent.classList.remove('hidden');
+            }
+        }
+    </script>
+</body>
+</html>

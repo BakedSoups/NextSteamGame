@@ -67,6 +67,23 @@ function buildTagWeights(game: Game): Weights["tags"] {
   }
 }
 
+function featuredTagGroups(game: Game | null): Array<{
+  context: keyof Weights["tags"]
+  label: string
+  tags: string[]
+}> {
+  if (!game) {
+    return []
+  }
+
+  return [
+    { context: "uniqueness", label: "Signature", tags: game.tags.uniqueness.slice(0, 4) },
+    { context: "vibe", label: "Mood", tags: game.tags.vibe.slice(0, 4) },
+    { context: "mechanics", label: "Mechanics", tags: game.tags.mechanics.slice(0, 4) },
+    { context: "music", label: "Sound", tags: game.tags.music.slice(0, 4) },
+  ].filter((group) => group.tags.length > 0)
+}
+
 function buildWeightsFromGame(game: Game): Weights {
   const liveWeights = game.weights ?? {}
   return {
@@ -108,10 +125,11 @@ async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>
 }
 
-export default function GameRecommendationLab() {
+export default function NextSteamGamePage() {
   const [screen, setScreen] = useState<Screen>("search")
   const [controlMode, setControlMode] = useState<"simple" | "advanced">("simple")
   const [selectedGame, setSelectedGame] = useState<Game | null>(null)
+  const [selectedSimpleTags, setSelectedSimpleTags] = useState<string[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [searchResults, setSearchResults] = useState<Game[]>([])
   const [searchLoading, setSearchLoading] = useState(false)
@@ -139,6 +157,22 @@ export default function GameRecommendationLab() {
       traits: [],
     },
   })
+  const profileHeroImage =
+    selectedGame?.assets.libraryHero ||
+    selectedGame?.assets.background ||
+    selectedGame?.headerImage ||
+    selectedGame?.image ||
+    ""
+  const profileHeroHeight = "49%"
+  const profileHeroZoom = 1.06
+  const profileHeroPosition = "center 18%"
+  const profileLogoImage = selectedGame?.assets.logo || ""
+  const profileCardImage =
+    selectedGame?.assets.libraryCapsule ||
+    selectedGame?.assets.capsuleV5 ||
+    selectedGame?.image ||
+    selectedGame?.headerImage ||
+    ""
 
   useEffect(() => {
     const query = searchQuery.trim()
@@ -171,6 +205,7 @@ export default function GameRecommendationLab() {
     }
     setWeights(buildWeightsFromGame(selectedGame))
     setTagFilters({ include: [], exclude: [] })
+    setSelectedSimpleTags([])
   }, [selectedGame])
 
   useEffect(() => {
@@ -274,6 +309,8 @@ export default function GameRecommendationLab() {
       music: uniqueSorted(sourceGames.flatMap((game) => game.tags.music)),
     }
   }, [selectedGame, recommendations])
+
+  const simpleFeaturedTags = useMemo(() => featuredTagGroups(selectedGame), [selectedGame])
 
   const handleSelectGame = async (game: Game) => {
     try {
@@ -465,6 +502,42 @@ export default function GameRecommendationLab() {
     })
   }
 
+  const toggleSimpleTag = (context: keyof Weights["tags"], tag: string) => {
+    const selectionKey = `${context}:${tag}`
+    const isSelected = selectedSimpleTags.includes(selectionKey)
+
+    setSelectedSimpleTags((prev) =>
+      isSelected ? prev.filter((item) => item !== selectionKey) : [...prev, selectionKey],
+    )
+
+    if (isSelected) {
+      if (selectedGame) {
+        const baseWeights = buildWeightsFromGame(selectedGame)
+        const originalValue = baseWeights.tags[context]?.[tag] ?? 0
+        updateTagWeight(context, tag, originalValue)
+      }
+      return
+    }
+
+    const current = weights.tags[context]?.[tag] ?? 0
+    const nextValue = Math.min(100, current + 18)
+    updateTagWeight(context, tag, nextValue)
+
+    if (context === "music") {
+      applySimpleIntentBoost("music", "music", 8, 6)
+    } else {
+      const contextMap: Record<string, keyof Weights["context"]> = {
+        mechanics: "mechanics",
+        narrative: "narrative",
+        vibe: "vibe",
+        structure_loop: "structure_loop",
+        uniqueness: "uniqueness",
+        music: "music",
+      }
+      applySimpleIntentBoost(contextMap[context], "vector", 6, 4)
+    }
+  }
+
   const toggleGenre = (category: keyof Weights["genres"], genre: string) => {
     setWeights((prev) => {
       const current = prev.genres[category]
@@ -481,7 +554,7 @@ export default function GameRecommendationLab() {
         <div className="mx-auto max-w-[1800px] px-6 py-4">
           <div className="flex items-center gap-8">
             <div className="flex items-center gap-3">
-              <h1 className="text-lg font-semibold text-foreground tracking-tight">Recommendation Lab</h1>
+              <h1 className="text-lg font-semibold text-foreground tracking-tight">NextSteamGame</h1>
             </div>
 
             <div className="flex-1" />
@@ -493,9 +566,6 @@ export default function GameRecommendationLab() {
               >
                 Home
               </button>
-              <div className="hidden lg:flex items-center gap-3 text-sm text-muted-foreground">
-                <span>{searchResults.length} live matches</span>
-              </div>
             </div>
           </div>
         </div>
@@ -506,10 +576,10 @@ export default function GameRecommendationLab() {
           <div className="flex min-h-[70vh] items-center justify-center">
             <div className="w-full max-w-3xl text-center">
               <h1 className="text-5xl font-semibold tracking-tight text-foreground md:text-6xl">
-                NextSteamGame!
+                NextSteamGame
               </h1>
               <p className="mx-auto mt-5 max-w-2xl text-base text-muted-foreground md:text-lg">
-                find games based on a game you love and find your taste in video games on the way
+                Have fun exploring your taste in games. Start with one you already love, discover why it clicks, and find what to play next.
               </p>
               <div className="mx-auto mt-10 max-w-2xl">
                 <SearchBar
@@ -526,48 +596,126 @@ export default function GameRecommendationLab() {
         )}
 
         {screen === "profile" && (
-          <div className="grid grid-cols-1 gap-8 xl:grid-cols-[340px_minmax(0,1fr)]">
-            <div className="space-y-6 xl:sticky xl:top-24 xl:h-fit">
-              <button
-                onClick={() => setScreen("search")}
-                className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm text-foreground hover:bg-secondary/30"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                Back to Search
-              </button>
-              <SelectedGamePanel game={selectedGame} />
-            </div>
+          <div className="mx-auto max-w-[1500px]">
+            <div className="relative overflow-hidden rounded-[32px] border border-white/10 bg-[#121b27] shadow-[0_40px_120px_rgba(0,0,0,0.42)]">
+              {profileHeroImage && (
+                <>
+                  <div className="absolute inset-x-0 top-0 flex items-start justify-center overflow-hidden" style={{ height: profileHeroHeight }}>
+                    <img
+                      src={profileHeroImage}
+                      alt={selectedGame?.title || "Selected game"}
+                      className="h-full w-full object-cover"
+                      style={{
+                        objectPosition: profileHeroPosition,
+                        transform: `scale(${profileHeroZoom})`,
+                        transformOrigin: "center top",
+                      }}
+                    />
+                  </div>
+                  <div
+                    className="absolute inset-x-0 top-0 bg-[linear-gradient(180deg,rgba(9,14,20,0.02),rgba(9,14,20,0.10)_40%,rgba(9,14,20,0.26)_72%,rgba(9,14,20,0.66)_100%),linear-gradient(90deg,rgba(9,14,20,0.34)_0%,rgba(9,14,20,0.10)_36%,rgba(9,14,20,0.02)_68%,rgba(9,14,20,0.14)_100%)]"
+                    style={{ height: profileHeroHeight }}
+                  />
+                  <div className="absolute inset-x-0 top-[41%] h-40 bg-[linear-gradient(180deg,rgba(14,22,33,0)_0%,rgba(14,22,33,0.24)_34%,rgba(14,22,33,0.72)_100%)] blur-2xl" />
+                </>
+              )}
 
-            <div className="space-y-6">
-              <div className="rounded-3xl border border-border bg-card/60 p-6">
-                <div className="text-[11px] font-medium uppercase tracking-[0.25em] text-muted-foreground">Step 2</div>
-                <h2 className="mt-3 text-2xl font-semibold text-foreground">Shape the live game profile</h2>
-                <p className="mt-3 max-w-3xl text-sm text-muted-foreground">
-                  These controls are now reading the actual selected game payload from the API, including its real vector tags and soundtrack tags.
-                </p>
-              </div>
+              <div className="relative z-10 p-6 md:p-8 xl:p-10">
+                <div className="flex flex-col gap-6 xl:gap-8">
+                  <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+                    <div className="space-y-4">
+                      <button
+                        onClick={() => setScreen("search")}
+                        className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/88 backdrop-blur hover:bg-white/10"
+                      >
+                        <ArrowLeft className="h-4 w-4" />
+                        Back to Search
+                      </button>
+                    </div>
 
-              <ControlPanel
-                weights={weights}
-                genreOptions={genreOptions}
-                mode={controlMode}
-                onModeChange={setControlMode}
-                onMatchWeightChange={updateMatchWeight}
-                onContextWeightChange={updateContextWeight}
-                onAppealWeightChange={updateAppealWeight}
-                onTagWeightChange={updateTagWeight}
-                onGenreToggle={toggleGenre}
-                onSimpleIntentBoost={handleSimpleIntentBoost}
-              />
+                    {profileLogoImage ? (
+                      <div className="relative h-16 w-[min(340px,36vw)] self-start md:h-20">
+                        <img
+                          src={profileLogoImage}
+                          alt={`${selectedGame?.title || "Selected game"} logo`}
+                          className="h-full w-full object-contain object-left md:object-right drop-shadow-[0_10px_18px_rgba(0,0,0,0.28)]"
+                        />
+                      </div>
+                    ) : null}
+                  </div>
 
-              <div className="flex justify-end">
-                <button
-                  onClick={() => setScreen("results")}
-                  className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm text-primary-foreground"
-                >
-                  See Results
-                  <ArrowRight className="h-4 w-4" />
-                </button>
+                  <div className="grid gap-6 xl:grid-cols-[260px_minmax(0,1fr)] xl:gap-8">
+                    <div className="w-full max-w-[260px] overflow-hidden rounded-[22px] border border-white/15 bg-white/5 shadow-[0_28px_50px_rgba(0,0,0,0.34)]">
+                      {profileCardImage ? (
+                        <img
+                          src={profileCardImage}
+                          alt={selectedGame?.title || "Selected game"}
+                          className="block h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="aspect-[4/5] bg-white/5" />
+                      )}
+                    </div>
+
+                    <div className="min-w-0 pt-2">
+                      <h2 className="text-4xl font-semibold tracking-tight text-white md:text-5xl">
+                        {selectedGame?.title}
+                      </h2>
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {selectedGame?.genres.primary.slice(0, 2).map((genre) => (
+                          <span
+                            key={genre}
+                            className="rounded-full border border-white/15 bg-white/6 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-white/85"
+                          >
+                            {genre}
+                          </span>
+                        ))}
+                        {selectedGame?.category ? (
+                          <span className="rounded-full border border-sky-300/20 bg-sky-400/10 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-sky-100/90">
+                            {selectedGame.category}
+                          </span>
+                        ) : null}
+                        <span className="rounded-full border border-white/12 bg-white/5 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-white/72">
+                          AppID {selectedGame?.id}
+                        </span>
+                      </div>
+                      <p className="mt-5 max-w-3xl text-sm leading-7 text-slate-300 md:text-[15px]">
+                        Choose what you like. Start with the traits that make this game click, then switch to advanced mode when you want full control over vectors, match weighting, and detailed profile shaping.
+                      </p>
+                      <div className="mt-4 inline-flex items-center rounded-full border border-white/12 bg-sky-400/10 px-4 py-2 text-sm font-medium text-sky-100/95">
+                        Simple mode for taste chips. Advanced mode for full vectors.
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-[26px] border border-white/10 bg-[rgba(17,27,39,0.78)] p-4 backdrop-blur-xl md:p-5">
+                    <ControlPanel
+                      weights={weights}
+                      genreOptions={genreOptions}
+                      featuredTags={simpleFeaturedTags}
+                      mode={controlMode}
+                      onModeChange={setControlMode}
+                      onMatchWeightChange={updateMatchWeight}
+                      onContextWeightChange={updateContextWeight}
+                      onAppealWeightChange={updateAppealWeight}
+                      onTagWeightChange={updateTagWeight}
+                      onGenreToggle={toggleGenre}
+                      onSimpleIntentBoost={handleSimpleIntentBoost}
+                      selectedSimpleTags={selectedSimpleTags}
+                      onSimpleTagToggle={toggleSimpleTag}
+                    />
+                  </div>
+
+                  <div className="flex justify-end">
+                    <button
+                      onClick={() => setScreen("results")}
+                      className="inline-flex items-center gap-2 rounded-full bg-[linear-gradient(180deg,#8fd7ff,#66c0f4)] px-6 py-3 text-sm font-semibold text-slate-950 shadow-[0_20px_40px_rgba(26,159,255,0.24)] transition hover:-translate-y-0.5 hover:bg-[linear-gradient(180deg,#a8e1ff,#79cbfb)] hover:text-slate-950"
+                    >
+                      See Results
+                      <ArrowRight className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -604,14 +752,15 @@ export default function GameRecommendationLab() {
             <div className="xl:sticky xl:top-24 xl:h-fit xl:max-h-[calc(100vh-7rem)] xl:overflow-y-auto custom-scrollbar pl-2">
               <div className="mb-4 rounded-2xl border border-border bg-card/60 p-4">
                 <div className="text-[11px] font-medium uppercase tracking-[0.25em] text-muted-foreground">Step 3</div>
-                <div className="mt-2 text-lg font-semibold text-foreground">Refine the live results</div>
+                <div className="mt-2 text-lg font-semibold text-foreground">Refine the results</div>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  Adjusting these controls re-queries the recommendation API using the real game profile and retrieval pipeline.
+                  Keep adjusting the profile here to learn what matters most and steer the next set of matches.
                 </p>
               </div>
               <ControlPanel
                 weights={weights}
                 genreOptions={genreOptions}
+                featuredTags={simpleFeaturedTags}
                 mode={controlMode}
                 onModeChange={setControlMode}
                 onMatchWeightChange={updateMatchWeight}
@@ -620,6 +769,8 @@ export default function GameRecommendationLab() {
                 onTagWeightChange={updateTagWeight}
                 onGenreToggle={toggleGenre}
                 onSimpleIntentBoost={handleSimpleIntentBoost}
+                selectedSimpleTags={selectedSimpleTags}
+                onSimpleTagToggle={toggleSimpleTag}
               />
             </div>
           </div>

@@ -21,48 +21,82 @@ export function SelectedGamePanel({ game }: SelectedGamePanelProps) {
   const heroImage = game.assets.libraryHero || game.assets.background || game.headerImage || IMAGE_FALLBACK
   const capsuleImage = game.assets.libraryCapsule || game.assets.capsuleV5 || game.image || IMAGE_FALLBACK
   const logoImage = game.assets.logo
-  const badgeImage = capsuleImage || heroImage || IMAGE_FALLBACK
+  const primaryGenres = game.genres.primary.slice(0, 2)
+  const signatureTags = game.tags.uniqueness.slice(0, 3)
   
   return (
     <div className="bg-card border border-border rounded-lg overflow-hidden">
       {/* Header Image */}
-      <div className="relative aspect-[460/215] bg-muted">
+      <div className="relative aspect-[460/320] bg-muted">
         <Image
           src={heroImage}
           alt={game.title}
           fill
-          className="object-cover"
+          className="object-cover scale-110 opacity-30 blur-sm"
           unoptimized
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/25 to-transparent" />
-        <div className="absolute left-4 bottom-4 right-4 flex items-end gap-3">
-          <div className="relative h-14 w-14 overflow-hidden rounded-xl border border-border/70 bg-black/30">
-            <Image
-              src={badgeImage}
-              alt={game.title}
-              fill
-              className="object-cover"
-              unoptimized
-            />
-          </div>
-          <div className="min-w-0 flex-1">
-            {logoImage ? (
-              <div className="relative mb-2 h-10 w-full max-w-[220px]">
+        <Image
+          src={heroImage}
+          alt={game.title}
+          fill
+          className="object-contain object-center p-2"
+          unoptimized
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
+        <div className="absolute inset-x-0 bottom-0 p-4">
+          <div className="rounded-2xl border border-border/60 bg-black/35 p-4 backdrop-blur-md">
+            <div className="flex items-end gap-4">
+              <div className="relative h-24 w-40 overflow-hidden rounded-xl border border-border/70 bg-black/40 shadow-[0_12px_30px_rgba(0,0,0,0.35)]">
                 <Image
-                  src={logoImage || IMAGE_FALLBACK}
-                  alt={`${game.title} logo`}
+                  src={capsuleImage}
+                  alt={game.title}
                   fill
-                  className="object-contain object-left"
+                  className="object-cover"
                   unoptimized
                 />
               </div>
-            ) : (
-              <h2 className="text-lg font-semibold text-white">{game.title}</h2>
-            )}
-            <div className="flex items-center gap-2 text-xs text-white/80">
-              <span>{game.category}</span>
-              <span>·</span>
-              <span>{game.releaseDate}</span>
+              <div className="min-w-0 flex-1">
+                {logoImage ? (
+                  <div className="relative mb-3 h-14 w-full max-w-[280px]">
+                    <Image
+                      src={logoImage || IMAGE_FALLBACK}
+                      alt={`${game.title} logo`}
+                      fill
+                      className="object-contain object-left"
+                      unoptimized
+                    />
+                  </div>
+                ) : (
+                  <h2 className="text-2xl font-semibold text-white">{game.title}</h2>
+                )}
+                <div className="flex flex-wrap gap-2">
+                  {primaryGenres.map((genre) => (
+                    <span key={genre} className="rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[11px] text-white/90">
+                      {genre}
+                    </span>
+                  ))}
+                  {game.category && (
+                    <span className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-2.5 py-1 text-[11px] text-cyan-100">
+                      {game.category}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="mt-4">
+              <div className="text-[10px] font-medium uppercase tracking-[0.24em] text-white/60">
+                Why This Game Clicks
+              </div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {signatureTags.map((tag) => (
+                  <span key={tag} className="rounded-full border border-white/10 bg-white/8 px-3 py-1 text-xs text-white/85">
+                    {tag}
+                  </span>
+                ))}
+                {signatureTags.length === 0 && (
+                  <span className="text-xs text-white/70">{game.description}</span>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -70,14 +104,30 @@ export function SelectedGamePanel({ game }: SelectedGamePanelProps) {
 
       {/* Content */}
       <div className="p-4 space-y-4">
-        <div className="relative aspect-[460/120] overflow-hidden rounded-xl border border-border bg-muted">
-          <Image
-            src={capsuleImage}
-            alt={game.title}
-            fill
-            className="object-cover"
-            unoptimized
-          />
+        <div className="rounded-xl border border-border bg-secondary/20 p-3">
+          <div className="text-[10px] font-medium uppercase tracking-[0.25em] text-muted-foreground">
+            Profile Snapshot
+          </div>
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div>
+              <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Primary</div>
+              <div className="mt-1 text-sm font-medium text-foreground">
+                {game.genres.primary.slice(0, 2).join(" · ") || "Unknown"}
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Mood</div>
+              <div className="mt-1 text-sm font-medium text-foreground">
+                {game.tags.vibe.slice(0, 2).join(" · ") || "Unknown"}
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Signature</div>
+              <div className="mt-1 text-sm font-medium text-foreground">
+                {game.category || "Unclassified"}
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Description */}

@@ -62,12 +62,12 @@ function RecommendationCard({ game, rank, weights }: RecommendationCardProps) {
           <div className="rank-badge absolute -top-1 -left-1 z-10">
             #{rank}
           </div>
-          <div className="w-24 h-14 rounded overflow-hidden bg-muted border border-border">
+          <div className="w-24 h-16 rounded-xl overflow-hidden bg-muted border border-border">
             <Image
               src={cardImage}
               alt={game.title}
               width={96}
-              height={56}
+              height={64}
               className="object-cover w-full h-full"
               unoptimized
             />
@@ -79,7 +79,7 @@ function RecommendationCard({ game, rank, weights }: RecommendationCardProps) {
           <div className="flex items-start justify-between gap-2">
             <div>
               {logoImage ? (
-                <div className="relative h-7 w-40 max-w-full">
+                <div className="relative h-8 w-44 max-w-full">
                   <Image
                     src={logoImage}
                     alt={`${game.title} logo`}

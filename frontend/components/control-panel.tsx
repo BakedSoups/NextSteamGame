@@ -7,6 +7,11 @@ import type { Weights } from "@/lib/types"
 interface ControlPanelProps {
   weights: Weights
   genreOptions: Weights["genres"]
+  featuredTags: Array<{
+    context: keyof Weights["tags"]
+    label: string
+    tags: string[]
+  }>
   mode: "simple" | "advanced"
   onModeChange: (mode: "simple" | "advanced") => void
   onMatchWeightChange: (key: keyof Weights["match"], value: number) => void
@@ -15,6 +20,8 @@ interface ControlPanelProps {
   onTagWeightChange: (context: keyof Weights["tags"], tag: string, value: number) => void
   onGenreToggle: (category: keyof Weights["genres"], genre: string) => void
   onSimpleIntentBoost: (intent: SimpleIntent) => void
+  selectedSimpleTags: string[]
+  onSimpleTagToggle: (context: keyof Weights["tags"], tag: string) => void
 }
 
 type SimpleIntent =
@@ -134,6 +141,7 @@ function WeightSlider({ label, value, onChange, max = 100, color = "primary", sh
 export function ControlPanel({
   weights,
   genreOptions,
+  featuredTags,
   mode,
   onModeChange,
   onMatchWeightChange,
@@ -142,6 +150,8 @@ export function ControlPanel({
   onTagWeightChange,
   onGenreToggle,
   onSimpleIntentBoost,
+  selectedSimpleTags,
+  onSimpleTagToggle,
 }: ControlPanelProps) {
   const matchTotal = Object.values(weights.match).reduce((a, b) => a + b, 0)
   const contextTotal = Object.values(weights.context).reduce((a, b) => a + b, 0)
@@ -191,30 +201,73 @@ export function ControlPanel({
       </div>
 
       {mode === "simple" && (
-        <CollapsibleSection
-          title="Quick Taste Shaping"
-          icon={<Zap className="h-3.5 w-3.5" />}
-          badge="Fast"
-          defaultOpen={true}
-        >
-          <div className="space-y-4">
-            <p className="text-[10px] text-muted-foreground">
-              Click any intent to push the underlying scoring sliders without opening the full vector editor.
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              {SIMPLE_INTENTS.map((intent) => (
-                <button
-                  key={intent.key}
-                  onClick={() => onSimpleIntentBoost(intent.key)}
-                  className="rounded-2xl border border-border bg-secondary/30 px-3 py-2 text-left transition-colors hover:border-primary/60 hover:bg-secondary/60"
-                >
-                  <div className="text-xs font-medium text-foreground">{intent.label}</div>
-                  <div className="mt-1 text-[10px] text-muted-foreground">{intent.hint}</div>
-                </button>
-              ))}
+        <div className="space-y-3">
+          <CollapsibleSection
+            title="What Do You Care About?"
+            icon={<Zap className="h-3.5 w-3.5" />}
+            badge="Tags"
+            defaultOpen={true}
+          >
+            <div className="space-y-4">
+              <p className="text-[10px] text-muted-foreground">
+                Click the actual traits you care about. This pushes the real profile under the hood.
+              </p>
+              <div className="space-y-4">
+                {featuredTags.map((group) => (
+                  <div key={group.context}>
+                    <div className="mb-2 text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+                      {group.label}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {group.tags.map((tag) => {
+                        const selectionKey = `${group.context}:${tag}`
+                        const isSelected = selectedSimpleTags.includes(selectionKey)
+                        return (
+                        <button
+                          key={selectionKey}
+                          onClick={() => onSimpleTagToggle(group.context, tag)}
+                          className={`rounded-full border px-3 py-1.5 text-xs transition-colors ${
+                            isSelected
+                              ? "border-primary bg-primary/15 text-foreground shadow-[0_0_12px_var(--glow-cyan)]"
+                              : "border-border bg-secondary/30 text-foreground hover:border-primary/60 hover:bg-secondary/60"
+                          }`}
+                        >
+                          {tag}
+                        </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-        </CollapsibleSection>
+          </CollapsibleSection>
+
+          <CollapsibleSection
+            title="Quick Taste Shaping"
+            icon={<Zap className="h-3.5 w-3.5" />}
+            badge="Fast"
+            defaultOpen={false}
+          >
+            <div className="space-y-4">
+              <p className="text-[10px] text-muted-foreground">
+                Use broad presets if you want faster shaping before opening the full vector editor.
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {SIMPLE_INTENTS.map((intent) => (
+                  <button
+                    key={intent.key}
+                    onClick={() => onSimpleIntentBoost(intent.key)}
+                    className="rounded-2xl border border-border bg-secondary/30 px-3 py-2 text-left transition-colors hover:border-primary/60 hover:bg-secondary/60"
+                  >
+                    <div className="text-xs font-medium text-foreground">{intent.label}</div>
+                    <div className="mt-1 text-[10px] text-muted-foreground">{intent.hint}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </CollapsibleSection>
+        </div>
       )}
 
       {mode === "advanced" && (
