@@ -163,9 +163,14 @@ export default function NextSteamGamePage() {
     selectedGame?.headerImage ||
     selectedGame?.image ||
     ""
-  const profileHeroHeight = 570
-  const profileHeroZoom = 1.06
-  const profileHeroPosition = "center 18%"
+  const backgroundHeroHeight = 555
+  const backgroundHeroZoom = 1.06
+  const backgroundHeroPosition = "center 18%"
+  const thumbnailWidth = 210
+  const thumbnailHeight = 296 
+  const thumbnailZoom = 1
+  const thumbnailPosition = "center center"
+  const thumbnailRadius = 2
   const profileLogoImage = selectedGame?.assets.logo || ""
   const profileCardImage =
     selectedGame?.assets.libraryCapsule ||
@@ -600,25 +605,25 @@ export default function NextSteamGamePage() {
             <div className="relative overflow-hidden rounded-[32px] border border-white/10 bg-[#121b27] shadow-[0_40px_120px_rgba(0,0,0,0.42)]">
               {profileHeroImage && (
                 <>
-                  <div className="absolute inset-x-0 top-0 flex items-start justify-center overflow-hidden" style={{ height: profileHeroHeight }}>
+                  <div className="absolute inset-x-0 top-0 flex items-start justify-center overflow-hidden" style={{ height: backgroundHeroHeight }}>
                     <img
                       src={profileHeroImage}
                       alt={selectedGame?.title || "Selected game"}
                       className="h-full w-full object-cover"
                       style={{
-                        objectPosition: profileHeroPosition,
-                        transform: `scale(${profileHeroZoom})`,
+                        objectPosition: backgroundHeroPosition,
+                        transform: `scale(${backgroundHeroZoom})`,
                         transformOrigin: "center top",
                       }}
                     />
                   </div>
                   <div
                     className="absolute inset-x-0 top-0 bg-[linear-gradient(180deg,rgba(9,14,20,0.02),rgba(9,14,20,0.10)_40%,rgba(9,14,20,0.26)_72%,rgba(9,14,20,0.66)_100%),linear-gradient(90deg,rgba(9,14,20,0.34)_0%,rgba(9,14,20,0.10)_36%,rgba(9,14,20,0.02)_68%,rgba(9,14,20,0.14)_100%)]"
-                    style={{ height: profileHeroHeight }}
+                    style={{ height: backgroundHeroHeight }}
                   />
                   <div
                     className="absolute inset-x-0 h-40 bg-[linear-gradient(180deg,rgba(14,22,33,0)_0%,rgba(14,22,33,0.24)_34%,rgba(14,22,33,0.72)_100%)] blur-2xl"
-                    style={{ top: profileHeroHeight - 64 }}
+                    style={{ top: backgroundHeroHeight - 64 }}
                   />
                 </>
               )}
@@ -637,26 +642,39 @@ export default function NextSteamGamePage() {
                     </div>
 
                     {profileLogoImage ? (
-                      <div className="relative h-16 w-[min(340px,36vw)] self-start md:h-20">
+                      <div className="relative h-16 w-full max-w-[340px] self-start md:h-20">
                         <img
                           src={profileLogoImage}
                           alt={`${selectedGame?.title || "Selected game"} logo`}
                           className="h-full w-full object-contain object-left md:object-right drop-shadow-[0_10px_18px_rgba(0,0,0,0.28)]"
                         />
                       </div>
-                    ) : null}
+                    ) : (
+                      <div className="h-16 w-full max-w-[340px] md:h-20" />
+                    )}
                   </div>
 
-                  <div className="grid gap-6 xl:grid-cols-[260px_minmax(0,1fr)] xl:gap-8">
-                    <div className="w-full max-w-[260px] overflow-hidden rounded-[22px] border border-white/15 bg-white/5 shadow-[0_28px_50px_rgba(0,0,0,0.34)]">
+                  <div className="grid items-end gap-6 xl:gap-8" style={{ gridTemplateColumns: `${thumbnailWidth}px minmax(0, 1fr)` }}>
+                    <div
+                      className="w-full self-end overflow-hidden shadow-[0_24px_44px_rgba(0,0,0,0.32)]"
+                      style={{ maxWidth: `${thumbnailWidth}px`, borderRadius: `${thumbnailRadius}px` }}
+                    >
                       {profileCardImage ? (
-                        <img
-                          src={profileCardImage}
-                          alt={selectedGame?.title || "Selected game"}
-                          className="block h-full w-full object-cover"
-                        />
+                        <div style={{ height: `${thumbnailHeight}px` }}>
+                          <img
+                            src={profileCardImage}
+                            alt={selectedGame?.title || "Selected game"}
+                            className="block h-full w-full object-cover"
+                            style={{
+                              borderRadius: `${thumbnailRadius}px`,
+                              objectPosition: thumbnailPosition,
+                              transform: `scale(${thumbnailZoom})`,
+                              transformOrigin: "center center",
+                            }}
+                          />
+                        </div>
                       ) : (
-                        <div className="aspect-[4/5] bg-white/5" />
+                        <div className="aspect-square" />
                       )}
                     </div>
 
@@ -668,17 +686,17 @@ export default function NextSteamGamePage() {
                         {selectedGame?.genres.primary.slice(0, 2).map((genre) => (
                           <span
                             key={genre}
-                            className="rounded-full border border-white/15 bg-white/6 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-white/85"
+                            className="rounded-full border border-white/22 bg-white/12 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-white/95"
                           >
                             {genre}
                           </span>
                         ))}
                         {selectedGame?.category ? (
-                          <span className="rounded-full border border-sky-300/20 bg-sky-400/10 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-sky-100/90">
+                          <span className="rounded-full border border-sky-300/32 bg-sky-400/18 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-sky-50">
                             {selectedGame.category}
                           </span>
                         ) : null}
-                        <span className="rounded-full border border-white/12 bg-white/5 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-white/72">
+                        <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-white/85">
                           AppID {selectedGame?.id}
                         </span>
                       </div>
