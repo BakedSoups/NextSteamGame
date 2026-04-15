@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import argparse
 import logging
-import re
 import sqlite3
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Any, Dict, Iterable, List, Optional, Sequence
+from typing import Any, Dict, Iterable, List, Optional
+from urllib.parse import urlsplit, urlunsplit
 
 import requests
 
@@ -17,23 +17,39 @@ from paths import metadata_db_path
 
 LOGGER = logging.getLogger("steam_store_asset_enrichment")
 
-STORE_PAGE_URL = "https://store.steampowered.com/app/{appid}/"
 ASSET_COLUMNS = (
     "logo_image",
     "icon_image",
     "library_hero_image",
     "library_capsule_image",
 )
-ASSET_PATTERNS = {
-    "logo_image": re.compile(r"/logo(?:_[^/\"'?]+)?\.(?:png|webp)", re.IGNORECASE),
-    "icon_image": re.compile(r"/icon\.(?:jpg|jpeg|png|webp|ico)", re.IGNORECASE),
-    "library_hero_image": re.compile(r"/library_hero(?:_[^/\"'?]+)?\.(?:jpg|jpeg|png|webp)", re.IGNORECASE),
-    "library_capsule_image": re.compile(
-        r"/(?:library_600x900(?:_[^/\"'?]+)?|library_capsule(?:_[^/\"'?]+)?)\.(?:jpg|jpeg|png|webp)",
-        re.IGNORECASE,
-    ),
+ASSET_FILENAME_CANDIDATES = {
+    "logo_image": [
+        "logo.png",
+        "logo_2x.png",
+        "logo.jpg",
+        "logo.webp",
+    ],
+    "icon_image": [
+        "icon.jpg",
+        "icon.png",
+        "icon.ico",
+    ],
+    "library_hero_image": [
+        "library_hero.jpg",
+        "library_hero.png",
+        "library_hero_2x.jpg",
+        "library_hero_2x.png",
+    ],
+    "library_capsule_image": [
+        "library_600x900.jpg",
+        "library_600x900_2x.jpg",
+        "library_capsule.jpg",
+        "library_capsule.png",
+        "library_capsule_2x.jpg",
+        "library_capsule_2x.png",
+    ],
 }
-URL_PATTERN = re.compile(r"https?://[^\"'<>\\)\\s]+", re.IGNORECASE)
 
 
 def configure_logging() -> None:
@@ -67,20 +83,16 @@ def ensure_columns(connection: sqlite3.Connection) -> None:
     connection.commit()
 
 
-def choose_best_url(urls: Sequence[str]) -> Optional[str]:
-    if not urls:
-        return None
+def _strip_query(url: str) -> str:
+    parts = urlsplit(url)
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, "", ""))
 
-    def score(url: str) -> tuple[int, int, int, str]:
-        lower = url.lower()
-        return (
-            int("_2x" in lower or "@2x" in lower),
-            int(lower.endswith(".png")),
-            int("shared.akamai.steamstatic.com" in lower or "cdn.akamai.steamstatic.com" in lower),
-            url,
-        )
 
-    return max(urls, key=score)
+def _directory_url(url: str) -> str:
+    stripped = _strip_query(url)
+    if "/" not in stripped:
+        return stripped
+    return stripped.rsplit("/", 1)[0]
 
 
 class SteamStoreAssetEnricher:
@@ -94,6 +106,7 @@ class SteamStoreAssetEnricher:
         limit: Optional[int],
         refresh: bool,
         retry_failures: bool,
+        restart: bool,
     ) -> None:
         self.db_path = db_path
         self.workers = max(1, workers)
@@ -103,6 +116,7 @@ class SteamStoreAssetEnricher:
         self.limit = limit
         self.refresh = refresh
         self.retry_failures = retry_failures
+        self.restart = restart
         self.session = requests.Session()
         self.session.headers.update(
             {
@@ -156,31 +170,77 @@ class SteamStoreAssetEnricher:
         with self.connect() as connection:
             return [int(row["appid"]) for row in connection.execute(query)]
 
-    def fetch_store_page(self, appid: int) -> str:
-        response = self.session.get(
-            STORE_PAGE_URL.format(appid=appid),
-            params={"cc": "us", "l": "english"},
-            timeout=self.timeout,
-        )
-        response.raise_for_status()
-        return response.text
-
-    def extract_asset_urls(self, appid: int, html: str) -> Dict[str, Optional[str]]:
-        app_segment = f"/steam/apps/{appid}/"
-        candidates: Dict[str, List[str]] = {column_name: [] for column_name in ASSET_COLUMNS}
-
-        for raw_url in URL_PATTERN.findall(html):
-            cleaned = raw_url.replace("\\/", "/").replace("&amp;", "&")
-            if app_segment not in cleaned:
-                continue
-            for column_name, pattern in ASSET_PATTERNS.items():
-                if pattern.search(cleaned):
-                    candidates[column_name].append(cleaned)
-
+    def load_existing_asset_context(self, appid: int) -> dict[str, str]:
+        with self.connect() as connection:
+            row = connection.execute(
+                """
+                SELECT
+                    header_image,
+                    capsule_image,
+                    capsule_imagev5,
+                    background_image
+                FROM games
+                WHERE appid = ?
+                """,
+                (appid,),
+            ).fetchone()
+        if row is None:
+            return {}
         return {
-            column_name: choose_best_url(urls)
-            for column_name, urls in candidates.items()
+            "header_image": row["header_image"] or "",
+            "capsule_image": row["capsule_image"] or "",
+            "capsule_imagev5": row["capsule_imagev5"] or "",
+            "background_image": row["background_image"] or "",
         }
+
+    def reset_restart_state(self) -> None:
+        with self.connect() as connection:
+            connection.execute("DELETE FROM asset_enrichment_state")
+            connection.execute(
+                """
+                UPDATE games
+                SET logo_image = NULL,
+                    icon_image = NULL,
+                    library_hero_image = NULL,
+                    library_capsule_image = NULL
+                """
+            )
+            connection.commit()
+
+    def _derive_store_asset_base(self, appid: int) -> str:
+        context = self.load_existing_asset_context(appid)
+        for key in ("header_image", "capsule_image", "capsule_imagev5"):
+            value = context.get(key)
+            if value:
+                return _directory_url(value)
+        return f"https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/{appid}"
+
+    def _probe_image_url(self, url: str) -> bool:
+        response = self.session.get(url, timeout=self.timeout, stream=True, allow_redirects=True)
+        try:
+            if response.status_code != 200:
+                return False
+            content_type = (response.headers.get("content-type") or "").lower()
+            return content_type.startswith("image/")
+        finally:
+            response.close()
+
+    def extract_asset_urls(self, appid: int) -> Dict[str, Optional[str]]:
+        base_url = self._derive_store_asset_base(appid)
+        discovered: Dict[str, Optional[str]] = {}
+
+        for column_name in ASSET_COLUMNS:
+            discovered[column_name] = None
+            for filename in ASSET_FILENAME_CANDIDATES[column_name]:
+                candidate = f"{base_url}/{filename}"
+                try:
+                    if self._probe_image_url(candidate):
+                        discovered[column_name] = candidate
+                        break
+                except requests.RequestException:
+                    continue
+
+        return discovered
 
     def update_assets(self, appid: int, assets: Dict[str, Optional[str]]) -> bool:
         if not any(assets.values()):
@@ -244,8 +304,7 @@ class SteamStoreAssetEnricher:
             connection.commit()
 
     def process_appid(self, appid: int) -> Dict[str, Any]:
-        html = self.fetch_store_page(appid)
-        assets = self.extract_asset_urls(appid, html)
+        assets = self.extract_asset_urls(appid)
         updated = self.update_assets(appid, assets)
         self.mark_state(appid, "success" if any(assets.values()) else "no_assets")
         return {
@@ -257,6 +316,10 @@ class SteamStoreAssetEnricher:
     def run(self) -> int:
         with self.connect() as connection:
             ensure_columns(connection)
+
+        if self.restart:
+            LOGGER.info("Restart requested: clearing asset_enrichment_state and asset columns")
+            self.reset_restart_state()
 
         all_candidate_appids = self.load_total_candidate_appids()
         appids = self.load_target_appids()
@@ -329,6 +392,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--refresh", action="store_true")
     parser.add_argument("--retry-failures", action="store_true")
+    parser.add_argument(
+        "--restart",
+        action="store_true",
+        help="Clear asset_enrichment_state and reset logo/icon/library asset columns before rerunning.",
+    )
     return parser.parse_args()
 
 
@@ -344,6 +412,7 @@ def main() -> int:
         limit=args.limit,
         refresh=args.refresh,
         retry_failures=args.retry_failures,
+        restart=args.restart,
     )
     return enricher.run()
 

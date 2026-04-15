@@ -43,13 +43,46 @@ app.add_middleware(
 )
 
 
+def _vector_tag_names(raw: Any) -> list[str]:
+    if isinstance(raw, dict):
+        return [str(tag) for tag in raw.keys()]
+    if isinstance(raw, list):
+        return [str(tag) for tag in raw]
+    if isinstance(raw, str):
+        return [raw]
+    return []
+
+
+def _vector_weight_map(raw: Any) -> dict[str, int]:
+    if isinstance(raw, dict):
+        cleaned: dict[str, int] = {}
+        for tag, weight in raw.items():
+            try:
+                numeric_weight = int(weight)
+            except (TypeError, ValueError):
+                numeric_weight = 0
+            cleaned[str(tag).replace(" ", "_").replace("-", "_").lower()] = numeric_weight
+        return cleaned
+    if isinstance(raw, list):
+        normalized_tags = [str(tag).replace(" ", "_").replace("-", "_").lower() for tag in raw if str(tag).strip()]
+        if not normalized_tags:
+            return {}
+        base = 100 // len(normalized_tags)
+        spill = 100 - (base * len(normalized_tags))
+        return {
+            tag: base + (1 if index < spill else 0)
+            for index, tag in enumerate(normalized_tags)
+        }
+    if isinstance(raw, str) and raw.strip():
+        normalized = raw.replace(" ", "_").replace("-", "_").lower()
+        return {normalized: 100}
+    return {}
+
+
 def _build_tag_weights(game: dict) -> dict[str, dict[str, int]]:
     tags: dict[str, dict[str, int]] = {}
-    for context, tag_weights in game["vectors"].items():
-        tags[context] = {
-            str(tag).replace(" ", "_").replace("-", "_").lower(): int(weight)
-            for tag, weight in tag_weights.items()
-        }
+    for context, tag_weights in (game.get("vectors") or {}).items():
+        tags[context] = _vector_weight_map(tag_weights)
 
     soundtrack_tags = game["metadata"].get("soundtrack_tags", [])
     if soundtrack_tags:
@@ -69,10 +102,21 @@ def _serialize_game(game: dict) -> dict[str, Any]:
     metadata = game.get("metadata", {})
     genre_tree = metadata.get("genre_tree", {})
     vector_tags = {
-        context: list((game.get("vectors", {}) or {}).get(context, {}).keys())
+        context: _vector_tag_names((game.get("vectors", {}) or {}).get(context))
         for context in ("mechanics", "narrative", "vibe", "structure_loop", "uniqueness")
     }
     vector_tags["music"] = list(metadata.get("soundtrack_tags", []) or [])
+    assets = {
+        "header": str(game.get("header_image", "")),
+        "capsule": str(game.get("capsule_image", "")),
+        "capsuleV5": str(game.get("capsule_imagev5", "")),
+        "background": str(game.get("background_image", "")),
+        "backgroundRaw": str(game.get("background_image_raw", "")),
+        "logo": str(game.get("logo_image", "")),
+        "icon": str(game.get("icon_image", "")),
+        "libraryHero": str(game.get("library_hero_image", "")),
+        "libraryCapsule": str(game.get("library_capsule_image", "")),
+    }
     return {
         "id": int(game["appid"]),
         "appId": str(game["appid"]),
@@ -82,6 +126,7 @@ def _serialize_game(game: dict) -> dict[str, Any]:
         "category": str(metadata.get("signature_tag", "")),
         "image": str(game.get("capsule_image", "")),
         "headerImage": str(game.get("header_image", "")),
+        "assets": assets,
         "genres": {
             "primary": list(genre_tree.get("primary", []) or []),
             "sub": list(genre_tree.get("sub", []) or []),
@@ -102,6 +147,17 @@ def _serialize_game(game: dict) -> dict[str, Any]:
 def _serialize_recommendation(item: dict) -> dict[str, Any]:
     metadata = item.get("metadata", {})
     genre_tree = metadata.get("genre_tree", {})
+    assets = {
+        "header": str(item.get("header_image", "")),
+        "capsule": str(item.get("capsule_image", "")),
+        "capsuleV5": str(item.get("capsule_imagev5", "")),
+        "background": str(item.get("background_image", "")),
+        "backgroundRaw": str(item.get("background_image_raw", "")),
+        "logo": str(item.get("logo_image", "")),
+        "icon": str(item.get("icon_image", "")),
+        "libraryHero": str(item.get("library_hero_image", "")),
+        "libraryCapsule": str(item.get("library_capsule_image", "")),
+    }
     return {
         "id": int(item["appid"]),
         "appId": str(item["appid"]),
@@ -111,6 +167,7 @@ def _serialize_recommendation(item: dict) -> dict[str, Any]:
         "category": str(item.get("signature_tag", "")),
         "image": str(item.get("capsule_image", "")),
         "headerImage": str(item.get("header_image", "")),
+        "assets": assets,
         "genres": {
             "primary": list(genre_tree.get("primary", []) or []),
             "sub": list(genre_tree.get("sub", []) or []),
@@ -118,11 +175,11 @@ def _serialize_recommendation(item: dict) -> dict[str, Any]:
             "traits": list(genre_tree.get("traits", []) or []),
         },
         "tags": {
-            "mechanics": list((item.get("vectors", {}) or {}).get("mechanics", {}).keys()),
-            "narrative": list((item.get("vectors", {}) or {}).get("narrative", {}).keys()),
-            "vibe": list((item.get("vectors", {}) or {}).get("vibe", {}).keys()),
-            "structure_loop": list((item.get("vectors", {}) or {}).get("structure_loop", {}).keys()),
-            "uniqueness": list((item.get("vectors", {}) or {}).get("uniqueness", {}).keys()),
+            "mechanics": _vector_tag_names((item.get("vectors", {}) or {}).get("mechanics")),
+            "narrative": _vector_tag_names((item.get("vectors", {}) or {}).get("narrative")),
+            "vibe": _vector_tag_names((item.get("vectors", {}) or {}).get("vibe")),
+            "structure_loop": _vector_tag_names((item.get("vectors", {}) or {}).get("structure_loop")),
+            "uniqueness": _vector_tag_names((item.get("vectors", {}) or {}).get("uniqueness")),
             "music": list(metadata.get("soundtrack_tags", []) or []),
         },
         "matchScore": float(item.get("total_score", 0.0)),

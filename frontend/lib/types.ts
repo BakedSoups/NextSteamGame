@@ -7,6 +7,17 @@ export interface Game {
   category: string
   image: string
   headerImage: string
+  assets: {
+    header: string
+    capsule: string
+    capsuleV5: string
+    background: string
+    backgroundRaw: string
+    logo: string
+    icon: string
+    libraryHero: string
+    libraryCapsule: string
+  }
   genres: {
     primary: string[]
     sub: string[]
@@ -21,6 +32,8 @@ export interface Game {
     uniqueness: string[]
     music: string[]
   }
+  weights?: Partial<Weights>
+  metadata?: Record<string, unknown>
 }
 
 export interface RecommendedGame extends Game {
@@ -41,6 +54,7 @@ export interface RecommendedGame extends Game {
     uniqueness: number
     music: number
   }
+  scorePercentages?: Record<string, number>
 }
 
 export interface TagFilters {

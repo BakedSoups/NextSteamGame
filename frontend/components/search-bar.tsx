@@ -5,26 +5,23 @@ import { Search, X } from "lucide-react"
 import type { Game } from "@/lib/types"
 import Image from "next/image"
 
+const IMAGE_FALLBACK = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='320' height='180'><rect width='100%' height='100%' fill='%2311161f'/></svg>"
+
 interface SearchBarProps {
   games: Game[]
+  onQueryChange?: (query: string) => void
   onSelect: (game: Game) => void
   selectedGame: Game | null
 }
 
-export function SearchBar({ games, onSelect, selectedGame }: SearchBarProps) {
+export function SearchBar({ games, onQueryChange, onSelect, selectedGame }: SearchBarProps) {
   const [query, setQuery] = useState("")
   const [isOpen, setIsOpen] = useState(false)
   const [focusedIndex, setFocusedIndex] = useState(-1)
   const inputRef = useRef<HTMLInputElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
-  const filteredGames = query.length > 0
-    ? games.filter(game => 
-        game.title.toLowerCase().includes(query.toLowerCase()) ||
-        game.category.toLowerCase().includes(query.toLowerCase()) ||
-        game.appId.includes(query)
-      ).slice(0, 8)
-    : []
+  const filteredGames = query.length > 0 ? games.slice(0, 8) : []
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -39,6 +36,7 @@ export function SearchBar({ games, onSelect, selectedGame }: SearchBarProps) {
   const handleSelect = (game: Game) => {
     onSelect(game)
     setQuery("")
+    onQueryChange?.("")
     setIsOpen(false)
     setFocusedIndex(-1)
   }
@@ -67,7 +65,9 @@ export function SearchBar({ games, onSelect, selectedGame }: SearchBarProps) {
           type="text"
           value={query}
           onChange={(e) => {
-            setQuery(e.target.value)
+            const nextQuery = e.target.value
+            setQuery(nextQuery)
+            onQueryChange?.(nextQuery)
             setIsOpen(true)
             setFocusedIndex(-1)
           }}
@@ -80,6 +80,7 @@ export function SearchBar({ games, onSelect, selectedGame }: SearchBarProps) {
           <button
             onClick={() => {
               setQuery("")
+              onQueryChange?.("")
               inputRef.current?.focus()
             }}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
@@ -108,7 +109,7 @@ export function SearchBar({ games, onSelect, selectedGame }: SearchBarProps) {
               >
                 <div className="relative w-14 h-8 rounded overflow-hidden bg-muted flex-shrink-0">
                   <Image
-                    src={game.image}
+                    src={game.assets.libraryCapsule || game.assets.capsuleV5 || game.image || IMAGE_FALLBACK}
                     alt={game.title}
                     fill
                     className="object-cover"

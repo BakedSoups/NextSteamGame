@@ -5,6 +5,8 @@ import Image from "next/image"
 import { ChevronDown, ChevronUp, Radar, Zap, Target, AudioLines } from "lucide-react"
 import type { RecommendedGame, Weights } from "@/lib/types"
 
+const IMAGE_FALLBACK = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='320' height='180'><rect width='100%' height='100%' fill='%2311161f'/></svg>"
+
 interface RecommendationsPanelProps {
   recommendations: RecommendedGame[]
   weights: Weights
@@ -47,6 +49,9 @@ interface RecommendationCardProps {
 
 function RecommendationCard({ game, rank, weights }: RecommendationCardProps) {
   const [isExpanded, setIsExpanded] = useState(false)
+  const cardImage = game.assets.libraryCapsule || game.assets.capsuleV5 || game.image || IMAGE_FALLBACK
+  const logoImage = game.assets.logo
+  const scorePercentages = game.scorePercentages ?? {}
   
   return (
     <div className="panel overflow-hidden hover:glow-box transition-all corner-brackets">
@@ -59,7 +64,7 @@ function RecommendationCard({ game, rank, weights }: RecommendationCardProps) {
           </div>
           <div className="w-24 h-14 rounded overflow-hidden bg-muted border border-border">
             <Image
-              src={game.image}
+              src={cardImage}
               alt={game.title}
               width={96}
               height={56}
@@ -73,7 +78,19 @@ function RecommendationCard({ game, rank, weights }: RecommendationCardProps) {
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
             <div>
-              <h4 className="text-sm font-medium text-foreground truncate">{game.title}</h4>
+              {logoImage ? (
+                <div className="relative h-7 w-40 max-w-full">
+                  <Image
+                    src={logoImage}
+                    alt={`${game.title} logo`}
+                    fill
+                    className="object-contain object-left"
+                    unoptimized
+                  />
+                </div>
+              ) : (
+                <h4 className="text-sm font-medium text-foreground truncate">{game.title}</h4>
+              )}
               <span className="tag-chip mt-1">{game.category}</span>
             </div>
             <div className="text-right flex-shrink-0">
@@ -94,17 +111,17 @@ function RecommendationCard({ game, rank, weights }: RecommendationCardProps) {
       <div className="px-3 pb-2">
         <div className="flex gap-2">
           {[
-            { key: "vector", value: game.scores.vector, weight: weights.match.vector },
-            { key: "genre", value: game.scores.genre, weight: weights.match.genre },
-            { key: "appeal", value: game.scores.appeal, weight: weights.match.appeal },
-            { key: "music", value: game.scores.music, weight: weights.match.music }
+            { key: "vector", value: scorePercentages.vector ?? game.scores.vector, weight: weights.match.vector },
+            { key: "genre", value: scorePercentages.genre ?? game.scores.genre, weight: weights.match.genre },
+            { key: "appeal", value: scorePercentages.appeal ?? game.scores.appeal, weight: weights.match.appeal },
+            { key: "music", value: scorePercentages.music ?? game.scores.music, weight: weights.match.music }
           ].map(({ key, value, weight }) => (
             <div key={key} className="flex-1" title={`${key}: ${value.toFixed(1)}% (weight: ${weight}%)`}>
               <div className="progress-track mb-0.5">
                 <div 
                   className="progress-fill"
                   style={{ 
-                    width: `${Math.min((value / 100) * 100, 100)}%`,
+                    width: `${Math.min(value, 100)}%`,
                     opacity: 0.4 + (weight / 100) * 0.6
                   }}
                 />
@@ -148,10 +165,10 @@ function RecommendationCard({ game, rank, weights }: RecommendationCardProps) {
               <span className="terminal-label text-primary">Score Contribution</span>
             </div>
             <div className="space-y-1.5">
-              <ScoreBar label="Vector" value={game.scores.vector} />
-              <ScoreBar label="Genre" value={game.scores.genre} />
-              <ScoreBar label="Appeal" value={game.scores.appeal} />
-              <ScoreBar label="Music" value={game.scores.music} />
+              <ScoreBar label="Vector" value={scorePercentages.vector ?? game.scores.vector} />
+              <ScoreBar label="Genre" value={scorePercentages.genre ?? game.scores.genre} />
+              <ScoreBar label="Appeal" value={scorePercentages.appeal ?? game.scores.appeal} />
+              <ScoreBar label="Music" value={scorePercentages.music ?? game.scores.music} />
             </div>
           </div>
 

@@ -2,7 +2,6 @@
 
 import { useState, useMemo } from "react"
 import { Search, X, Filter, ChevronDown, ChevronRight, Crosshair } from "lucide-react"
-import { availableTagOptions } from "@/lib/mock-data"
 
 interface TagFilterState {
   include: string[]
@@ -11,10 +10,9 @@ interface TagFilterState {
 
 interface TagFilterPanelProps {
   filters: TagFilterState
+  tagOptions: Record<string, string[]>
   onFiltersChange: (filters: TagFilterState) => void
 }
-
-const ALL_TAGS = availableTagOptions
 
 const CATEGORY_LABELS: Record<string, string> = {
   mechanics: "Mechanics",
@@ -25,7 +23,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   music: "Music"
 }
 
-export function TagFilterPanel({ filters, onFiltersChange }: TagFilterPanelProps) {
+export function TagFilterPanel({ filters, tagOptions, onFiltersChange }: TagFilterPanelProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const [expandedCategories, setExpandedCategories] = useState<string[]>(["mechanics", "vibe"])
   
@@ -53,12 +51,12 @@ export function TagFilterPanel({ filters, onFiltersChange }: TagFilterPanelProps
   }
 
   const filteredTags = useMemo(() => {
-    if (!searchQuery.trim()) return ALL_TAGS
+    if (!searchQuery.trim()) return tagOptions
     
     const query = searchQuery.toLowerCase()
     const result: Record<string, string[]> = {}
     
-    Object.entries(ALL_TAGS).forEach(([category, tags]) => {
+    Object.entries(tagOptions).forEach(([category, tags]) => {
       const filtered = tags
         .filter(tag => tag.toLowerCase().includes(query))
         .sort((a, b) => {
@@ -72,7 +70,7 @@ export function TagFilterPanel({ filters, onFiltersChange }: TagFilterPanelProps
     })
     
     return result
-  }, [searchQuery, filters.include])
+  }, [searchQuery, filters.include, tagOptions])
 
   const activeFilterCount = filters.include.length + filters.exclude.length
 

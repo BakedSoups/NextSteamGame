@@ -28,7 +28,7 @@ class FinalGameStore:
 
     def _load_search_index(self) -> list[dict]:
         query = """
-            SELECT appid, name
+            SELECT appid, name, canonical_vectors_json
             FROM canonical_game_semantics
             WHERE name IS NOT NULL
               AND trim(name) <> ''
@@ -50,14 +50,30 @@ class FinalGameStore:
                     ORDER BY appid
                     """
                 ).fetchall()
-        return [
-            {
-                "appid": int(row["appid"]),
-                "name": row["name"],
-                "normalized_name": self._normalize_search_text(row["name"]),
-            }
-            for row in rows
-        ]
+        index: list[dict] = []
+        for row in rows:
+            try:
+                vectors = json.loads(row["canonical_vectors_json"])
+            except (TypeError, ValueError, json.JSONDecodeError, KeyError):
+                continue
+            if not isinstance(vectors, dict):
+                continue
+            has_tags = any(
+                (isinstance(value, dict) and len(value) > 0)
+                or (isinstance(value, list) and len(value) > 0)
+                or (isinstance(value, str) and value.strip())
+                for value in vectors.values()
+            )
+            if not has_tags:
+                continue
+            index.append(
+                {
+                    "appid": int(row["appid"]),
+                    "name": row["name"],
+                    "normalized_name": self._normalize_search_text(row["name"]),
+                }
+            )
+        return index
 
     def _load_metadata_signals(self) -> dict[int, dict]:
         query = """
@@ -100,6 +116,13 @@ class FinalGameStore:
                 short_description,
                 header_image,
                 capsule_image,
+                capsule_imagev5,
+                background_image,
+                background_image_raw,
+                logo_image,
+                icon_image,
+                library_hero_image,
+                library_capsule_image,
                 developers_json,
                 publishers_json,
                 release_date_text
@@ -126,6 +149,13 @@ class FinalGameStore:
                 "short_description": (row["short_description"] or "").strip(),
                 "header_image": row["header_image"] or "",
                 "capsule_image": row["capsule_image"] or "",
+                "capsule_imagev5": row["capsule_imagev5"] or "",
+                "background_image": row["background_image"] or "",
+                "background_image_raw": row["background_image_raw"] or "",
+                "logo_image": row["logo_image"] or "",
+                "icon_image": row["icon_image"] or "",
+                "library_hero_image": row["library_hero_image"] or "",
+                "library_capsule_image": row["library_capsule_image"] or "",
                 "developers": _load_json_list(row["developers_json"]),
                 "publishers": _load_json_list(row["publishers_json"]),
                 "release_date_text": row["release_date_text"] or "",

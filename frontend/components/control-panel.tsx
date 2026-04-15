@@ -3,10 +3,10 @@
 import { useState } from "react"
 import { ChevronDown, ChevronRight, Sliders, Puzzle, Sparkles, Grid3X3, Tag, Activity, Zap } from "lucide-react"
 import type { Weights } from "@/lib/types"
-import { availableGenreOptions } from "@/lib/mock-data"
 
 interface ControlPanelProps {
   weights: Weights
+  genreOptions: Weights["genres"]
   mode: "simple" | "advanced"
   onModeChange: (mode: "simple" | "advanced") => void
   onMatchWeightChange: (key: keyof Weights["match"], value: number) => void
@@ -133,6 +133,7 @@ function WeightSlider({ label, value, onChange, max = 100, color = "primary", sh
 
 export function ControlPanel({
   weights,
+  genreOptions,
   mode,
   onModeChange,
   onMatchWeightChange,
@@ -293,13 +294,13 @@ export function ControlPanel({
         defaultOpen={false}
       >
         <div className="space-y-4">
-          {(Object.keys(availableGenreOptions) as (keyof typeof availableGenreOptions)[]).map(category => (
+          {(Object.keys(genreOptions) as (keyof Weights["genres"])[]).map(category => (
             <div key={category}>
               <span className="terminal-label block mb-2 capitalize">
                 {category.replace(/_/g, " ")}
               </span>
               <div className="flex flex-wrap gap-1">
-                {availableGenreOptions[category].map(genre => {
+                {genreOptions[category].map(genre => {
                   const isSelected = weights.genres[category].includes(genre)
                   return (
                     <button
