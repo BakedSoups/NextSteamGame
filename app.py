@@ -2,240 +2,244 @@
 
 from __future__ import annotations
 
-import mimetypes
 from pathlib import Path
-from urllib.parse import parse_qs
-from wsgiref.simple_server import make_server
+from typing import Any
 
-from jinja2 import Environment, FileSystemLoader, select_autoescape
+from fastapi import FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from backend.db import FinalGameStore
 from backend.recommender import (
     APPEAL_AXIS_ORDER,
     COMPONENT_ORDER,
     CONTENT_CONTEXT_ORDER,
-    VECTOR_CONTEXT_ORDER,
     default_appeal_axes,
     default_component_percentages,
     default_context_percentages,
     recommend_games,
 )
-from db_creation.paths import final_canon_db_path, metadata_db_path
+from backend.retrieval import CandidateRetriever
+from db_creation.paths import chroma_dir_path, final_canon_db_path, metadata_db_path
 
 
 ROOT = Path(__file__).resolve().parent
-TEMPLATE_DIR = ROOT / "frontend" / "templates"
-STATIC_DIR = ROOT / "frontend" / "static"
-
 HOST = "127.0.0.1"
 PORT = 8000
 
-env = Environment(
-    loader=FileSystemLoader(str(TEMPLATE_DIR)),
-    autoescape=select_autoescape(["html", "xml"]),
+store = FinalGameStore(final_canon_db_path(), metadata_db_path())
+retriever = CandidateRetriever(
+    chroma_dir=chroma_dir_path(),
+    fallback_games=store.load_all_games(),
 )
 
-store = FinalGameStore(final_canon_db_path(), metadata_db_path())
-ALL_GAMES = store.load_all_games()
+app = FastAPI(title="Steam Recommendation API", version="0.1.0")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
-def render(template_name: str, **context) -> bytes:
-    template = env.get_template(template_name)
-    return template.render(**context).encode("utf-8")
+def _build_tag_weights(game: dict) -> dict[str, dict[str, int]]:
+    tags: dict[str, dict[str, int]] = {}
+    for context, tag_weights in game["vectors"].items():
+        tags[context] = {
+            str(tag).replace(" ", "_").replace("-", "_").lower(): int(weight)
+            for tag, weight in tag_weights.items()
+        }
+
+    soundtrack_tags = game["metadata"].get("soundtrack_tags", [])
+    if soundtrack_tags:
+        base = 100 // len(soundtrack_tags)
+        spill = 100 - (base * len(soundtrack_tags))
+        music_weights: dict[str, int] = {}
+        for index, tag in enumerate(soundtrack_tags):
+            normalized = str(tag).replace(" ", "_").replace("-", "_").lower()
+            music_weights[normalized] = base + (1 if index < spill else 0)
+        tags["music"] = music_weights
+    else:
+        tags["music"] = {}
+    return tags
 
 
-def response(start_response, body: bytes, content_type: str = "text/html; charset=utf-8", status: str = "200 OK"):
-    start_response(status, [("Content-Type", content_type), ("Content-Length", str(len(body)))])
-    return [body]
+def _serialize_game(game: dict) -> dict[str, Any]:
+    metadata = game.get("metadata", {})
+    genre_tree = metadata.get("genre_tree", {})
+    vector_tags = {
+        context: list((game.get("vectors", {}) or {}).get(context, {}).keys())
+        for context in ("mechanics", "narrative", "vibe", "structure_loop", "uniqueness")
+    }
+    vector_tags["music"] = list(metadata.get("soundtrack_tags", []) or [])
+    return {
+        "id": int(game["appid"]),
+        "appId": str(game["appid"]),
+        "title": str(game.get("name", "")),
+        "description": str(game.get("short_description", "")),
+        "releaseDate": str(game.get("release_date_text", "")),
+        "category": str(metadata.get("signature_tag", "")),
+        "image": str(game.get("capsule_image", "")),
+        "headerImage": str(game.get("header_image", "")),
+        "genres": {
+            "primary": list(genre_tree.get("primary", []) or []),
+            "sub": list(genre_tree.get("sub", []) or []),
+            "sub_sub": list(genre_tree.get("sub_sub", []) or []),
+            "traits": list(genre_tree.get("traits", []) or []),
+        },
+        "tags": vector_tags,
+        "weights": {
+            "appeal": default_appeal_axes(metadata),
+            "context": default_context_percentages(),
+            "match": default_component_percentages(),
+            "tags": _build_tag_weights(game),
+        },
+        "metadata": metadata,
+    }
 
 
-def not_found(start_response):
-    return response(start_response, b"Not found", "text/plain; charset=utf-8", "404 Not Found")
+def _serialize_recommendation(item: dict) -> dict[str, Any]:
+    metadata = item.get("metadata", {})
+    genre_tree = metadata.get("genre_tree", {})
+    return {
+        "id": int(item["appid"]),
+        "appId": str(item["appid"]),
+        "title": str(item.get("name", "")),
+        "description": str(item.get("short_description", "")),
+        "releaseDate": "",
+        "category": str(item.get("signature_tag", "")),
+        "image": str(item.get("capsule_image", "")),
+        "headerImage": str(item.get("header_image", "")),
+        "genres": {
+            "primary": list(genre_tree.get("primary", []) or []),
+            "sub": list(genre_tree.get("sub", []) or []),
+            "sub_sub": list(genre_tree.get("sub_sub", []) or []),
+            "traits": list(genre_tree.get("traits", []) or []),
+        },
+        "tags": {
+            "mechanics": list((item.get("vectors", {}) or {}).get("mechanics", {}).keys()),
+            "narrative": list((item.get("vectors", {}) or {}).get("narrative", {}).keys()),
+            "vibe": list((item.get("vectors", {}) or {}).get("vibe", {}).keys()),
+            "structure_loop": list((item.get("vectors", {}) or {}).get("structure_loop", {}).keys()),
+            "uniqueness": list((item.get("vectors", {}) or {}).get("uniqueness", {}).keys()),
+            "music": list(metadata.get("soundtrack_tags", []) or []),
+        },
+        "matchScore": float(item.get("total_score", 0.0)),
+        "confidence": float(item.get("confidence_multiplier", 1.0)),
+        "scores": {
+            "total": float(item.get("total_score", 0.0)),
+            "vector": float(item.get("weighted_components", {}).get("vector", 0.0)),
+            "genre": float(item.get("weighted_components", {}).get("genre", 0.0)),
+            "appeal": float(item.get("weighted_components", {}).get("appeal", 0.0)),
+            "music": float(item.get("weighted_components", {}).get("music", 0.0)),
+        },
+        "scorePercentages": dict(item.get("weighted_component_percentages", {})),
+        "contextScores": {
+            "mechanics": float(item.get("vector_context_percentages", {}).get("mechanics", 0.0)),
+            "narrative": float(item.get("vector_context_percentages", {}).get("narrative", 0.0)),
+            "vibe": float(item.get("vector_context_percentages", {}).get("vibe", 0.0)),
+            "structure_loop": float(item.get("vector_context_percentages", {}).get("structure_loop", 0.0)),
+            "uniqueness": float(item.get("vector_context_percentages", {}).get("uniqueness", 0.0)),
+            "music": float(item.get("active_context_percentages", {}).get("music", 0.0)),
+        },
+    }
 
 
-def parse_request_data(environ) -> dict[str, list[str]]:
-    if environ["REQUEST_METHOD"] == "POST":
-        size = int(environ.get("CONTENT_LENGTH") or 0)
-        raw = environ["wsgi.input"].read(size).decode("utf-8")
-        return parse_qs(raw, keep_blank_values=True)
-    return parse_qs(environ.get("QUERY_STRING", ""), keep_blank_values=True)
+def _normalize_tag_weight_map(payload: dict[str, Any] | None) -> tuple[dict[str, dict[str, float]], dict[str, float]]:
+    payload = payload or {}
+    vector_weights: dict[str, dict[str, float]] = {}
+    soundtrack_weights: dict[str, float] = {}
+    for context, entries in payload.items():
+        if not isinstance(entries, dict):
+            continue
+        cleaned = {
+            str(tag).replace("_", " "): max(0.0, float(value))
+            for tag, value in entries.items()
+        }
+        if context == "music":
+            soundtrack_weights = cleaned
+        else:
+            vector_weights[context] = cleaned
+    return vector_weights, soundtrack_weights
 
 
-def parse_adjustments(
-    data: dict[str, list[str]],
-) -> tuple[dict[str, dict[str, float]], dict[str, float], dict[str, list[str]], bool, dict[str, int], dict[str, int], dict[str, int]]:
-    extra_vector_boosts: dict[str, dict[str, float]] = {}
-    extra_soundtrack_boosts: dict[str, float] = {}
-    selected_genres = {"primary": [], "sub": [], "sub_sub": [], "traits": []}
-    saw_genre_input = False
-    context_percentages = default_context_percentages()
-    component_percentages = default_component_percentages()
-    appeal_axes = {axis: 50 for axis in APPEAL_AXIS_ORDER}
-
-    for key, values in data.items():
-        if key.startswith("boost__"):
-            _, context, tag = key.split("__", 2)
-            try:
-                multiplier = float(values[-1]) / 100.0
-            except (TypeError, ValueError):
-                multiplier = 1.0
-            if context == "soundtrack":
-                extra_soundtrack_boosts[tag] = multiplier
-            else:
-                extra_vector_boosts.setdefault(context, {})[tag] = multiplier
-        elif key.startswith("genre_"):
-            branch = key.split("_", 1)[1]
-            if branch in selected_genres:
-                saw_genre_input = True
-                selected_genres[branch] = values
-        elif key.startswith("context_weight__"):
-            context = key.split("__", 1)[1]
-            try:
-                context_percentages[context] = max(0, min(100, int(values[-1])))
-            except (TypeError, ValueError):
-                pass
-        elif key.startswith("component_weight__"):
-            component = key.split("__", 1)[1]
-            if component in COMPONENT_ORDER:
-                try:
-                    component_percentages[component] = max(0, min(100, int(values[-1])))
-                except (TypeError, ValueError):
-                    pass
-        elif key.startswith("appeal_axis__"):
-            axis = key.split("__", 1)[1]
-            try:
-                appeal_axes[axis] = max(0, min(100, int(values[-1])))
-            except (TypeError, ValueError):
-                pass
-
-    return (
-        extra_vector_boosts,
-        extra_soundtrack_boosts,
-        selected_genres,
-        saw_genre_input,
-        context_percentages,
-        appeal_axes,
-        component_percentages,
-    )
+@app.get("/api/health")
+def health() -> dict[str, str]:
+    return {"status": "ok"}
 
 
-def handle_index(start_response):
-    body = render("index.html", title="Steam Canon Recommender", initial_query="Counter-Strike")
-    return response(start_response, body)
+@app.get("/api/config/defaults")
+def defaults() -> dict[str, Any]:
+    return {
+        "componentOrder": COMPONENT_ORDER,
+        "contentContextOrder": CONTENT_CONTEXT_ORDER,
+        "appealAxisOrder": APPEAL_AXIS_ORDER,
+        "defaultMatchWeights": default_component_percentages(),
+        "defaultContextWeights": default_context_percentages(),
+    }
 
 
-def handle_search(environ, start_response):
-    data = parse_request_data(environ)
-    query = data.get("q", [""])[-1]
-    results = store.search_games(query)
-    body = render("partials/search_results.html", results=results, query=query)
-    return response(start_response, body)
+@app.get("/api/search")
+def search_games(q: str = Query("", alias="q"), limit: int = Query(8, ge=1, le=25)) -> dict[str, Any]:
+    results = store.search_games(q, limit=limit)
+    return {"query": q, "results": [_serialize_game(store.get_game(item["appid"]) or item) for item in results if store.get_game(item["appid"]) is not None]}
 
 
-def handle_game(appid: int, start_response):
+@app.get("/api/games/{appid}")
+def get_game(appid: int) -> dict[str, Any]:
     game = store.get_game(appid)
     if game is None:
-        body = render("partials/game_placeholder.html", selected_appid=appid, unavailable=True)
-        return response(start_response, body)
-    body = render(
-        "partials/game_panel.html",
-        game=game,
-        appeal_axis_order=APPEAL_AXIS_ORDER,
-        appeal_axes=default_appeal_axes(game["metadata"]),
-        context_order=CONTENT_CONTEXT_ORDER,
-        context_percentages=default_context_percentages(),
-        component_order=COMPONENT_ORDER,
-        component_percentages=default_component_percentages(),
-    )
-    return response(start_response, body)
+        raise HTTPException(status_code=404, detail="Game not found")
+    return _serialize_game(game)
 
 
-def handle_recommend(environ, start_response):
-    data = parse_request_data(environ)
-    appid_raw = data.get("appid", [""])[-1]
-    try:
-        appid = int(appid_raw)
-    except ValueError:
-        return response(start_response, b"Missing or invalid appid", "text/plain; charset=utf-8", "400 Bad Request")
+@app.post("/api/recommendations")
+def get_recommendations(payload: dict[str, Any]) -> JSONResponse:
+    appid = payload.get("appid")
+    if appid is None:
+        raise HTTPException(status_code=400, detail="Missing appid")
 
-    game = store.get_game(appid)
+    game = store.get_game(int(appid))
     if game is None:
-        body = render("partials/recommendations.html", results=[], unavailable=True)
-        return response(start_response, body)
+        raise HTTPException(status_code=404, detail="Game not found")
 
-    (
-        extra_vector_boosts,
-        extra_soundtrack_boosts,
-        selected_genres,
-        saw_genre_input,
-        context_percentages,
-        appeal_axes,
-        component_percentages,
-    ) = parse_adjustments(data)
-    added_genres = {"primary": [], "sub": [], "sub_sub": [], "traits": []}
-    removed_genres = {"primary": [], "sub": [], "sub_sub": [], "traits": []}
-    if saw_genre_input:
-        base_tree = game["metadata"].get("genre_tree", {})
-        for branch in ("primary", "sub", "sub_sub", "traits"):
-            base_tags = set(base_tree.get(branch, []))
-            selected_tags = set(selected_genres.get(branch, []))
-            added_genres[branch] = sorted(selected_tags - base_tags)
-            removed_genres[branch] = sorted(base_tags - selected_tags)
+    component_percentages = payload.get("weights", {}).get("match") or default_component_percentages()
+    context_percentages = payload.get("weights", {}).get("context") or default_context_percentages()
+    appeal_axes = payload.get("weights", {}).get("appeal") or default_appeal_axes(game["metadata"])
+    tag_weights, soundtrack_weights = _normalize_tag_weight_map((payload.get("weights") or {}).get("tags"))
+    genres = (payload.get("weights") or {}).get("genres") or game["metadata"].get("genre_tree", {})
 
+    base_tree = game["metadata"].get("genre_tree", {})
+    added_genres = {branch: sorted(set(genres.get(branch, [])) - set(base_tree.get(branch, []))) for branch in ("primary", "sub", "sub_sub", "traits")}
+    removed_genres = {branch: sorted(set(base_tree.get(branch, [])) - set(genres.get(branch, []))) for branch in ("primary", "sub", "sub_sub", "traits")}
+
+    candidate_games = retriever.retrieve_candidates(game, limit=400)
     recommendations = recommend_games(
         game,
-        ALL_GAMES,
-        extra_vector_boosts=extra_vector_boosts,
-        extra_soundtrack_boosts=extra_soundtrack_boosts,
+        candidate_games,
+        extra_vector_boosts=tag_weights,
+        extra_soundtrack_boosts=soundtrack_weights,
         context_percentages=context_percentages,
         component_percentages=component_percentages,
         appeal_axes=appeal_axes,
         added_genres=added_genres,
         removed_genres=removed_genres,
-        limit=20,
+        limit=int(payload.get("limit", 20)),
     )
-    body = render(
-        "partials/recommendations.html",
-        results=recommendations,
-        base_game=game,
-        context_percentages=context_percentages,
-        component_percentages=component_percentages,
+
+    return JSONResponse(
+        {
+            "baseGame": _serialize_game(game),
+            "results": [_serialize_recommendation(item) for item in recommendations],
+        }
     )
-    return response(start_response, body)
-
-
-def handle_static(path: str, start_response):
-    target = (STATIC_DIR / path.removeprefix("/static/")).resolve()
-    if not str(target).startswith(str(STATIC_DIR.resolve())) or not target.exists() or not target.is_file():
-        return not_found(start_response)
-    content_type = mimetypes.guess_type(str(target))[0] or "application/octet-stream"
-    return response(start_response, target.read_bytes(), content_type)
-
-
-def application(environ, start_response):
-    path = environ.get("PATH_INFO", "/")
-
-    if path == "/":
-        return handle_index(start_response)
-    if path == "/search":
-        return handle_search(environ, start_response)
-    if path.startswith("/game/"):
-        try:
-            appid = int(path.rsplit("/", 1)[-1])
-        except ValueError:
-            return not_found(start_response)
-        return handle_game(appid, start_response)
-    if path == "/recommend":
-        return handle_recommend(environ, start_response)
-    if path.startswith("/static/"):
-        return handle_static(path, start_response)
-    return not_found(start_response)
 
 
 def main() -> int:
-    print(f"Serving on http://{HOST}:{PORT}")
-    with make_server(HOST, PORT, application) as server:
-        server.serve_forever()
+    import uvicorn
+
+    uvicorn.run(app, host=HOST, port=PORT)
     return 0
 
 

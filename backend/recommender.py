@@ -151,13 +151,13 @@ def _build_vector_preferences(
     multipliers = context_multipliers or VECTOR_CONTEXT_MULTIPLIERS
     preferences: dict[str, dict[str, float]] = {}
     for context, tag_weights in vectors.items():
-        normalized = _normalize_weights(tag_weights)
+        override_weights = boosts.get(context, {})
+        normalized = _normalize_weights(override_weights or tag_weights)
         context_multiplier = multipliers.get(context, 1.0)
         adjusted: dict[str, float] = {}
         for tag, weight in normalized.items():
             adjusted_weight = weight * context_multiplier
             adjusted_weight *= DEFAULT_VECTOR_BOOSTS.get(context, {}).get(tag, 1.0)
-            adjusted_weight *= boosts.get(context, {}).get(tag, 1.0)
             adjusted[tag] = adjusted_weight
         preferences[context] = adjusted
     return preferences
@@ -193,12 +193,10 @@ def _build_soundtrack_preferences(
     if not tags:
         return {}
 
-    base_weight = 1.0 / len(tags)
+    normalized = _normalize_weights(boosts or {tag: 1 for tag in tags})
     preferences: dict[str, float] = {}
-    for tag in tags:
-        if not tag:
-            continue
-        preferences[tag] = base_weight * soundtrack_multiplier * boosts.get(tag, 1.0)
+    for tag, weight in normalized.items():
+        preferences[tag] = weight * soundtrack_multiplier
     return preferences
 
 
