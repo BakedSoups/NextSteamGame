@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { ArrowLeft, ArrowRight } from "lucide-react"
+import steamLogo from "@/art_assets/Steam-Logo.png"
+import gameShelfBackground from "@/art_assets/game_collection_background.webp"
 import { SearchBar } from "@/components/search-bar"
 import { SelectedGamePanel } from "@/components/selected-game-panel"
 import { ControlPanel } from "@/components/control-panel"
@@ -558,18 +560,20 @@ export default function NextSteamGamePage() {
       <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur-sm">
         <div className="mx-auto max-w-[1800px] px-6 py-4">
           <div className="flex items-center gap-8">
-            <div className="flex items-center gap-3">
-              <h1 className="text-lg font-semibold text-foreground tracking-tight">NextSteamGame</h1>
-            </div>
-
             <div className="flex-1" />
 
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setScreen("search")}
-                className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm text-foreground hover:bg-secondary/30"
+                className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-border bg-background/60 p-2 text-sm text-foreground shadow-[0_10px_28px_rgba(0,0,0,0.18)] transition hover:bg-secondary/40"
+                aria-label="Home"
+                title="Home"
               >
-                Home
+                <img
+                  src={steamLogo.src}
+                  alt="Steam"
+                  className="h-full w-full object-contain"
+                />
               </button>
             </div>
           </div>
@@ -578,24 +582,39 @@ export default function NextSteamGamePage() {
 
       <main className="mx-auto max-w-[1800px] px-6 py-8">
         {screen === "search" && (
-          <div className="flex min-h-[70vh] items-center justify-center">
-            <div className="w-full max-w-3xl text-center">
-              <h1 className="text-5xl font-semibold tracking-tight text-foreground md:text-6xl">
-                NextSteamGame
-              </h1>
-              <p className="mx-auto mt-5 max-w-2xl text-base text-muted-foreground md:text-lg">
-                Have fun exploring your taste in games. Start with one you already love, discover why it clicks, and find what to play next.
-              </p>
-              <div className="mx-auto mt-10 max-w-2xl">
-                <SearchBar
-                  games={searchResults}
-                  isLoading={searchLoading}
-                  onQueryChange={setSearchQuery}
-                  onSelect={handleSelectGame}
-                  selectedGame={selectedGame}
-                />
+          <div className="relative -mx-6 -mt-8 min-h-[calc(100vh-77px)] overflow-hidden">
+            <img
+              src={gameShelfBackground.src}
+              alt=""
+              className="absolute inset-0 h-full w-full object-cover"
+            />
+            <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(8,13,19,0.58),rgba(8,13,19,0.78)),linear-gradient(90deg,rgba(8,13,19,0.30),rgba(8,13,19,0.42))]" />
+            <div className="relative z-10 flex min-h-[calc(100vh-77px)] items-center justify-center px-12 py-12">
+              <div className="w-full max-w-3xl text-center">
+                <div className="flex items-center justify-center gap-4">
+                  <h1 className="text-5xl font-semibold tracking-tight text-white md:text-6xl">
+                    NextSteamGame
+                  </h1>
+                  <img
+                    src={steamLogo.src}
+                    alt="Steam"
+                    className="h-12 w-12 object-contain md:h-14 md:w-14"
+                  />
+                </div>
+                <p className="mx-auto mt-5 max-w-2xl text-base text-slate-200 md:text-lg">
+                  Have fun exploring your taste in games. Start with one you already love, discover why it clicks, and find what to play next.
+                </p>
+                <div className="mx-auto mt-10 max-w-2xl">
+                  <SearchBar
+                    games={searchResults}
+                    isLoading={searchLoading}
+                    onQueryChange={setSearchQuery}
+                    onSelect={handleSelectGame}
+                    selectedGame={selectedGame}
+                  />
+                </div>
+                {searchError && <p className="mt-4 text-sm text-red-300">{searchError}</p>}
               </div>
-              {searchError && <p className="mt-4 text-sm text-destructive">{searchError}</p>}
             </div>
           </div>
         )}
