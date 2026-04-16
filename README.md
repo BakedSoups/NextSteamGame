@@ -12,9 +12,11 @@ The project has three main layers:
 ## App Stack
 
 Current runtime shape:
+<img width="1312" height="1313" alt="image" src="https://github.com/user-attachments/assets/39d21a7d-f147-4993-baf4-2064b687b234" />
 
 - backend: `FastAPI`
 - frontend: `Next.js` / React
+
 - metadata store: `SQLite`
 - retrieval target: `Chroma`
 
@@ -39,6 +41,7 @@ Path handling is centralized in:
 - [db_creation/paths.py](db_creation/paths.py)
 
 ## Pipeline Overview
+<img width="466" height="352" alt="cool parelell workers" src="https://github.com/user-attachments/assets/4060817d-e289-4441-997f-e6eca332dd35" />
 
 The database build flow is intentionally stage-based.
 
