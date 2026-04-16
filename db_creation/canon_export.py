@@ -7,7 +7,7 @@ ANALYSIS_DIR = analysis_dir()
 BATCH_SIZE = 500
 
 
-def _print_progress(update: dict) -> None:
+def print_batch_progress(update: dict) -> None:
     total_rows = update["total_rows"]
     processed_rows = update["processed_rows"]
     if total_rows:
@@ -22,17 +22,23 @@ def _print_progress(update: dict) -> None:
     )
 
 
-def main() -> int:
+def run_canonical_export() -> dict:
     from canon_pipeline.full_export import run_full_canonical_export
 
-    print(f"Scanning all non-canon rows from {NONCANON_DB_PATH}")
-    print(f"Batch size: {BATCH_SIZE}")
-    summary = run_full_canonical_export(
+    return run_full_canonical_export(
         noncanon_db_path=NONCANON_DB_PATH,
         analysis_output_dir=ANALYSIS_DIR,
         batch_size=BATCH_SIZE,
-        progress=_print_progress,
+        progress=print_batch_progress,
     )
+
+
+def print_run_configuration() -> None:
+    print(f"Scanning all non-canon rows from {NONCANON_DB_PATH}")
+    print(f"Batch size: {BATCH_SIZE}")
+
+
+def print_run_summary(summary: dict) -> None:
     print(f"Processed {summary['processed_rows']} rows across {summary['batch_count']} batches")
     print(
         "Built tag pools: "
@@ -44,6 +50,12 @@ def main() -> int:
     print(f"Metadata CSV: {summary['metadata_csv_path']}")
     print(f"Vector CSV: {summary['vector_csv_path']}")
     print(f"Summary: {summary['summary_path']}")
+
+
+def main() -> int:
+    print_run_configuration()
+    summary = run_canonical_export()
+    print_run_summary(summary)
     return 0
 
 

@@ -221,14 +221,21 @@ def _write_summary(
     output_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-def main() -> int:
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+def load_visualization_inputs():
     rows = _load_rows(FINAL_DB_PATH)
-
     status_counter = _review_status_counter(rows)
     vector_counters = _vector_context_counters(rows)
     metadata_counters = _metadata_context_counters(rows)
+    return rows, status_counter, vector_counters, metadata_counters
 
+
+def render_visualizations(
+    rows,
+    status_counter: Counter,
+    vector_counters: dict[str, Counter],
+    metadata_counters: dict[str, Counter],
+) -> None:
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     _render_pie_chart(
         "Final DB Review Source Statuses",
         _compress_counter(status_counter, TOP_N),
@@ -252,8 +259,23 @@ def main() -> int:
         metadata_counters,
     )
 
+
+def print_run_configuration() -> None:
+    print(f"Reading final canonical DB from {FINAL_DB_PATH}")
+    print(f"Writing QA visualizations to {OUTPUT_DIR}")
+    print(f"Top N compression threshold: {TOP_N}")
+
+
+def print_run_summary(total_rows: int) -> None:
     print(f"Wrote visualizations to {OUTPUT_DIR}")
-    print(f"Games analyzed: {len(rows)}")
+    print(f"Games analyzed: {total_rows}")
+
+
+def main() -> int:
+    print_run_configuration()
+    rows, status_counter, vector_counters, metadata_counters = load_visualization_inputs()
+    render_visualizations(rows, status_counter, vector_counters, metadata_counters)
+    print_run_summary(len(rows))
     return 0
 
 

@@ -8,25 +8,37 @@ FINAL_DB_PATH = final_canon_db_path()
 CHROMA_DIR_PATH = chroma_dir_path()
 
 
-def _print_progress(update: dict) -> None:
+def print_batch_progress(update: dict) -> None:
     print(
         f"Chroma batch {update['batch_number']}: "
         f"{update['processed_rows']}/{update['total_rows']} game rows prepared"
     )
 
 
-def main() -> int:
-    print(f"Reading final canonical DB from {FINAL_DB_PATH}")
-    print(f"Writing Chroma collection under {CHROMA_DIR_PATH}")
-    summary = run_chroma_migration(
+def run_chroma_stage() -> dict:
+    return run_chroma_migration(
         final_db_path=FINAL_DB_PATH,
         chroma_dir_path=CHROMA_DIR_PATH,
-        progress=_print_progress,
+        progress=print_batch_progress,
     )
+
+
+def print_run_configuration() -> None:
+    print(f"Reading final canonical DB from {FINAL_DB_PATH}")
+    print(f"Writing Chroma collection under {CHROMA_DIR_PATH}")
+
+
+def print_run_summary(summary: dict) -> None:
     print(f"Status: {summary['status']}")
     print(f"Processed rows: {summary['processed_rows']}")
     print(f"Collection: {summary['collection_name']}")
     print(f"Output dir: {summary['chroma_dir_path']}")
+
+
+def main() -> int:
+    print_run_configuration()
+    summary = run_chroma_stage()
+    print_run_summary(summary)
     return 0
 
 
