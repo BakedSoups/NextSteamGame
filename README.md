@@ -1,275 +1,223 @@
-# Steam Metadata Schema
+# NextSteamGame
 
-```mermaid
-erDiagram
-    GAMES {
-        INTEGER appid PK
-        TEXT name
-        TEXT type
-        INTEGER required_age
-        INTEGER is_free
-        TEXT controller_support
-        TEXT short_description
-        TEXT detailed_description
-        TEXT about_the_game
-        TEXT supported_languages
-        TEXT header_image
-        TEXT capsule_image
-        TEXT website
-        TEXT developers_json
-        TEXT publishers_json
-        TEXT price_currency
-        INTEGER price_initial
-        INTEGER price_final
-        INTEGER price_discount_percent
-        TEXT release_date_text
-        INTEGER release_date_is_coming_soon
-        TEXT release_date_parsed
-        INTEGER metacritic_score
-        INTEGER recommendations_total
-        TEXT steamspy_score_rank
-        TEXT steamspy_owners
-        INTEGER steamspy_owner_estimate
-        INTEGER steamspy_average_forever
-        INTEGER steamspy_median_forever
-        INTEGER steamspy_ccu
-        INTEGER positive
-        INTEGER negative
-        INTEGER estimated_review_count
-        INTEGER has_steamspy_data
-        INTEGER has_store_data
-        TEXT source_last_updated
-        TEXT created_at
-        TEXT updated_at
-    }
+`NextSteamGame` is a Steam recommendation project built around the idea that games
+should be matched by what they are, not only by player-overlap signals.
 
-    GAME_GENRES {
-        INTEGER appid FK
-        INTEGER genre_id
-        TEXT genre_name
-    }
+The project has three main layers:
 
-    GAME_CATEGORIES {
-        INTEGER appid FK
-        INTEGER category_id
-        TEXT category_name
-    }
+- a metadata pipeline that builds and enriches `steam_metadata.db`
+- a semantics/canonicalization pipeline that builds `steam_final_canon.db`
+- a live app stack that serves recommendations through FastAPI + a React frontend
 
-    GAME_TAGS {
-        INTEGER appid FK
-        TEXT tag_name
-        INTEGER tag_rank
-        REAL tag_weight
-        TEXT source
-    }
+## App Stack
 
-    GAME_PLATFORMS {
-        INTEGER appid PK_FK
-        INTEGER windows
-        INTEGER mac
-        INTEGER linux
-    }
+Current runtime shape:
 
-    GAME_LANGUAGES {
-        INTEGER appid FK
-        TEXT language
-        INTEGER interface_supported
-        INTEGER audio_supported
-        INTEGER subtitles_supported
-    }
+- backend: `FastAPI`
+- frontend: `Next.js` / React
+- metadata store: `SQLite`
+- retrieval target: `Chroma`
 
-    GAME_DEVELOPERS {
-        INTEGER appid FK
-        TEXT developer_name
-    }
+The app flow is:
 
-    GAME_PUBLISHERS {
-        INTEGER appid FK
-        TEXT publisher_name
-    }
+1. search for a Steam game
+2. open it as the reference profile
+3. inspect and adjust its vectors, tags, genres, and appeal axes
+4. rerank recommendations from the game’s actual semantic profile
 
-    GAME_PACKAGES {
-        INTEGER appid FK
-        INTEGER package_id
-        INTEGER is_default
-    }
+## Main Databases
 
-    GAME_PRICING {
-        INTEGER appid FK
-        TEXT region_code
-        TEXT currency
-        INTEGER initial
-        INTEGER final
-        INTEGER discount_percent
-        TEXT initial_formatted
-        TEXT final_formatted
-        INTEGER is_free
-        TEXT fetched_at
-    }
+By default the databases live in `data/`:
 
-    GAME_SCREENSHOTS {
-        INTEGER appid FK
-        INTEGER screenshot_id
-        TEXT path_thumbnail
-        TEXT path_full
-    }
+- `steam_metadata.db`
+- `steam_initial_noncanon.db`
+- `steam_final_canon.db`
+- `chroma/`
 
-    GAME_MOVIES {
-        INTEGER appid FK
-        INTEGER movie_id
-        TEXT name
-        TEXT thumbnail
-        TEXT webm_480
-        TEXT mp4_480
-    }
+Path handling is centralized in:
 
-    RAW_STEAMSPY_GAMES {
-        INTEGER appid PK
-        INTEGER source_page
-        TEXT fetched_at
-        TEXT payload_json
-    }
+- [db_creation/paths.py](db_creation/paths.py)
 
-    RAW_STEAM_APP_DETAILS {
-        INTEGER appid
-        TEXT region_code
-        TEXT fetched_at
-        INTEGER success
-        TEXT payload_json
-    }
+## Pipeline Overview
 
-    RAW_STEAM_APP_LIST {
-        INTEGER appid
-        TEXT payload_json
-    }
+The database build flow is intentionally stage-based.
 
-    INGESTION_STATE {
-        INTEGER appid PK
-        TEXT steamspy_fetched_at
-        TEXT store_fetched_at
-        TEXT last_attempt_at
-        TEXT store_fetch_status
-        TEXT last_error
-    }
+### 1. Metadata Stage
 
-    SYNC_RUNS {
-        INTEGER id PK
-        TEXT started_at
-        TEXT finished_at
-        TEXT status
-        INTEGER steamspy_pages_seen
-        INTEGER appids_discovered
-        INTEGER store_attempted
-        INTEGER store_succeeded
-        INTEGER error_count
-        TEXT notes
-    }
+Entrypoint:
 
-    SYNC_ERRORS {
-        INTEGER id PK
-        INTEGER sync_run_id FK
-        INTEGER appid
-        TEXT source
-        TEXT context
-        TEXT error_message
-        TEXT created_at
-    }
+- [db_creation/metadata_db.py](db_creation/metadata_db.py)
 
-    GAMES ||--o{ GAME_GENRES : has
-    GAMES ||--o{ GAME_CATEGORIES : has
-    GAMES ||--o{ GAME_TAGS : has
-    GAMES ||--|| GAME_PLATFORMS : has
-    GAMES ||--o{ GAME_LANGUAGES : has
-    GAMES ||--o{ GAME_DEVELOPERS : has
-    GAMES ||--o{ GAME_PUBLISHERS : has
-    GAMES ||--o{ GAME_PACKAGES : has
-    GAMES ||--o{ GAME_PRICING : has
-    GAMES ||--o{ GAME_SCREENSHOTS : has
-    GAMES ||--o{ GAME_MOVIES : has
-    GAMES ||--|| INGESTION_STATE : tracks
+This stage:
 
-    GAMES ||..|| RAW_STEAMSPY_GAMES : sourced_from
-    GAMES ||..o{ RAW_STEAM_APP_DETAILS : enriched_from
+- syncs SteamSpy + Steam Store metadata
+- writes `steam_metadata.db`
+- backfills extra storefront art assets like:
+  - `logo_image`
+  - `library_hero_image`
+  - `library_capsule_image`
 
-    SYNC_RUNS ||--o{ SYNC_ERRORS : logs
+Internal modules:
+
+- [db_creation/metadata_pipeline/pipeline.py](db_creation/metadata_pipeline/pipeline.py)
+- [db_creation/metadata_pipeline/assets.py](db_creation/metadata_pipeline/assets.py)
+
+Run:
+
+```bash
+cd db_creation
+python3 metadata_db.py
 ```
 
-## Planned Frontend
+### 2. Non-Canonical Semantics Stage
 
-The frontend plan is HTMX-first and intentionally light on boilerplate.
+Entrypoint:
 
-Target flow:
+- [db_creation/initial_noncanon_db.py](db_creation/initial_noncanon_db.py)
 
-1. search for a game from the final canonical DB
-2. open that game as the starting profile
-3. show the game's canonical vectors and genre tree
-4. let the user adjust what they want more or less of
-5. rerun scoring and update results without a full page reload
+This stage:
 
-For the first UI pass:
+- reads `steam_metadata.db`
+- fetches and samples Steam reviews
+- calls the semantics model
+- writes `steam_initial_noncanon.db`
 
-- ignore `micro_tags`
-- use only `genre_tree.primary`, `genre_tree.sub`, and `genre_tree.traits`
-- apply a 10% penalty each step back in the genre hierarchy
-  - `traits` = full weight
-  - `sub` = 0.9
-  - `primary` = 0.8
+### 3. Canon Export Stage
 
-### HTMX Stack
+Entrypoint:
 
-Planned stack:
+- [db_creation/canon_export.py](db_creation/canon_export.py)
 
-- `HTMX` for request/response-driven UI updates
-- `Jinja` or small server-rendered partial templates for result fragments
-- `idiomorph` for cleaner DOM morphing on fragment refresh
-- `_hyperscript` for tiny local interactions without adding a large JS framework
-- optional HTMX extensions later if needed for long-running jobs or advanced swaps
+This stage:
 
-This keeps the UI server-rendered, fast to iterate on, and avoids a large SPA codebase.
+- reads the non-canonical DB
+- exports canonical tag group CSVs into `db_creation/analysis/`
 
-### Planned Screen Flow
+### 4. Final Canonical DB Stage
 
-Search screen:
+Entrypoint:
 
-- search input
-- live result list
-- click a game to set the base profile
+- [db_creation/final_db.py](db_creation/final_db.py)
 
-Profile screen:
+This stage:
 
-- show selected game's canonical vectors
-- show selected game's genre tree
-- allow add/remove adjustments
-- allow increasing certain vector tags
+- reads the non-canonical DB
+- reads canonical mapping CSVs
+- builds `steam_final_canon.db`
 
-Results screen:
+### 5. Chroma Migration Stage
 
-- ranked recommended games
-- score breakdown
-- vector overlap
-- genre-tree overlap
+Entrypoint:
 
-### Backend Shape
+- [db_creation/chroma_db_migration.py](db_creation/chroma_db_migration.py)
 
-Planned endpoints:
+This stage:
 
-- `GET /`
-  - shell page
-- `GET /search`
-  - returns search results partial
-- `GET /game/{appid}`
-  - returns selected game profile partial
-- `POST /score`
-  - returns reranked recommendations partial
+- reads `steam_final_canon.db`
+- writes retrieval-ready records into local `Chroma`
 
-### Prototype Before UI
+### 6. Visualization / QA Stage
 
-Before implementing the frontend, the recommendation logic is being prototyped in `test.py`.
+Entrypoint:
 
-That script:
+- [db_creation/final_db_viz.py](db_creation/final_db_viz.py)
 
-- loads `data/steam_final_canon.db`
-- starts from `Counter-Strike`
-- ignores `micro_tags`
-- applies the current genre hierarchy penalty model
-- prints ranked matches so the scoring logic can be tuned before wiring HTMX templates
+This stage:
+
+- reads `steam_final_canon.db`
+- generates QA charts and summary artifacts
+
+## Entry Point Pattern
+
+Top-level stage scripts in `db_creation/` are intentionally lightweight orchestration entrypoints.
+
+The pattern is:
+
+- constants/config at the top
+- a `run_...()` function for the stage
+- a `print_run_configuration()`
+- a `print_run_summary(...)`
+- a small `main()` that reads like the workflow
+
+Examples:
+
+- [db_creation/metadata_db.py](db_creation/metadata_db.py)
+- [db_creation/initial_noncanon_db.py](db_creation/initial_noncanon_db.py)
+- [db_creation/canon_export.py](db_creation/canon_export.py)
+- [db_creation/final_db.py](db_creation/final_db.py)
+- [db_creation/chroma_db_migration.py](db_creation/chroma_db_migration.py)
+
+## Metadata Art Fields
+
+The metadata layer currently uses these storefront image fields in `games`:
+
+- `header_image`
+- `capsule_image`
+- `capsule_imagev5`
+- `background_image`
+- `background_image_raw`
+- `logo_image`
+- `library_hero_image`
+- `library_capsule_image`
+
+`icon_image` was intentionally removed from the active pipeline because it was not being populated reliably and is not used by the app.
+
+## Frontend / Recommendation Surface
+
+The live UI is built around:
+
+- a search-first landing page
+- a profile-building second screen
+- a results screen with ongoing tuning
+
+The recommendation controls currently include:
+
+- match weighting
+  - `vector`
+  - `genre`
+  - `appeal`
+  - `music`
+- context weighting
+  - `mechanics`
+  - `narrative`
+  - `vibe`
+  - `structure_loop`
+  - `uniqueness`
+  - `music`
+- appeal axes
+  - `challenge`
+  - `complexity`
+  - `pace`
+  - `narrative_focus`
+  - `social_energy`
+  - `creativity`
+- per-context tag weighting
+- genre tree toggles
+
+## Running the App
+
+Backend:
+
+```bash
+python3 app.py
+```
+
+Frontend dev server:
+
+```bash
+cd frontend
+npm run dev
+```
+
+Frontend production:
+
+```bash
+cd frontend
+npm run build
+npm start
+```
+
+Default local URLs:
+
+- backend: `http://127.0.0.1:8000`
+- frontend: `http://localhost:3000`
