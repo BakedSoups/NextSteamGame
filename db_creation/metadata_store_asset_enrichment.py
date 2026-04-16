@@ -19,7 +19,6 @@ LOGGER = logging.getLogger("steam_store_asset_enrichment")
 
 ASSET_COLUMNS = (
     "logo_image",
-    "icon_image",
     "library_hero_image",
     "library_capsule_image",
 )
@@ -29,11 +28,6 @@ ASSET_FILENAME_CANDIDATES = {
         "logo_2x.png",
         "logo.jpg",
         "logo.webp",
-    ],
-    "icon_image": [
-        "icon.jpg",
-        "icon.png",
-        "icon.ico",
     ],
     "library_hero_image": [
         "library_hero.jpg",
@@ -200,7 +194,6 @@ class SteamStoreAssetEnricher:
                 """
                 UPDATE games
                 SET logo_image = NULL,
-                    icon_image = NULL,
                     library_hero_image = NULL,
                     library_capsule_image = NULL
                 """
@@ -251,7 +244,6 @@ class SteamStoreAssetEnricher:
                 """
                 UPDATE games
                 SET logo_image = COALESCE(?, logo_image),
-                    icon_image = COALESCE(?, icon_image),
                     library_hero_image = COALESCE(?, library_hero_image),
                     library_capsule_image = COALESCE(?, library_capsule_image),
                     updated_at = datetime('now')
@@ -259,7 +251,6 @@ class SteamStoreAssetEnricher:
                 """,
                 (
                     assets["logo_image"],
-                    assets["icon_image"],
                     assets["library_hero_image"],
                     assets["library_capsule_image"],
                     appid,
@@ -395,7 +386,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--restart",
         action="store_true",
-        help="Clear asset_enrichment_state and reset logo/icon/library asset columns before rerunning.",
+        help="Clear asset_enrichment_state and reset logo/library asset columns before rerunning.",
     )
     return parser.parse_args()
 

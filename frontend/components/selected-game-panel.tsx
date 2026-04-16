@@ -24,7 +24,7 @@ export function SelectedGamePanel({ game }: SelectedGamePanelProps) {
   
   return (
     <div className="bg-card border border-border rounded-lg overflow-hidden">
-      <div className="p-4">
+      <div className="grid grid-cols-[112px_minmax(0,1fr)] gap-4 p-4">
         <div className="relative aspect-square overflow-hidden rounded-2xl bg-muted shadow-[0_18px_42px_rgba(0,0,0,0.28)]">
           <Image
             src={capsuleImage}
@@ -34,16 +34,16 @@ export function SelectedGamePanel({ game }: SelectedGamePanelProps) {
             unoptimized
           />
         </div>
-      </div>
 
-      <div className="p-4 space-y-4">
-        <h2 className="text-xl font-semibold text-foreground">{game.title}</h2>
+        <div className="min-w-0 self-end space-y-3">
+          <h2 className="text-xl font-semibold text-foreground">{game.title}</h2>
 
-        {(primaryGenres.length > 0 || game.category) ? (
-          <p className="text-xs text-muted-foreground">
-            {[...primaryGenres, game.category].filter(Boolean).join(" · ")}
-          </p>
-        ) : null}
+          {(primaryGenres.length > 0 || game.category) ? (
+            <p className="text-xs text-muted-foreground">
+              {[...primaryGenres, game.category].filter(Boolean).join(" · ")}
+            </p>
+          ) : null}
+        </div>
       </div>
     </div>
   )

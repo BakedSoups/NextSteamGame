@@ -14,7 +14,6 @@ ART_COLUMNS: dict[str, str] = {
     "background_image": "TEXT",
     "background_image_raw": "TEXT",
     "logo_image": "TEXT",
-    "icon_image": "TEXT",
     "library_hero_image": "TEXT",
     "library_capsule_image": "TEXT",
 }
@@ -41,10 +40,6 @@ def extract_art_fields(app_data: dict[str, Any]) -> dict[str, Optional[str]]:
         "logo_image": first_non_empty(
             app_data.get("logo_image"),
             app_data.get("logo"),
-        ),
-        "icon_image": first_non_empty(
-            app_data.get("icon_image"),
-            app_data.get("icon"),
         ),
         "library_hero_image": first_non_empty(
             app_data.get("library_hero_image"),
@@ -100,7 +95,6 @@ def backfill_art_fields(connection: sqlite3.Connection) -> tuple[int, dict[str, 
                 background_image = COALESCE(?, background_image),
                 background_image_raw = COALESCE(?, background_image_raw),
                 logo_image = COALESCE(?, logo_image),
-                icon_image = COALESCE(?, icon_image),
                 library_hero_image = COALESCE(?, library_hero_image),
                 library_capsule_image = COALESCE(?, library_capsule_image)
             WHERE appid = ?
@@ -110,7 +104,6 @@ def backfill_art_fields(connection: sqlite3.Connection) -> tuple[int, dict[str, 
                 art["background_image"],
                 art["background_image_raw"],
                 art["logo_image"],
-                art["icon_image"],
                 art["library_hero_image"],
                 art["library_capsule_image"],
                 appid,
@@ -149,9 +142,9 @@ def main() -> int:
     for column_name in ART_COLUMNS:
         print(f"- {column_name}: {populated_counts[column_name]}")
 
-    if not any(populated_counts[column_name] for column_name in ("logo_image", "icon_image", "library_hero_image", "library_capsule_image")):
+    if not any(populated_counts[column_name] for column_name in ("logo_image", "library_hero_image", "library_capsule_image")):
         print(
-            "Steam appdetails payloads in the current pipeline do not include logo/icon/library assets, "
+            "Steam appdetails payloads in the current pipeline do not include logo/library assets, "
             "so those columns remain empty until a separate ingestion step is added."
         )
 

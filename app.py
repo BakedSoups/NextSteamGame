@@ -113,7 +113,6 @@ def _serialize_game(game: dict) -> dict[str, Any]:
         "background": str(game.get("background_image", "")),
         "backgroundRaw": str(game.get("background_image_raw", "")),
         "logo": str(game.get("logo_image", "")),
-        "icon": str(game.get("icon_image", "")),
         "libraryHero": str(game.get("library_hero_image", "")),
         "libraryCapsule": str(game.get("library_capsule_image", "")),
     }
@@ -154,7 +153,6 @@ def _serialize_recommendation(item: dict) -> dict[str, Any]:
         "background": str(item.get("background_image", "")),
         "backgroundRaw": str(item.get("background_image_raw", "")),
         "logo": str(item.get("logo_image", "")),
-        "icon": str(item.get("icon_image", "")),
         "libraryHero": str(item.get("library_hero_image", "")),
         "libraryCapsule": str(item.get("library_capsule_image", "")),
     }

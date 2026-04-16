@@ -14,7 +14,6 @@ export interface Game {
     background: string
     backgroundRaw: string
     logo: string
-    icon: string
     libraryHero: string
     libraryCapsule: string
   }
