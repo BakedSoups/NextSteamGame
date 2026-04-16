@@ -196,6 +196,21 @@ The recommendation controls currently include:
 
 ## Running the App
 
+## Environment
+
+The semantics pipeline reads the OpenAI key from the process environment:
+
+- `OPENAI_API_KEY`
+
+The code currently uses `os.getenv(...)` directly and does not rely on a built-in
+`.env` loader, so export the variable in your shell or provide it through your
+runtime environment.
+
+Current rough semantics-stage scale/cost:
+
+- about `80,000` scraped Steam games
+- about `$5` total using `gpt-4o-mini`
+
 Backend:
 
 ```bash
