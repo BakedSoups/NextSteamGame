@@ -44,7 +44,3 @@ def chroma_dir_path() -> Path:
 
 def insightful_words_path() -> Path:
     return DB_CREATION_ROOT / "insightful_words.json"
-
-
-def sampled_game_tags_path() -> Path:
-    return analysis_dir() / "sampled_game_tags.json"

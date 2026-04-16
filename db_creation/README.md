@@ -5,24 +5,21 @@ This folder contains the full database build flow for the project.
 The stages are intentionally separate:
 
 1. `metadata_db.py`
-   Builds the raw/canonical Steam metadata database from the Steam APIs.
-2. `metadata_store_asset_enrichment.py`
-   Backfills extra Steam storefront art assets that are not present in appdetails.
-3. `initial_noncanon_db.py`
+   Builds the raw/canonical Steam metadata database from the Steam APIs and then backfills extra storefront art assets.
+2. `initial_noncanon_db.py`
    Builds the first semantic database from review-derived LLM output.
-4. `canon_export.py`
+3. `canon_export.py`
    Reads the non-canon DB and exports canonical group CSVs.
-5. `final_db.py`
+4. `final_db.py`
    Reads the non-canon DB plus the canonical CSV mappings and builds the final canonical DB.
-6. `chroma_db_migration.py`
+5. `chroma_db_migration.py`
    Reads the final canonical DB and migrates retrieval records into a local Chroma collection.
-7. `final_db_viz.py`
+6. `final_db_viz.py`
    Reads the final DB and generates QA visualizations.
 
 ## Main Files
 
 - `db_creation/metadata_db.py`
-- `db_creation/metadata_store_asset_enrichment.py`
 - `db_creation/initial_noncanon_db.py`
 - `db_creation/canon_preview.py`
 - `db_creation/canon_export.py`
@@ -61,21 +58,10 @@ Run:
 venv/bin/python db_creation/metadata_db.py
 ```
 
-This stage talks to SteamSpy and Steam Store APIs and fills `steam_metadata.db`.
+This stage talks to SteamSpy and Steam Store APIs, fills `steam_metadata.db`,
+and then runs storefront asset enrichment for logos and library art.
 
-### 2. Storefront Asset Enrichment Stage
-
-Run:
-
-```bash
-venv/bin/python db_creation/metadata_store_asset_enrichment.py
-```
-
-This stage reads `steam_metadata.db`, fetches Steam store pages, and backfills
-extra storefront asset URLs such as logos, icons, and library art when they are
-discoverable on the page.
-
-### 3. Non-Canonical Semantic Stage
+### 2. Non-Canonical Semantic Stage
 
 Run:
 
@@ -95,7 +81,7 @@ That means the non-canon DB is the raw semantic source of truth for the later ca
 
 This stage resumes automatically based on already-written `appid` rows in `raw_game_semantics`.
 
-### 4. Canon Mapping Export Stage
+### 3. Canon Mapping Export Stage
 
 Preview a smaller mapping run:
 
@@ -116,7 +102,7 @@ Important outputs:
 - `metadata_canon_full.csv`
 - `vectors_canon_full.csv`
 
-### 5. Final Canonical DB Stage
+### 4. Final Canonical DB Stage
 
 Run:
 
@@ -132,7 +118,7 @@ This stage assumes the canonical CSVs already exist. It reads:
 
 Then it builds `steam_final_canon.db`.
 
-### 6. Chroma Retrieval Migration Stage
+### 5. Chroma Retrieval Migration Stage
 
 Run:
 
@@ -148,7 +134,7 @@ The intended architecture is:
 - `sqlite` for page/search/render content
 - `chroma` for candidate retrieval
 
-### 7. Visualization / QA Stage
+### 6. Visualization / QA Stage
 
 Run:
 

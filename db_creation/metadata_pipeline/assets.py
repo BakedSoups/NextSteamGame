@@ -1,18 +1,13 @@
-#!/usr/bin/env python3
-
 from __future__ import annotations
 
-import argparse
 import logging
 import sqlite3
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional, Sequence
 from urllib.parse import urlsplit, urlunsplit
 
 import requests
-
-from paths import metadata_db_path
 
 
 LOGGER = logging.getLogger("steam_store_asset_enrichment")
@@ -22,6 +17,7 @@ ASSET_COLUMNS = (
     "library_hero_image",
     "library_capsule_image",
 )
+
 ASSET_FILENAME_CANDIDATES = {
     "logo_image": [
         "logo.png",
@@ -46,14 +42,7 @@ ASSET_FILENAME_CANDIDATES = {
 }
 
 
-def configure_logging() -> None:
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-    )
-
-
-def ensure_columns(connection: sqlite3.Connection) -> None:
+def ensure_asset_columns(connection: sqlite3.Connection) -> None:
     existing = {
         row[1]
         for row in connection.execute("PRAGMA table_info(games)").fetchall()
@@ -93,14 +82,14 @@ class SteamStoreAssetEnricher:
     def __init__(
         self,
         db_path: str,
-        workers: int,
-        batch_size: int,
-        batch_delay: float,
-        timeout: int,
-        limit: Optional[int],
-        refresh: bool,
-        retry_failures: bool,
-        restart: bool,
+        workers: int = 5,
+        batch_size: int = 25,
+        batch_delay: float = 4.0,
+        timeout: int = 20,
+        limit: Optional[int] = None,
+        refresh: bool = False,
+        retry_failures: bool = False,
+        restart: bool = False,
     ) -> None:
         self.db_path = db_path
         self.workers = max(1, workers)
@@ -306,7 +295,7 @@ class SteamStoreAssetEnricher:
 
     def run(self) -> int:
         with self.connect() as connection:
-            ensure_columns(connection)
+            ensure_asset_columns(connection)
 
         if self.restart:
             LOGGER.info("Restart requested: clearing asset_enrichment_state and asset columns")
@@ -371,42 +360,3 @@ class SteamStoreAssetEnricher:
             print(f"- {column_name}: {populated_counts[column_name]}")
 
         return 0 if failures == 0 else 2
-
-
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Backfill Steam store page asset URLs into steam_metadata.db")
-    parser.add_argument("--db-path", default=str(metadata_db_path()))
-    parser.add_argument("--workers", type=int, default=5)
-    parser.add_argument("--batch-size", type=int, default=25)
-    parser.add_argument("--batch-delay", type=float, default=4.0)
-    parser.add_argument("--timeout", type=int, default=20)
-    parser.add_argument("--limit", type=int, default=None)
-    parser.add_argument("--refresh", action="store_true")
-    parser.add_argument("--retry-failures", action="store_true")
-    parser.add_argument(
-        "--restart",
-        action="store_true",
-        help="Clear asset_enrichment_state and reset logo/library asset columns before rerunning.",
-    )
-    return parser.parse_args()
-
-
-def main() -> int:
-    configure_logging()
-    args = parse_args()
-    enricher = SteamStoreAssetEnricher(
-        db_path=args.db_path,
-        workers=args.workers,
-        batch_size=args.batch_size,
-        batch_delay=args.batch_delay,
-        timeout=args.timeout,
-        limit=args.limit,
-        refresh=args.refresh,
-        retry_failures=args.retry_failures,
-        restart=args.restart,
-    )
-    return enricher.run()
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
