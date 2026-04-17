@@ -20,6 +20,7 @@ ASSET_ENRICHMENT_TIMEOUT = 20
 ASSET_ENRICHMENT_LIMIT = None
 ASSET_ENRICHMENT_REFRESH = False
 ASSET_ENRICHMENT_RETRY_FAILURES = False
+ASSET_ENRICHMENT_RETRY_NO_ASSETS = False
 ASSET_ENRICHMENT_RESTART = False
 
 
@@ -62,6 +63,7 @@ def run_storefront_asset_enrichment() -> int:
         limit=ASSET_ENRICHMENT_LIMIT,
         refresh=ASSET_ENRICHMENT_REFRESH,
         retry_failures=ASSET_ENRICHMENT_RETRY_FAILURES,
+        retry_no_assets=ASSET_ENRICHMENT_RETRY_NO_ASSETS,
         restart=ASSET_ENRICHMENT_RESTART,
     )
     return enricher.run()

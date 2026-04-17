@@ -89,6 +89,7 @@ class SteamStoreAssetEnricher:
         limit: Optional[int] = None,
         refresh: bool = False,
         retry_failures: bool = False,
+        retry_no_assets: bool = False,
         restart: bool = False,
     ) -> None:
         self.db_path = db_path
@@ -99,6 +100,7 @@ class SteamStoreAssetEnricher:
         self.limit = limit
         self.refresh = refresh
         self.retry_failures = retry_failures
+        self.retry_no_assets = retry_no_assets
         self.restart = restart
         self.session = requests.Session()
         self.session.headers.update(
@@ -121,17 +123,28 @@ class SteamStoreAssetEnricher:
 
     def load_target_appids(self) -> List[int]:
         conditions = " OR ".join(f"{column_name} IS NULL OR {column_name} = ''" for column_name in ASSET_COLUMNS)
+        has_base_art = """
+            (
+                COALESCE(g.header_image, '') != ''
+                OR COALESCE(g.capsule_image, '') != ''
+                OR COALESCE(g.capsule_imagev5, '') != ''
+                OR COALESCE(g.background_image, '') != ''
+            )
+        """
         query = f"""
             SELECT g.appid
             FROM games g
             LEFT JOIN asset_enrichment_state aes ON aes.appid = g.appid
             WHERE has_store_data = 1
+              AND {has_base_art}
         """
         if not self.refresh:
             query += f" AND ({conditions})"
             query += " AND (aes.appid IS NULL"
             if self.retry_failures:
                 query += " OR aes.status = 'failed'"
+            if self.retry_no_assets:
+                query += " OR aes.status = 'no_assets'"
             query += ")"
         query += " ORDER BY g.appid"
 
