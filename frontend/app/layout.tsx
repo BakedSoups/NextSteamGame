@@ -1,7 +1,6 @@
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
-import steamLogo from '@/art_assets/Steam-Logo.png'
 import './globals.css'
 
 const _geist = Geist({ subsets: ["latin"] });
@@ -12,8 +11,8 @@ export const metadata: Metadata = {
   description: 'Search, inspect, and tune game recommendations with precision controls',
   generator: 'v0.app',
   icons: {
-    icon: steamLogo.src,
-    apple: steamLogo.src,
+    icon: '/steam-logo.png',
+    apple: '/steam-logo.png',
   },
 }
 

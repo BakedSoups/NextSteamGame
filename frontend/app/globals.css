@@ -4,28 +4,28 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: oklch(0.18 0.02 255);
-  --foreground: oklch(0.93 0.01 90);
-  --card: oklch(0.23 0.02 255);
-  --card-foreground: oklch(0.93 0.01 90);
-  --popover: oklch(0.23 0.02 255);
-  --popover-foreground: oklch(0.93 0.01 90);
-  --primary: oklch(0.76 0.12 195);
-  --primary-foreground: oklch(0.17 0.01 255);
-  --secondary: oklch(0.28 0.02 255);
-  --secondary-foreground: oklch(0.89 0.01 90);
-  --muted: oklch(0.27 0.02 255);
-  --muted-foreground: oklch(0.70 0.01 90);
-  --accent: oklch(0.74 0.10 150);
-  --accent-foreground: oklch(0.16 0.01 255);
+  --background: oklch(0.17 0.03 248);
+  --foreground: oklch(0.95 0.02 235);
+  --card: oklch(0.22 0.03 248);
+  --card-foreground: oklch(0.95 0.02 235);
+  --popover: oklch(0.22 0.03 248);
+  --popover-foreground: oklch(0.95 0.02 235);
+  --primary: oklch(0.78 0.13 225);
+  --primary-foreground: oklch(0.16 0.02 248);
+  --secondary: oklch(0.27 0.03 246);
+  --secondary-foreground: oklch(0.92 0.02 235);
+  --muted: oklch(0.25 0.03 246);
+  --muted-foreground: oklch(0.76 0.03 235);
+  --accent: oklch(0.70 0.10 210);
+  --accent-foreground: oklch(0.15 0.02 248);
   --destructive: oklch(0.64 0.19 25);
   --destructive-foreground: oklch(0.97 0 0);
-  --border: oklch(0.36 0.02 255);
-  --input: oklch(0.25 0.02 255);
-  --ring: oklch(0.76 0.12 195);
+  --border: oklch(0.34 0.03 245);
+  --input: oklch(0.24 0.03 246);
+  --ring: oklch(0.78 0.13 225);
   --radius: 0.75rem;
-  --glow-cyan: rgba(78, 210, 255, 0.22);
-  --glow-green: rgba(108, 230, 173, 0.24);
+  --glow-cyan: rgba(86, 182, 255, 0.28);
+  --glow-green: rgba(92, 172, 255, 0.22);
 }
 
 @theme inline {
@@ -63,8 +63,8 @@
   body {
     @apply bg-background text-foreground;
     background-image:
-      radial-gradient(circle at top left, rgba(78, 210, 255, 0.08), transparent 24rem),
-      radial-gradient(circle at bottom right, rgba(108, 230, 173, 0.08), transparent 26rem);
+      radial-gradient(circle at top left, rgba(86, 182, 255, 0.11), transparent 24rem),
+      radial-gradient(circle at bottom right, rgba(44, 114, 255, 0.10), transparent 26rem);
   }
 }
 
@@ -102,7 +102,7 @@
   }
 
   .progress-fill-green {
-    @apply h-full rounded-full bg-gradient-to-r from-accent to-emerald-300;
+    @apply h-full rounded-full bg-gradient-to-r from-accent to-blue-300;
   }
 
   .tag-chip {

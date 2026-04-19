@@ -78,6 +78,20 @@ def _directory_url(url: str) -> str:
     return stripped.rsplit("/", 1)[0]
 
 
+def _app_root_url(url: str) -> Optional[str]:
+    stripped = _strip_query(url)
+    parts = urlsplit(stripped)
+    path_parts = [part for part in parts.path.split("/") if part]
+    try:
+        apps_index = path_parts.index("apps")
+    except ValueError:
+        return None
+    if len(path_parts) <= apps_index + 1:
+        return None
+    root_path = "/" + "/".join(path_parts[:apps_index + 2])
+    return urlunsplit((parts.scheme, parts.netloc, root_path, "", ""))
+
+
 class SteamStoreAssetEnricher:
     def __init__(
         self,
@@ -202,13 +216,19 @@ class SteamStoreAssetEnricher:
             )
             connection.commit()
 
-    def _derive_store_asset_base(self, appid: int) -> str:
-        context = self.load_existing_asset_context(appid)
+    def _derive_store_asset_bases(self, appid: int, context: Optional[dict[str, str]] = None) -> tuple[str, ...]:
+        context = context or self.load_existing_asset_context(appid)
+        bases: list[str] = [f"https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/{appid}"]
         for key in ("header_image", "capsule_image", "capsule_imagev5"):
             value = context.get(key)
             if value:
-                return _directory_url(value)
-        return f"https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/{appid}"
+                app_root = _app_root_url(value)
+                if app_root and app_root not in bases:
+                    bases.append(app_root)
+                directory = _directory_url(value)
+                if directory not in bases:
+                    bases.append(directory)
+        return tuple(bases)
 
     def _probe_image_url(self, url: str) -> bool:
         response = self.session.get(url, timeout=self.timeout, stream=True, allow_redirects=True)
@@ -220,20 +240,29 @@ class SteamStoreAssetEnricher:
         finally:
             response.close()
 
-    def extract_asset_urls(self, appid: int) -> Dict[str, Optional[str]]:
-        base_url = self._derive_store_asset_base(appid)
-        discovered: Dict[str, Optional[str]] = {}
+    def extract_asset_urls(
+        self,
+        appid: int,
+        existing_context: Optional[dict[str, str]] = None,
+        missing_columns: Optional[Sequence[str]] = None,
+    ) -> Dict[str, Optional[str]]:
+        columns_to_probe = tuple(missing_columns or ASSET_COLUMNS)
+        base_urls = self._derive_store_asset_bases(appid, context=existing_context)
+        discovered: Dict[str, Optional[str]] = {column_name: None for column_name in ASSET_COLUMNS}
 
-        for column_name in ASSET_COLUMNS:
+        for column_name in columns_to_probe:
             discovered[column_name] = None
-            for filename in ASSET_FILENAME_CANDIDATES[column_name]:
-                candidate = f"{base_url}/{filename}"
-                try:
-                    if self._probe_image_url(candidate):
-                        discovered[column_name] = candidate
-                        break
-                except requests.RequestException:
-                    continue
+            for base_url in base_urls:
+                for filename in ASSET_FILENAME_CANDIDATES[column_name]:
+                    candidate = f"{base_url}/{filename}"
+                    try:
+                        if self._probe_image_url(candidate):
+                            discovered[column_name] = candidate
+                            break
+                    except requests.RequestException:
+                        continue
+                if discovered[column_name]:
+                    break
 
         return discovered
 
@@ -260,6 +289,35 @@ class SteamStoreAssetEnricher:
             )
             connection.commit()
         return bool(result.rowcount)
+
+    def update_assets_batch(self, rows: Sequence[tuple[int, Dict[str, Optional[str]]]]) -> int:
+        payload = [
+            (
+                assets.get("logo_image"),
+                assets.get("library_hero_image"),
+                assets.get("library_capsule_image"),
+                appid,
+            )
+            for appid, assets in rows
+            if any(assets.values())
+        ]
+        if not payload:
+            return 0
+
+        with self.connect() as connection:
+            connection.executemany(
+                """
+                UPDATE games
+                SET logo_image = COALESCE(?, logo_image),
+                    library_hero_image = COALESCE(?, library_hero_image),
+                    library_capsule_image = COALESCE(?, library_capsule_image),
+                    updated_at = datetime('now')
+                WHERE appid = ?
+                """,
+                payload,
+            )
+            connection.commit()
+        return len(payload)
 
     def mark_state(self, appid: int, status: str, error_message: Optional[str] = None) -> None:
         with self.connect() as connection:

@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 import sqlite3
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 from metadata_pipeline.assets import (
     ASSET_COLUMNS,
@@ -35,10 +35,26 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def load_target_appids(db_path: str, limit: Optional[int], only_no_assets: bool) -> list[int]:
+def _missing_asset_columns(row: sqlite3.Row) -> tuple[str, ...]:
+    return tuple(
+        column_name
+        for column_name in ASSET_COLUMNS
+        if not (row[column_name] or "").strip()
+    )
+
+
+def load_target_rows(db_path: str, limit: Optional[int], only_no_assets: bool) -> list[dict[str, Any]]:
     conditions = " OR ".join(f"COALESCE(g.{column_name}, '') = ''" for column_name in ASSET_COLUMNS)
     query = f"""
-        SELECT g.appid
+        SELECT
+            g.appid,
+            g.header_image,
+            g.capsule_image,
+            g.capsule_imagev5,
+            g.background_image,
+            g.logo_image,
+            g.library_hero_image,
+            g.library_capsule_image
         FROM games g
         LEFT JOIN asset_enrichment_state aes ON aes.appid = g.appid
         WHERE g.has_store_data = 1
@@ -59,27 +75,48 @@ def load_target_appids(db_path: str, limit: Optional[int], only_no_assets: bool)
         params.append(limit)
 
     connection = sqlite3.connect(db_path)
+    connection.row_factory = sqlite3.Row
     try:
         rows = connection.execute(query, params).fetchall()
     finally:
         connection.close()
-    return [int(row[0]) for row in rows]
+    targets: list[dict[str, Any]] = []
+    for row in rows:
+        missing_columns = _missing_asset_columns(row)
+        if not missing_columns:
+            continue
+        targets.append(
+            {
+                "appid": int(row["appid"]),
+                "missing_columns": missing_columns,
+                "existing_context": {
+                    "header_image": row["header_image"] or "",
+                    "capsule_image": row["capsule_image"] or "",
+                    "capsule_imagev5": row["capsule_imagev5"] or "",
+                    "background_image": row["background_image"] or "",
+                },
+            }
+        )
+    return targets
 
 
-def probe_appid(enricher: SteamStoreAssetEnricher, appid: int) -> Dict[str, object]:
-    discovered = enricher.extract_asset_urls(appid)
+def probe_appid(enricher: SteamStoreAssetEnricher, target: dict[str, Any]) -> Dict[str, object]:
+    discovered = enricher.extract_asset_urls(
+        int(target["appid"]),
+        existing_context=target["existing_context"],
+        missing_columns=target["missing_columns"],
+    )
     return {
-        "appid": appid,
+        "appid": int(target["appid"]),
         "found": [name for name, value in discovered.items() if value],
         "assets": discovered,
-        "updated": False,
     }
 
 
 def main() -> int:
     args = parse_args()
-    appids = load_target_appids(args.db_path, args.limit, args.only_no_assets)
-    print(f"Checking {len(appids)} games for missing storefront assets with {args.workers} workers")
+    targets = load_target_rows(args.db_path, args.limit, args.only_no_assets)
+    print(f"Checking {len(targets)} games for missing storefront assets with {args.workers} workers")
     print(f"Candidate filenames: {sum(len(v) for v in ASSET_FILENAME_CANDIDATES.values())}")
 
     enricher = SteamStoreAssetEnricher(
@@ -93,28 +130,37 @@ def main() -> int:
     any_found = 0
     processed = 0
     updated_rows = 0
+    pending_updates: list[tuple[int, Dict[str, Optional[str]]]] = []
 
     with ThreadPoolExecutor(max_workers=max(1, args.workers)) as executor:
-        future_to_appid = {executor.submit(probe_appid, enricher, appid): appid for appid in appids}
+        future_to_appid = {
+            executor.submit(probe_appid, enricher, target): int(target["appid"])
+            for target in targets
+        }
         for future in as_completed(future_to_appid):
             processed += 1
             result = future.result()
             found = result["found"]
+            update_status = "not-requested"
             if found:
                 any_found += 1
                 for name in found:
                     found_counts[name] += 1
                 if args.write:
-                    result["updated"] = enricher.update_assets(int(result["appid"]), result["assets"])
-                    if result["updated"]:
-                        updated_rows += 1
+                    pending_updates.append((int(result["appid"]), result["assets"]))
+                    update_status = "queued"
+                else:
+                    update_status = "dry-run"
             print(
-                f"[{processed}/{len(appids)}] appid={result['appid']} found={found} updated={result['updated']}",
+                f"[{processed}/{len(targets)}] appid={result['appid']} found={found} write={update_status}",
                 flush=True,
             )
 
+    if args.write and pending_updates:
+        updated_rows = enricher.update_assets_batch(pending_updates)
+
     print("\nSummary")
-    print(f"- checked: {len(appids)}")
+    print(f"- checked: {len(targets)}")
     print(f"- games with at least one missing asset now discoverable: {any_found}")
     if args.write:
         print(f"- rows updated: {updated_rows}")

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any
 
@@ -9,7 +10,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from backend.db import FinalGameStore
+from backend.pg_store import PostgresGameStore, postgres_dsn_from_env
 from backend.recommender import (
     APPEAL_AXIS_ORDER,
     COMPONENT_ORDER,
@@ -20,14 +21,37 @@ from backend.recommender import (
     recommend_games,
 )
 from backend.retrieval import CandidateRetriever
-from db_creation.paths import chroma_dir_path, final_canon_db_path, metadata_db_path
+from db_creation.paths import chroma_dir_path
 
 
 ROOT = Path(__file__).resolve().parent
 HOST = "127.0.0.1"
 PORT = 8000
 
-store = FinalGameStore(final_canon_db_path(), metadata_db_path())
+
+def load_project_env() -> None:
+    env_path = ROOT / ".env"
+    if not env_path.exists():
+        return
+
+    for raw_line in env_path.read_text().splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        if not key or key in os.environ:
+            continue
+        os.environ[key] = value.strip().strip("\"'")
+
+
+load_project_env()
+
+postgres_dsn = postgres_dsn_from_env()
+if not postgres_dsn:
+    raise RuntimeError("STEAM_REC_POSTGRES_DSN must be set. SQLite fallback has been removed.")
+
+store = PostgresGameStore(postgres_dsn)
 retriever = CandidateRetriever(
     chroma_dir=chroma_dir_path(),
     fallback_games=store.load_all_games(),
@@ -238,7 +262,13 @@ def defaults() -> dict[str, Any]:
 @app.get("/api/search")
 def search_games(q: str = Query("", alias="q"), limit: int = Query(8, ge=1, le=25)) -> dict[str, Any]:
     results = store.search_games(q, limit=limit)
-    return {"query": q, "results": [_serialize_game(store.get_game(item["appid"]) or item) for item in results if store.get_game(item["appid"]) is not None]}
+    serialized_results: list[dict[str, Any]] = []
+    for item in results:
+        game = store.get_game(item["appid"])
+        if game is None:
+            continue
+        serialized_results.append(_serialize_game(game))
+    return {"query": q, "results": serialized_results}
 
 
 @app.get("/api/games/{appid}")
