@@ -31,11 +31,17 @@ The stages are intentionally separate:
 ## Pipeline Folders
 
 - `db_creation/metadata_pipeline`
+  Builds the raw Steam metadata database from SteamSpy and Steam Store API data.
 - `db_creation/noncanon_pipeline`
+  Builds raw review-derived semantic outputs before any canonical grouping.
 - `db_creation/canon_pipeline`
+  Converts messy non-canonical tags into canonical CSV mapping artifacts.
 - `db_creation/final_pipeline`
+  Applies canonical mappings and builds the final canonical SQLite database.
 - `db_creation/chroma_pipeline`
+  Migrates retrieval records from the final DB into the local Chroma collection.
 - `db_creation/db_builders`
+  Contains lower-level database builder implementations used by entry scripts.
 
 ## Databases
 
@@ -143,6 +149,80 @@ venv/bin/python db_creation/final_db_viz.py
 ```
 
 This stage reads the final DB and writes QA charts into `db_creation/analysis/final_db_viz/`.
+
+## Pipeline Reference
+
+### `metadata_pipeline`
+
+Purpose:
+Builds `data/steam_metadata.db` from Steam metadata APIs. This is the raw metadata source for downstream stages.
+
+Run:
+
+```bash
+venv/bin/python db_creation/metadata_db.py
+```
+
+### `noncanon_pipeline`
+
+Purpose:
+Reads `steam_metadata.db`, fetches reviews, runs the semantics model, and writes raw non-canonical outputs into `data/steam_initial_noncanon.db`.
+
+Run:
+
+```bash
+venv/bin/python db_creation/initial_noncanon_db.py
+```
+
+### `canon_pipeline`
+
+Purpose:
+Reads `steam_initial_noncanon.db`, groups raw tags into canonical representatives, and writes reviewable CSV mapping artifacts.
+
+Run preview:
+
+```bash
+venv/bin/python db_creation/canon_preview.py
+```
+
+Run full export:
+
+```bash
+venv/bin/python db_creation/canon_export.py
+```
+
+### `final_pipeline`
+
+Purpose:
+Reads the non-canon DB plus canonical CSV mappings and builds `data/steam_final_canon.db`.
+
+Run:
+
+```bash
+venv/bin/python db_creation/final_db.py
+```
+
+### `chroma_pipeline`
+
+Purpose:
+Reads the final canonical DB and loads retrieval documents into the local Chroma store under `data/chroma/`.
+
+Run:
+
+```bash
+venv/bin/python db_creation/chroma_db_migration.py
+```
+
+### `final_db_viz`
+
+Purpose:
+Reads the final canonical DB and generates QA charts under `db_creation/analysis/final_db_viz/`.
+
+Run:
+
+```bash
+venv/bin/python db_creation/final_db_viz.py
+```
 
 ## Running Stages Separately
 
