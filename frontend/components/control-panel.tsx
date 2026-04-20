@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { ChevronDown, ChevronRight, Puzzle, Sparkles, Grid3X3, Activity, Zap } from "lucide-react"
 import type { Game, Weights } from "@/lib/types"
 import { MATCH_LABELS } from "@/lib/score-labels"
@@ -85,6 +85,15 @@ const MATCH_VISUALS: Record<keyof Weights["match"], { label: string; fill: strin
   genre: { label: MATCH_LABELS.genre, fill: "#86efac", glow: "rgba(134, 239, 172, 0.3)" },
   appeal: { label: MATCH_LABELS.appeal, fill: "#fda4af", glow: "rgba(253, 164, 175, 0.3)" },
   music: { label: MATCH_LABELS.music, fill: "#fcd34d", glow: "rgba(252, 211, 77, 0.3)" },
+}
+
+const VECTOR_INFLUENCE_COLORS: Record<keyof Weights["context"], { fill: string; glow: string }> = {
+  mechanics: { fill: "#7dd3fc", glow: "rgba(125, 211, 252, 0.35)" },
+  narrative: { fill: "#c084fc", glow: "rgba(192, 132, 252, 0.30)" },
+  vibe: { fill: "#2dd4bf", glow: "rgba(45, 212, 191, 0.30)" },
+  structure_loop: { fill: "#f97316", glow: "rgba(249, 115, 22, 0.28)" },
+  uniqueness: { fill: "#fb7185", glow: "rgba(251, 113, 133, 0.30)" },
+  music: { fill: "#fcd34d", glow: "rgba(252, 211, 77, 0.3)" },
 }
 
 interface CollapsibleSectionProps {
@@ -224,14 +233,20 @@ function VectorRadarCard({
   const contextWeight = weights.context[context]
   const topTags = axisLabels.slice(0, 5)
   const chartCanvasSize = 150 + Math.round(contextWeight * 0.7)
+  const simpleChartCanvasSize = Math.max(112, Math.round(chartCanvasSize * 0.52))
   const chartScaleClass = highlighted ? "scale-[1.03]" : "scale-100"
-  const contentGridClass = interactive
-    ? "mt-4 grid min-w-0 gap-6 2xl:grid-cols-[220px_minmax(0,1fr)]"
-    : "mt-4 grid min-w-0 gap-6 2xl:grid-cols-[minmax(0,1fr)_220px]"
+  const [isAnimating, setIsAnimating] = useState(false)
+  const contentGridClass = interactive ? "mt-4 grid min-w-0 gap-6 2xl:grid-cols-[220px_minmax(0,1fr)]" : "mt-4"
+
+  useEffect(() => {
+    setIsAnimating(true)
+    const timeoutId = window.setTimeout(() => setIsAnimating(false), 420)
+    return () => window.clearTimeout(timeoutId)
+  }, [contextWeight, polygon, highlighted])
 
   return (
     <div
-      className={`min-w-0 overflow-hidden rounded-[26px] border p-5 shadow-[0_28px_80px_rgba(0,0,0,0.34)] transition-all duration-200 ${chartScaleClass}`}
+      className={`min-w-0 overflow-hidden rounded-[26px] border p-5 shadow-[0_28px_80px_rgba(0,0,0,0.34)] transition-all duration-300 ${chartScaleClass} ${isAnimating ? "scale-[1.015]" : ""}`}
       style={{
         borderColor: highlighted ? `${visual.accent}88` : "rgba(255,255,255,0.08)",
         background: `linear-gradient(180deg, rgba(10,17,26,0.98), rgba(16,24,36,0.92)), radial-gradient(circle at top, ${highlighted ? visual.glow.replace("0.", "0.55") : visual.glow}, transparent 58%)`,
@@ -256,49 +271,44 @@ function VectorRadarCard({
       </div>
 
       <div className={contentGridClass}>
-        <div className="min-w-0 space-y-3 pr-1">
-          {interactive ? (
-            <>
-              <WeightSlider
-                label={`${label} influence`}
-                value={contextWeight}
-                onChange={(value) => onContextWeightChange(context, value)}
-                color="accent"
-              />
-              <div className="min-w-0 space-y-2">
-                {topTags.map((tag) => (
-                  <WeightSlider
-                    key={`${context}-${tag}`}
-                    label={tag}
-                    value={weights.tags[context][tag] ?? 0}
-                    onChange={(value) => onTagWeightChange(context, tag, value)}
-                    color={context === "music" ? "accent" : "primary"}
-                  />
-                ))}
-              </div>
-            </>
-          ) : (
-            <div className="space-y-2">
+        {interactive ? (
+          <div className="min-w-0 space-y-3 pr-1">
+            <WeightSlider
+              label={`${label} influence`}
+              value={contextWeight}
+              onChange={(value) => onContextWeightChange(context, value)}
+              color="accent"
+            />
+            <div className="min-w-0 space-y-2">
               {topTags.map((tag) => (
-                <div
-                  key={`${context}-read-${tag}`}
-                  className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1.5 text-[10px] uppercase tracking-[0.12em] text-white/78"
-                >
-                  {tag.replace(/_/g, " ")}
-                </div>
+                <WeightSlider
+                  key={`${context}-${tag}`}
+                  label={tag}
+                  value={weights.tags[context][tag] ?? 0}
+                  onChange={(value) => onTagWeightChange(context, tag, value)}
+                  color={context === "music" ? "accent" : "primary"}
+                />
               ))}
             </div>
-          )}
-        </div>
+          </div>
+        ) : null}
 
         <div
-          className={`relative mx-auto ${interactive ? "lg:mx-0" : "lg:mx-auto"}`}
-          style={{ width: `${chartCanvasSize}px`, minWidth: `${chartCanvasSize}px` }}
+          className={`relative ${interactive ? "mx-auto lg:mx-0" : "mx-auto"}`}
+          style={{
+            width: interactive ? `${chartCanvasSize}px` : `${simpleChartCanvasSize}px`,
+            minWidth: interactive ? `${chartCanvasSize}px` : undefined,
+            maxWidth: interactive ? `${chartCanvasSize}px` : `${simpleChartCanvasSize}px`,
+          }}
         >
           <svg
             viewBox="0 0 160 160"
-            className="overflow-visible"
-            style={{ width: `${chartCanvasSize}px`, height: `${chartCanvasSize}px` }}
+            className={`overflow-visible transition-all duration-300 ${isAnimating ? "scale-[1.04]" : "scale-100"}`}
+            style={{
+              width: interactive ? `${chartCanvasSize}px` : `${simpleChartCanvasSize}px`,
+              height: interactive ? `${chartCanvasSize}px` : `${simpleChartCanvasSize}px`,
+              aspectRatio: "1 / 1",
+            }}
           >
             {[22, 38, 54, 70].map((radius) => (
               <polygon
@@ -331,11 +341,24 @@ function VectorRadarCard({
               fill={`${visual.accent}22`}
               stroke={visual.accent}
               strokeWidth="2.25"
-              style={{ filter: `drop-shadow(0 0 10px ${visual.glow})` }}
+              className="transition-all duration-300"
+              style={{
+                filter: `drop-shadow(0 0 ${isAnimating ? "18px" : "10px"} ${visual.glow})`,
+                opacity: isAnimating ? 1 : 0.92,
+              }}
             />
             {values.map((value, index) => {
               const point = polarPoint(index, values.length, 18 + (value / 100) * 52)
-              return <circle key={`point-${index}`} cx={point.x} cy={point.y} r="2.75" fill={visual.accent} />
+              return (
+                <circle
+                  key={`point-${index}`}
+                  cx={point.x}
+                  cy={point.y}
+                  r={isAnimating ? "3.5" : "2.75"}
+                  fill={visual.accent}
+                  className="transition-all duration-300"
+                />
+              )
             })}
           </svg>
           {axisLabels.map((axis, index) => {
@@ -343,7 +366,7 @@ function VectorRadarCard({
             return (
               <div
                 key={`${axis}-label`}
-                className="pointer-events-none absolute max-w-[124px] -translate-x-1/2 -translate-y-1/2 text-center text-[10px] leading-snug font-semibold uppercase tracking-[0.08em] text-white/88"
+                className={`pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 text-center leading-snug font-semibold uppercase text-white/92 ${interactive ? "max-w-[124px] text-[10px] tracking-[0.08em]" : "max-w-[148px] text-[12px] tracking-[0.05em]"}`}
                 style={{ left: `${(point.x / 160) * 100}%`, top: `${(point.y / 160) * 100}%` }}
               >
                 {axis.replace(/_/g, " ")}
@@ -424,7 +447,7 @@ export function ControlPanel({
           </div>
         </div>
         <div className="mb-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-          Match Mix
+          Recommendation Formula
         </div>
         <div className="overflow-hidden rounded-full border border-white/10 bg-white/[0.04]">
           <div className="flex h-3 w-full">
@@ -460,28 +483,28 @@ export function ControlPanel({
         </div>
         <div className="overflow-hidden rounded-full border border-white/10 bg-white/[0.04]">
           <div className="flex h-3 w-full">
-            {(Object.keys(weights.context) as (keyof Weights["context"])[]).map((key) => (
+            {(Object.keys(weights.context) as (keyof Weights["context"])[]).map((key, index) => (
               <div
                 key={key}
                 title={`${key.replace(/_/g, " ")}: ${weights.context[key]}%`}
                 style={{
                   width: `${weights.context[key]}%`,
-                  backgroundColor: CONTEXT_VISUALS[key as keyof Weights["tags"]].accent,
-                  boxShadow: `0 0 12px ${CONTEXT_VISUALS[key as keyof Weights["tags"]].glow}`,
+                  backgroundColor: VECTOR_INFLUENCE_COLORS[key].fill,
+                  boxShadow: `0 0 12px ${VECTOR_INFLUENCE_COLORS[key].glow}`,
                 }}
-                className="transition-all duration-300"
+                className={`transition-all duration-300 ${index > 0 ? "border-l border-black/30" : ""}`}
               />
             ))}
           </div>
         </div>
         <div className="mt-2 flex flex-wrap gap-2">
           {(Object.keys(weights.context) as (keyof Weights["context"])[]).map((key) => (
-            <div key={key} className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+            <div key={key} className="flex items-center gap-1.5 rounded-full border border-white/8 bg-white/[0.03] px-2.5 py-1 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
               <span
                 className="h-2.5 w-2.5 rounded-full"
                 style={{
-                  backgroundColor: CONTEXT_VISUALS[key as keyof Weights["tags"]].accent,
-                  boxShadow: `0 0 10px ${CONTEXT_VISUALS[key as keyof Weights["tags"]].glow}`,
+                  backgroundColor: VECTOR_INFLUENCE_COLORS[key].fill,
+                  boxShadow: `0 0 10px ${VECTOR_INFLUENCE_COLORS[key].glow}`,
                 }}
               />
               <span>{key.replace(/_/g, " ")}</span>
@@ -548,112 +571,178 @@ export function ControlPanel({
       )}
 
       {!resultsCompact && mode === "simple" && (
-        <div className="space-y-3">
-          <div className="grid gap-5 2xl:grid-cols-2">
-            {(Object.keys(weights.tags) as (keyof Weights["tags"])[]).map((context) => (
-              <VectorRadarCard
-                key={`simple-${context}`}
-                context={context}
-                label={context.replace(/_/g, " ")}
-                selectedGame={selectedGame}
-                weights={weights}
-                onContextWeightChange={onContextWeightChange}
-                onTagWeightChange={onTagWeightChange}
-                interactive={false}
-                highlighted={highlightedContexts.includes(context)}
-              />
-            ))}
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1.18fr)_minmax(0,0.82fr)]">
+          <div className="space-y-4 xl:sticky xl:top-24 xl:self-start">
+            <div className="grid gap-5 2xl:grid-cols-2">
+              {(Object.keys(weights.tags) as (keyof Weights["tags"])[]).map((context) => (
+                <VectorRadarCard
+                  key={`simple-${context}`}
+                  context={context}
+                  label={context.replace(/_/g, " ")}
+                  selectedGame={selectedGame}
+                  weights={weights}
+                  onContextWeightChange={onContextWeightChange}
+                  onTagWeightChange={onTagWeightChange}
+                  interactive={false}
+                  highlighted={highlightedContexts.includes(context)}
+                />
+              ))}
+            </div>
           </div>
 
-          <CollapsibleSection
-            title="Selected Words"
-            icon={<Activity className="h-3.5 w-3.5" />}
-            badge={selectedSimpleLabels.length > 0 ? String(selectedSimpleLabels.length) : "None"}
-            defaultOpen={true}
-          >
-            {selectedSimpleLabels.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {selectedSimpleLabels.map((tag) => (
-                  <span
-                    key={tag}
-                    className="rounded-full border border-primary/40 bg-primary/12 px-3 py-1.5 text-xs text-foreground shadow-[0_0_10px_var(--glow-cyan)]"
-                  >
-                    {tag}
-                  </span>
+          <div className="space-y-4">
+            <CollapsibleSection
+              title="Selected Words"
+              icon={<Activity className="h-3.5 w-3.5" />}
+              badge={selectedSimpleLabels.length > 0 ? String(selectedSimpleLabels.length) : "None"}
+              defaultOpen={true}
+            >
+              {selectedSimpleLabels.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {selectedSimpleLabels.map((tag) => (
+                    <span
+                      key={tag}
+                      className="rounded-full border border-primary/40 bg-primary/12 px-3 py-1.5 text-xs text-foreground shadow-[0_0_10px_var(--glow-cyan)]"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-[10px] text-muted-foreground">
+                  Click words below and they will appear here while the radar shapes adjust live.
+                </p>
+              )}
+            </CollapsibleSection>
+
+            <CollapsibleSection
+              title="What Do You Care About?"
+              icon={<Zap className="h-3.5 w-3.5" />}
+              badge="Tags"
+              defaultOpen={true}
+            >
+              <div className="space-y-4">
+                <p className="text-[10px] text-muted-foreground">
+                  Click the actual traits you care about. This pushes the real profile under the hood.
+                </p>
+                <div className="space-y-4">
+                  {featuredTags.map((group) => (
+                    <div key={group.context}>
+                      <div className="mb-2 text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+                        {group.label}
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {group.tags.map((tag) => {
+                          const selectionKey = `${group.context}:${tag}`
+                          const isSelected = selectedSimpleTags.includes(selectionKey)
+                          return (
+                            <button
+                              key={selectionKey}
+                              onClick={() => onSimpleTagToggle(group.context, tag)}
+                              className={`rounded-full border px-3 py-1.5 text-xs transition-colors ${
+                                isSelected
+                                  ? "border-primary bg-primary/15 text-foreground shadow-[0_0_12px_var(--glow-cyan)]"
+                                  : "border-border bg-secondary/30 text-foreground hover:border-primary/60 hover:bg-secondary/60"
+                              }`}
+                            >
+                              {tag}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </CollapsibleSection>
+
+            <CollapsibleSection
+              title="Quick Taste Shaping"
+              icon={<Zap className="h-3.5 w-3.5" />}
+              badge="Fast"
+              defaultOpen={false}
+            >
+              <div className="space-y-4">
+                <p className="text-[10px] text-muted-foreground">
+                  Use broad presets if you want faster shaping before opening the full vector editor.
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {SIMPLE_INTENTS.map((intent) => (
+                    <button
+                      key={intent.key}
+                      onClick={() => onSimpleIntentBoost(intent.key)}
+                      className="rounded-2xl border border-border bg-secondary/30 px-3 py-2 text-left transition-colors hover:border-primary/60 hover:bg-secondary/60"
+                    >
+                      <div className="text-xs font-medium text-foreground">{intent.label}</div>
+                      <div className="mt-1 text-[10px] text-muted-foreground">{intent.hint}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </CollapsibleSection>
+
+            <CollapsibleSection
+              title="Appeal Axes"
+              icon={<Sparkles className="h-3.5 w-3.5" />}
+              badge="Preference"
+              defaultOpen={false}
+            >
+              <div className="space-y-3">
+                {(Object.keys(weights.appeal) as (keyof Weights["appeal"])[]).map(key => (
+                  <WeightSlider
+                    key={key}
+                    label={key}
+                    value={weights.appeal[key]}
+                    onChange={(value) => onAppealWeightChange(key, value)}
+                  />
                 ))}
               </div>
-            ) : (
-              <p className="text-[10px] text-muted-foreground">
-                Click words below and they will appear here while the radar shapes adjust live.
-              </p>
-            )}
-          </CollapsibleSection>
+            </CollapsibleSection>
 
-          <CollapsibleSection
-            title="What Do You Care About?"
-            icon={<Zap className="h-3.5 w-3.5" />}
-            badge="Tags"
-            defaultOpen={true}
-          >
-            <div className="space-y-4">
-              <p className="text-[10px] text-muted-foreground">
-                Click the actual traits you care about. This pushes the real profile under the hood.
-              </p>
+            <CollapsibleSection
+              title="Genre Tree"
+              icon={<Grid3X3 className="h-3.5 w-3.5" />}
+              badge={`${weights.genres.primary.length + weights.genres.sub.length + weights.genres.sub_sub.length + weights.genres.traits.length}`}
+              defaultOpen={false}
+            >
               <div className="space-y-4">
-                {featuredTags.map((group) => (
-                  <div key={group.context}>
-                    <div className="mb-2 text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
-                      {group.label}
+                <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-3">
+                  <div className="text-[10px] uppercase tracking-[0.24em] text-white/45">Current path</div>
+                  <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-white/85">
+                    <span>{weights.genres.primary[0] || "Primary"}</span>
+                    <span className="text-white/28">→</span>
+                    <span>{weights.genres.sub[0] || "Genre"}</span>
+                    <span className="text-white/28">→</span>
+                    <span>{weights.genres.sub_sub[0] || "Sub-Genre"}</span>
+                  </div>
+                </div>
+                {GENRE_LEVELS.map(({ key, label, single }) => (
+                  <div key={key}>
+                    <div className="mb-2 flex items-center gap-2">
+                      <span className="terminal-label block">{label}</span>
+                      <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+                        {single ? "Single Select" : "Multi Select"}
+                      </span>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                      {group.tags.map((tag) => {
-                        const selectionKey = `${group.context}:${tag}`
-                        const isSelected = selectedSimpleTags.includes(selectionKey)
+                    <div className="flex flex-wrap gap-1">
+                      {genreOptions[key].map((genre) => {
+                        const isSelected = weights.genres[key].includes(genre)
                         return (
-                        <button
-                          key={selectionKey}
-                          onClick={() => onSimpleTagToggle(group.context, tag)}
-                          className={`rounded-full border px-3 py-1.5 text-xs transition-colors ${
-                            isSelected
-                              ? "border-primary bg-primary/15 text-foreground shadow-[0_0_12px_var(--glow-cyan)]"
-                              : "border-border bg-secondary/30 text-foreground hover:border-primary/60 hover:bg-secondary/60"
-                          }`}
-                        >
-                          {tag}
-                        </button>
+                          <button
+                            key={genre}
+                            onClick={() => onGenreToggle(key, genre)}
+                            className={`tag-chip cursor-pointer ${isSelected ? "included" : ""}`}
+                          >
+                            {genre}
+                          </button>
                         )
                       })}
                     </div>
                   </div>
                 ))}
               </div>
-            </div>
-          </CollapsibleSection>
-
-          <CollapsibleSection
-            title="Quick Taste Shaping"
-            icon={<Zap className="h-3.5 w-3.5" />}
-            badge="Fast"
-            defaultOpen={false}
-          >
-            <div className="space-y-4">
-              <p className="text-[10px] text-muted-foreground">
-                Use broad presets if you want faster shaping before opening the full vector editor.
-              </p>
-              <div className="grid grid-cols-2 gap-2">
-                {SIMPLE_INTENTS.map((intent) => (
-                  <button
-                    key={intent.key}
-                    onClick={() => onSimpleIntentBoost(intent.key)}
-                    className="rounded-2xl border border-border bg-secondary/30 px-3 py-2 text-left transition-colors hover:border-primary/60 hover:bg-secondary/60"
-                  >
-                    <div className="text-xs font-medium text-foreground">{intent.label}</div>
-                    <div className="mt-1 text-[10px] text-muted-foreground">{intent.hint}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </CollapsibleSection>
+            </CollapsibleSection>
+          </div>
         </div>
       )}
 

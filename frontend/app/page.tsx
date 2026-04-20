@@ -148,6 +148,26 @@ function simpleIntentHighlights(intent: SimpleIntentKey): TagContextKey[] {
   }
 }
 
+function reviewPositivePercent(game: RecommendedGame): number | null {
+  const positive = game.reviewStats?.positive ?? 0
+  const negative = game.reviewStats?.negative ?? 0
+  const total = positive + negative
+  if (total <= 0) {
+    return null
+  }
+  return (positive / total) * 100
+}
+
+function reviewRelevanceScore(game: RecommendedGame): number | null {
+  const positivity = reviewPositivePercent(game)
+  if (positivity === null) {
+    return null
+  }
+  const reviewCount = game.reviewStats?.reviewCount ?? 0
+  const confidence = Math.min(Math.log10(reviewCount + 1) / 5, 1)
+  return positivity * 0.72 + confidence * 100 * 0.28
+}
+
 async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
     ...init,
@@ -177,7 +197,7 @@ export default function NextSteamGamePage() {
   const [resultsLoading, setResultsLoading] = useState(false)
   const [resultsError, setResultsError] = useState<string | null>(null)
   const [rawRecommendations, setRawRecommendations] = useState<RecommendedGame[]>([])
-  const [tagFilters, setTagFilters] = useState<TagFilters>({ include: [], exclude: [] })
+  const [tagFilters, setTagFilters] = useState<TagFilters>({ include: [], exclude: [], minReviewPercent: 0, minReviewRelevance: 0 })
   const [weights, setWeights] = useState<Weights>({
     match: DEFAULT_MATCH_WEIGHTS,
     context: DEFAULT_CONTEXT_WEIGHTS,
@@ -249,7 +269,7 @@ export default function NextSteamGamePage() {
       return
     }
     setWeights(buildWeightsFromGame(selectedGame))
-    setTagFilters({ include: [], exclude: [] })
+    setTagFilters({ include: [], exclude: [], minReviewPercent: 0, minReviewRelevance: 0 })
     setSelectedSimpleTags([])
     setSimpleHighlightedContexts([])
   }, [selectedGame])
@@ -328,6 +348,22 @@ export default function NextSteamGamePage() {
         return !tagFilters.exclude.some((tag) =>
           allTags.some((candidate) => candidate.includes(tag.toLowerCase())),
         )
+      })
+    }
+
+    const minReviewPercent = tagFilters.minReviewPercent ?? 0
+    if (minReviewPercent > 0) {
+      filtered = filtered.filter((rec) => {
+        const percent = reviewPositivePercent(rec)
+        return percent === null || percent >= minReviewPercent
+      })
+    }
+
+    const minReviewRelevance = tagFilters.minReviewRelevance ?? 0
+    if (minReviewRelevance > 0) {
+      filtered = filtered.filter((rec) => {
+        const relevance = reviewRelevanceScore(rec)
+        return relevance === null || relevance >= minReviewRelevance
       })
     }
 

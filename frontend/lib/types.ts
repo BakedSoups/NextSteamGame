@@ -38,6 +38,11 @@ export interface Game {
 export interface RecommendedGame extends Game {
   matchScore: number
   confidence: number
+  reviewStats: {
+    positive: number
+    negative: number
+    reviewCount: number
+  }
   scores: {
     total: number
     vector: number
@@ -59,6 +64,8 @@ export interface RecommendedGame extends Game {
 export interface TagFilters {
   include: string[]
   exclude: string[]
+  minReviewPercent?: number
+  minReviewRelevance?: number
 }
 
 export interface Weights {

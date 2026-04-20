@@ -455,6 +455,7 @@ def recommend_games(
                 "capsule_image": game.get("capsule_image", ""),
                 "short_description": game.get("short_description", ""),
                 "signature_tag": game.get("signature_tag", ""),
+                "signals": game.get("signals", {}),
             }
         )
 

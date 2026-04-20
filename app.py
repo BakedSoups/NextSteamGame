@@ -169,6 +169,7 @@ def _serialize_game(game: dict) -> dict[str, Any]:
 
 def _serialize_recommendation(item: dict) -> dict[str, Any]:
     metadata = item.get("metadata", {})
+    signals = item.get("signals", {}) or {}
     genre_tree = metadata.get("genre_tree", {})
     assets = {
         "header": str(item.get("header_image", "")),
@@ -221,6 +222,16 @@ def _serialize_recommendation(item: dict) -> dict[str, Any]:
             "structure_loop": float(item.get("vector_context_percentages", {}).get("structure_loop", 0.0)),
             "uniqueness": float(item.get("vector_context_percentages", {}).get("uniqueness", 0.0)),
             "music": float(item.get("active_context_percentages", {}).get("music", 0.0)),
+        },
+        "reviewStats": {
+            "positive": int(signals.get("positive") or 0),
+            "negative": int(signals.get("negative") or 0),
+            "reviewCount": int(
+                signals.get("estimated_review_count")
+                or signals.get("recommendations_total")
+                or (int(signals.get("positive") or 0) + int(signals.get("negative") or 0))
+                or 0
+            ),
         },
     }
 

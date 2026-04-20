@@ -6,6 +6,8 @@ import { Search, X, Filter, ChevronDown, ChevronRight, Crosshair } from "lucide-
 interface TagFilterState {
   include: string[]
   exclude: string[]
+  minReviewPercent?: number
+  minReviewRelevance?: number
 }
 
 interface TagFilterPanelProps {
@@ -47,7 +49,7 @@ export function TagFilterPanel({ filters, tagOptions, onFiltersChange }: TagFilt
   }
 
   const clearAllFilters = () => {
-    onFiltersChange({ include: [], exclude: [] })
+    onFiltersChange({ include: [], exclude: [], minReviewPercent: 0, minReviewRelevance: 0 })
   }
 
   const filteredTags = useMemo(() => {
@@ -72,7 +74,11 @@ export function TagFilterPanel({ filters, tagOptions, onFiltersChange }: TagFilt
     return result
   }, [searchQuery, filters.include, tagOptions])
 
-  const activeFilterCount = filters.include.length + filters.exclude.length
+  const activeFilterCount =
+    filters.include.length +
+    filters.exclude.length +
+    ((filters.minReviewPercent ?? 0) > 0 ? 1 : 0) +
+    ((filters.minReviewRelevance ?? 0) > 0 ? 1 : 0)
 
   return (
     <div className="panel overflow-hidden glow-box-subtle">
@@ -167,6 +173,54 @@ export function TagFilterPanel({ filters, tagOptions, onFiltersChange }: TagFilt
             <span className="terminal-label">No Matching Tags</span>
           </div>
         )}
+      </div>
+
+      <div className="border-t border-border/60 p-3 space-y-4">
+        <div>
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-xs font-medium text-foreground">Positive Review Floor</span>
+            <span className="data-value text-[10px]">{Math.round(filters.minReviewPercent ?? 0)}%</span>
+          </div>
+          <input
+            type="range"
+            min={0}
+            max={100}
+            value={filters.minReviewPercent ?? 0}
+            onChange={(e) =>
+              onFiltersChange({
+                ...filters,
+                minReviewPercent: Number(e.target.value),
+              })
+            }
+            className="w-full"
+          />
+          <p className="mt-2 text-[10px] text-muted-foreground">
+            Hide games below this Steam positive review percentage.
+          </p>
+        </div>
+
+        <div>
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-xs font-medium text-foreground">Review Relevance Floor</span>
+            <span className="data-value text-[10px]">{Math.round(filters.minReviewRelevance ?? 0)}</span>
+          </div>
+          <input
+            type="range"
+            min={0}
+            max={100}
+            value={filters.minReviewRelevance ?? 0}
+            onChange={(e) =>
+              onFiltersChange({
+                ...filters,
+                minReviewRelevance: Number(e.target.value),
+              })
+            }
+            className="w-full"
+          />
+          <p className="mt-2 text-[10px] text-muted-foreground">
+            Hide games that do not meet the blended review relevance score based on positivity and review volume.
+          </p>
+        </div>
       </div>
     </div>
   )
