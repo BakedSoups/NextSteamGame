@@ -370,16 +370,6 @@ export default function NextSteamGamePage() {
     return filtered
   }, [rawRecommendations, tagFilters])
 
-  const genreOptions = useMemo<Weights["genres"]>(() => {
-    const sourceGames = selectedGame ? [selectedGame, ...recommendations] : recommendations
-    return {
-      primary: uniqueSorted(sourceGames.flatMap((game) => game.genres.primary)),
-      sub: uniqueSorted(sourceGames.flatMap((game) => game.genres.sub)),
-      sub_sub: uniqueSorted(sourceGames.flatMap((game) => game.genres.sub_sub)),
-      traits: uniqueSorted(sourceGames.flatMap((game) => game.genres.traits)),
-    }
-  }, [selectedGame, recommendations])
-
   const tagOptions = useMemo<Record<string, string[]>>(() => {
     const sourceGames = selectedGame ? [selectedGame, ...recommendations] : recommendations
     return {
@@ -610,21 +600,6 @@ export default function NextSteamGamePage() {
     }
   }
 
-  const toggleGenre = (category: keyof Weights["genres"], genre: string) => {
-    setWeights((prev) => {
-      const current = prev.genres[category]
-      const updated =
-        category === "traits"
-          ? (
-              current.includes(genre)
-                ? current.filter((g) => g !== genre)
-                : [...current, genre]
-            )
-          : (current[0] === genre ? [] : [genre])
-      return { ...prev, genres: { ...prev.genres, [category]: updated } }
-    })
-  }
-
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur-sm">
@@ -801,7 +776,6 @@ export default function NextSteamGamePage() {
                     selectedGame={selectedGame}
                     weights={weights}
                     highlightedContexts={simpleHighlightedContexts}
-                    genreOptions={genreOptions}
                     featuredTags={simpleFeaturedTags}
                     mode={controlMode}
                     onModeChange={setControlMode}
@@ -809,7 +783,6 @@ export default function NextSteamGamePage() {
                     onContextWeightChange={updateContextWeight}
                     onAppealWeightChange={updateAppealWeight}
                     onTagWeightChange={updateTagWeight}
-                    onGenreToggle={toggleGenre}
                     onSimpleIntentBoost={handleSimpleIntentBoost}
                     selectedSimpleTags={selectedSimpleTags}
                     onSimpleTagToggle={toggleSimpleTag}
@@ -870,7 +843,6 @@ export default function NextSteamGamePage() {
                 weights={weights}
                 highlightedContexts={simpleHighlightedContexts}
                 resultsCompact={true}
-                genreOptions={genreOptions}
                 featuredTags={simpleFeaturedTags}
                 mode={controlMode}
                 onModeChange={setControlMode}
@@ -878,7 +850,6 @@ export default function NextSteamGamePage() {
                 onContextWeightChange={updateContextWeight}
                 onAppealWeightChange={updateAppealWeight}
                 onTagWeightChange={updateTagWeight}
-                onGenreToggle={toggleGenre}
                 onSimpleIntentBoost={handleSimpleIntentBoost}
                 selectedSimpleTags={selectedSimpleTags}
                 onSimpleTagToggle={toggleSimpleTag}

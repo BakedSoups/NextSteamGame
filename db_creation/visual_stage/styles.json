@@ -1,0 +1,112 @@
+{
+  "render_family_labels": [
+    "stylized",
+    "realistic",
+    "pixel art",
+    "2d illustration"
+  ],
+  "render_substyle_labels": {
+    "stylized": [
+      "cel-shaded",
+      "painterly",
+      "anime-styled",
+      "graphic-novel",
+      "low-poly",
+      "stylized 3d",
+      "hand-painted",
+      "watercolor"
+    ],
+    "realistic": [
+      "photorealistic",
+      "realistic 3d",
+      "cinematic realism",
+      "grounded realism"
+    ],
+    "pixel art": [
+      "pixel art",
+      "retro pixel art",
+      "modern pixel art"
+    ],
+    "2d illustration": [
+      "hand-drawn 2d",
+      "illustrated 2d",
+      "graphic-novel",
+      "anime-styled"
+    ]
+  },
+  "visual_trait_labels": [
+    "high contrast",
+    "vibrant colors",
+    "muted colors",
+    "dreamlike lighting",
+    "cinematic lighting",
+    "soft natural lighting",
+    "clean minimal composition",
+    "dense environmental detail",
+    "organic flowing shapes",
+    "bold UI presentation",
+    "graphic UI presentation",
+    "underwater scenery",
+    "urban city imagery",
+    "fantasy nature imagery"
+  ],
+  "presentation_labels": [
+    "serene",
+    "stylish",
+    "cinematic",
+    "moody",
+    "dreamlike",
+    "grounded",
+    "playful",
+    "mysterious"
+  ],
+  "presentation_groups": {
+    "soft_atmosphere": [
+      "serene",
+      "dreamlike",
+      "whimsical",
+      "playful"
+    ],
+    "dramatic_atmosphere": [
+      "cinematic",
+      "moody",
+      "mysterious",
+      "surreal"
+    ],
+    "presentation_energy": [
+      "stylish",
+      "cinematic"
+    ],
+    "groundedness": [
+      "grounded"
+    ]
+  },
+  "trait_groups": {
+    "lighting": [
+      "dreamlike lighting",
+      "cinematic lighting",
+      "soft natural lighting"
+    ],
+    "composition": [
+      "clean minimal composition",
+      "dense environmental detail"
+    ],
+    "shape_language": [
+      "organic flowing shapes"
+    ],
+    "color": [
+      "vibrant colors",
+      "muted colors",
+      "high contrast"
+    ],
+    "setting": [
+      "underwater scenery",
+      "urban city imagery",
+      "fantasy nature imagery"
+    ],
+    "ui": [
+      "bold UI presentation",
+      "graphic UI presentation"
+    ]
+  }
+}

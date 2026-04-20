@@ -10,7 +10,6 @@ interface ControlPanelProps {
   weights: Weights
   highlightedContexts?: Array<keyof Weights["tags"]>
   resultsCompact?: boolean
-  genreOptions: Weights["genres"]
   featuredTags: Array<{
     context: keyof Weights["tags"]
     label: string
@@ -22,7 +21,6 @@ interface ControlPanelProps {
   onContextWeightChange: (key: keyof Weights["context"], value: number) => void
   onAppealWeightChange: (key: keyof Weights["appeal"], value: number) => void
   onTagWeightChange: (context: keyof Weights["tags"], tag: string, value: number) => void
-  onGenreToggle: (category: keyof Weights["genres"], genre: string) => void
   onSimpleIntentBoost: (intent: SimpleIntent) => void
   selectedSimpleTags: string[]
   onSimpleTagToggle: (context: keyof Weights["tags"], tag: string) => void
@@ -68,17 +66,6 @@ const CONTEXT_VISUALS: Record<
   uniqueness: { stat: "BIZARRE", accent: "#fcd34d", glow: "rgba(252, 211, 77, 0.28)" },
   music: { stat: "RHYTHM", accent: "#f9a8d4", glow: "rgba(249, 168, 212, 0.3)" },
 }
-
-const GENRE_LEVELS: Array<{
-  key: keyof Weights["genres"]
-  label: string
-  single: boolean
-}> = [
-  { key: "primary", label: "Primary Genre", single: true },
-  { key: "sub", label: "Genre", single: true },
-  { key: "sub_sub", label: "Sub-Genre", single: true },
-  { key: "traits", label: "Traits", single: false },
-]
 
 const MATCH_VISUALS: Record<keyof Weights["match"], { label: string; fill: string; glow: string }> = {
   vector: { label: MATCH_LABELS.vector, fill: "#7dd3fc", glow: "rgba(125, 211, 252, 0.35)" },
@@ -257,10 +244,7 @@ function VectorRadarCard({
     >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="text-[10px] uppercase tracking-[0.32em]" style={{ color: visual.accent }}>
-            {visual.stat}
-          </div>
-          <div className="mt-1 text-lg font-semibold text-white">{label}</div>
+          <div className="text-lg font-semibold text-white">{label}</div>
         </div>
         <div
           className="rounded-full border px-3 py-1 text-[11px] font-medium"
@@ -384,7 +368,6 @@ export function ControlPanel({
   weights,
   highlightedContexts = [],
   resultsCompact = false,
-  genreOptions,
   featuredTags,
   mode,
   onModeChange,
@@ -392,7 +375,6 @@ export function ControlPanel({
   onContextWeightChange,
   onAppealWeightChange,
   onTagWeightChange,
-  onGenreToggle,
   onSimpleIntentBoost,
   selectedSimpleTags,
   onSimpleTagToggle,
@@ -510,14 +492,6 @@ export function ControlPanel({
               <span>{key.replace(/_/g, " ")}</span>
               <span className="text-foreground">{weights.context[key]}%</span>
             </div>
-          ))}
-        </div>
-        <div className="h-px bg-border my-3" />
-        <div className="flex flex-wrap gap-1">
-          {Object.entries(weights.context).map(([key, value]) => (
-            <span key={key} className="tag-chip text-[9px]">
-              {key.replace(/_/g, " ")} {value}%
-            </span>
           ))}
         </div>
         {(genrePathSummary || weights.genres.traits.length > 0) && (
@@ -681,67 +655,6 @@ export function ControlPanel({
               </div>
             </CollapsibleSection>
 
-            <CollapsibleSection
-              title="Appeal Axes"
-              icon={<Sparkles className="h-3.5 w-3.5" />}
-              badge="Preference"
-              defaultOpen={false}
-            >
-              <div className="space-y-3">
-                {(Object.keys(weights.appeal) as (keyof Weights["appeal"])[]).map(key => (
-                  <WeightSlider
-                    key={key}
-                    label={key}
-                    value={weights.appeal[key]}
-                    onChange={(value) => onAppealWeightChange(key, value)}
-                  />
-                ))}
-              </div>
-            </CollapsibleSection>
-
-            <CollapsibleSection
-              title="Genre Tree"
-              icon={<Grid3X3 className="h-3.5 w-3.5" />}
-              badge={`${weights.genres.primary.length + weights.genres.sub.length + weights.genres.sub_sub.length + weights.genres.traits.length}`}
-              defaultOpen={false}
-            >
-              <div className="space-y-4">
-                <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-3">
-                  <div className="text-[10px] uppercase tracking-[0.24em] text-white/45">Current path</div>
-                  <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-white/85">
-                    <span>{weights.genres.primary[0] || "Primary"}</span>
-                    <span className="text-white/28">→</span>
-                    <span>{weights.genres.sub[0] || "Genre"}</span>
-                    <span className="text-white/28">→</span>
-                    <span>{weights.genres.sub_sub[0] || "Sub-Genre"}</span>
-                  </div>
-                </div>
-                {GENRE_LEVELS.map(({ key, label, single }) => (
-                  <div key={key}>
-                    <div className="mb-2 flex items-center gap-2">
-                      <span className="terminal-label block">{label}</span>
-                      <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-                        {single ? "Single Select" : "Multi Select"}
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                      {genreOptions[key].map((genre) => {
-                        const isSelected = weights.genres[key].includes(genre)
-                        return (
-                          <button
-                            key={genre}
-                            onClick={() => onGenreToggle(key, genre)}
-                            className={`tag-chip cursor-pointer ${isSelected ? "included" : ""}`}
-                          >
-                            {genre}
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CollapsibleSection>
           </div>
         </div>
       )}
@@ -784,91 +697,54 @@ export function ControlPanel({
               </p>
             </div>
 
-            <CollapsibleSection
-              title="Appeal Axes"
-              icon={<Sparkles className="h-3.5 w-3.5" />}
-              badge="Preference"
-              defaultOpen={false}
-            >
-              <div className="space-y-3">
-                <p className="text-[10px] text-muted-foreground mb-2">
-                  Preference intensity on each axis (0-100)
-                </p>
-                {(Object.keys(weights.appeal) as (keyof Weights["appeal"])[]).map(key => (
-                  <WeightSlider
-                    key={key}
-                    label={key}
-                    value={weights.appeal[key]}
-                    onChange={(value) => onAppealWeightChange(key, value)}
-                  />
-                ))}
+            <div className="panel overflow-hidden glow-box-subtle">
+              <div className="panel-header">
+                <div className="text-primary">
+                  <Sparkles className="h-3.5 w-3.5" />
+                </div>
+                <span className="text-xs font-medium text-foreground">Appeal Axes</span>
+                <span className="ml-auto data-value text-[10px]">Preference</span>
               </div>
-            </CollapsibleSection>
+              <div className="border-t border-border/50 p-3">
+                <div className="space-y-3">
+                  <p className="mb-2 text-[10px] text-muted-foreground">
+                    Preference intensity on each axis (0-100)
+                  </p>
+                  {(Object.keys(weights.appeal) as (keyof Weights["appeal"])[]).map((key) => (
+                    <WeightSlider
+                      key={key}
+                      label={key}
+                      value={weights.appeal[key]}
+                      onChange={(value) => onAppealWeightChange(key, value)}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
 
-            <CollapsibleSection
-              title="Genre Tree"
-              icon={<Grid3X3 className="h-3.5 w-3.5" />}
-              badge={`${weights.genres.primary.length + weights.genres.sub.length + weights.genres.sub_sub.length + weights.genres.traits.length}`}
-              defaultOpen={true}
-            >
-              <div className="space-y-4">
-                <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-3">
-                  <div className="text-[10px] uppercase tracking-[0.24em] text-white/45">Current path</div>
-                  <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-white/85">
-                    <span>{weights.genres.primary[0] || "Primary"}</span>
-                    <span className="text-white/28">→</span>
-                    <span>{weights.genres.sub[0] || "Genre"}</span>
-                    <span className="text-white/28">→</span>
-                    <span>{weights.genres.sub_sub[0] || "Sub-Genre"}</span>
+            {activeSignalTags.length > 0 && (
+              <div className="panel overflow-hidden glow-box-subtle">
+                <div className="panel-header">
+                  <div className="text-primary">
+                    <Grid3X3 className="h-3.5 w-3.5" />
+                  </div>
+                  <span className="text-xs font-medium text-foreground">Active Signals</span>
+                  <span className="ml-auto data-value text-[10px]">Live Tags</span>
+                </div>
+                <div className="border-t border-border/50 p-3">
+                  <div className="flex flex-wrap gap-2">
+                    {activeSignalTags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="rounded-full border border-sky-300/30 bg-sky-400/12 px-3 py-1.5 text-[11px] font-medium text-sky-50 shadow-[0_0_14px_rgba(56,189,248,0.16)]"
+                      >
+                        {tag}
+                      </span>
+                    ))}
                   </div>
                 </div>
-
-                {GENRE_LEVELS.map(({ key, label, single }) => (
-                  <div key={key}>
-                    <div className="mb-2 flex items-center gap-2">
-                      <span className="terminal-label block">{label}</span>
-                      <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-                        {single ? "Single Select" : "Multi Select"}
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                      {genreOptions[key].map((genre) => {
-                        const isSelected = weights.genres[key].includes(genre)
-                        return (
-                          <button
-                            key={genre}
-                            onClick={() => onGenreToggle(key, genre)}
-                            className={`tag-chip cursor-pointer ${isSelected ? "included" : ""}`}
-                          >
-                            {genre}
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </div>
-                ))}
-
-                {activeSignalTags.length > 0 && (
-                  <div>
-                    <div className="mb-2 flex items-center gap-2">
-                      <span className="terminal-label block">Active Signals</span>
-                      <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Live Tags</span>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {activeSignalTags.map((tag) => (
-                        <span
-                          key={tag}
-                          className="rounded-full border border-sky-300/30 bg-sky-400/12 px-3 py-1.5 text-[11px] font-medium text-sky-50 shadow-[0_0_14px_rgba(56,189,248,0.16)]"
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
-            </CollapsibleSection>
-
+            )}
           </div>
         </div>
       )}

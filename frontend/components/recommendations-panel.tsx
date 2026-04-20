@@ -61,10 +61,18 @@ function RecommendationCard({ game, rank, weights }: RecommendationCardProps) {
   const cardImage = game.assets.libraryCapsule || game.assets.capsuleV5 || game.image || IMAGE_FALLBACK
   const logoImage = game.assets.logo
   const scorePercentages = game.scorePercentages ?? {}
+  const steamStoreUrl = `https://store.steampowered.com/app/${game.appId}`
   
   return (
     <div className="panel overflow-hidden hover:glow-box transition-all corner-brackets">
       {/* Header */}
+      <a
+        href={steamStoreUrl}
+        target="_blank"
+        rel="noreferrer"
+        className="block border-b border-transparent transition-colors hover:bg-secondary/20"
+        aria-label={`Open ${game.title} on Steam`}
+      >
       <div className="flex gap-3 p-3">
         {/* Rank Badge & Image */}
         <div className="relative flex-shrink-0">
@@ -115,6 +123,7 @@ function RecommendationCard({ game, rank, weights }: RecommendationCardProps) {
           </div>
         </div>
       </div>
+      </a>
 
       {/* Mini Score Bars */}
       <div className="px-3 pb-2">

@@ -43,4 +43,4 @@ def chroma_dir_path() -> Path:
 
 
 def insightful_words_path() -> Path:
-    return DB_CREATION_ROOT / "insightful_words.json"
+    return DB_CREATION_ROOT / "noncanon_pipeline" / "insightful_words.json"
