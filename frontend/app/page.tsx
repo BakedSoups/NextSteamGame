@@ -548,9 +548,14 @@ export default function NextSteamGamePage() {
   const toggleGenre = (category: keyof Weights["genres"], genre: string) => {
     setWeights((prev) => {
       const current = prev.genres[category]
-      const updated = current.includes(genre)
-        ? current.filter((g) => g !== genre)
-        : [...current, genre]
+      const updated =
+        category === "traits"
+          ? (
+              current.includes(genre)
+                ? current.filter((g) => g !== genre)
+                : [...current, genre]
+            )
+          : (current[0] === genre ? [] : [genre])
       return { ...prev, genres: { ...prev.genres, [category]: updated } }
     })
   }
@@ -580,16 +585,16 @@ export default function NextSteamGamePage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-[1800px] px-6 py-8">
+      <main className={screen === "search" ? "" : "mx-auto max-w-[1800px] px-6 py-8"}>
         {screen === "search" && (
-          <div className="relative -mx-6 -mt-8 min-h-[calc(100vh-77px)] overflow-hidden">
+          <div className="relative min-h-[calc(100dvh-77px)] overflow-hidden">
             <img
               src={gameShelfBackground.src}
               alt=""
               className="absolute inset-0 h-full w-full object-cover"
             />
             <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(8,13,19,0.58),rgba(8,13,19,0.78)),linear-gradient(90deg,rgba(8,13,19,0.30),rgba(8,13,19,0.42))]" />
-            <div className="relative z-10 flex min-h-[calc(100vh-77px)] items-center justify-center px-12 py-12">
+            <div className="relative z-10 flex min-h-[calc(100dvh-77px)] items-center justify-center px-12 py-12">
               <div className="w-full max-w-3xl text-center">
                 <div className="flex items-center justify-center gap-4">
                   <h1 className="text-5xl font-semibold tracking-tight text-white md:text-6xl">
@@ -730,6 +735,7 @@ export default function NextSteamGamePage() {
 
                   <div className="rounded-[26px] border border-white/10 bg-[rgba(17,27,39,0.78)] p-4 backdrop-blur-xl md:p-5">
                     <ControlPanel
+                      selectedGame={selectedGame}
                       weights={weights}
                       genreOptions={genreOptions}
                       featuredTags={simpleFeaturedTags}
@@ -798,6 +804,7 @@ export default function NextSteamGamePage() {
                 </p>
               </div>
               <ControlPanel
+                selectedGame={selectedGame}
                 weights={weights}
                 genreOptions={genreOptions}
                 featuredTags={simpleFeaturedTags}

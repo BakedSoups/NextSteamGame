@@ -9,12 +9,13 @@ const IMAGE_FALLBACK = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/20
 
 interface SearchBarProps {
   games: Game[]
+  isLoading?: boolean
   onQueryChange?: (query: string) => void
   onSelect: (game: Game) => void
   selectedGame: Game | null
 }
 
-export function SearchBar({ games, onQueryChange, onSelect, selectedGame }: SearchBarProps) {
+export function SearchBar({ games, isLoading = false, onQueryChange, onSelect, selectedGame }: SearchBarProps) {
   const [query, setQuery] = useState("")
   const [isOpen, setIsOpen] = useState(false)
   const [focusedIndex, setFocusedIndex] = useState(-1)
@@ -92,9 +93,6 @@ export function SearchBar({ games, onQueryChange, onSelect, selectedGame }: Sear
 
       {isOpen && filteredGames.length > 0 && (
         <div className="absolute top-full left-0 right-0 mt-2 bg-card border border-border rounded-lg overflow-hidden shadow-lg z-50">
-          <div className="px-3 py-2 border-b border-border">
-            <span className="text-xs text-muted-foreground">{filteredGames.length} results</span>
-          </div>
           <div className="max-h-80 overflow-y-auto">
             {filteredGames.map((game, index) => (
               <button
@@ -136,7 +134,7 @@ export function SearchBar({ games, onQueryChange, onSelect, selectedGame }: Sear
       {isOpen && query.length > 0 && filteredGames.length === 0 && (
         <div className="absolute top-full left-0 right-0 mt-2 bg-card border border-border rounded-lg p-4 text-center shadow-lg z-50">
           <Search className="h-5 w-5 mx-auto text-muted-foreground mb-2" />
-          <p className="text-sm text-muted-foreground">No games found</p>
+          <p className="text-sm text-muted-foreground">{isLoading ? "Searching..." : "No games found"}</p>
         </div>
       )}
     </div>
