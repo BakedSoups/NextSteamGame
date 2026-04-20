@@ -39,6 +39,18 @@ const DEFAULT_APPEAL_WEIGHTS: Weights["appeal"] = {
 }
 
 type Screen = "search" | "profile" | "results"
+type TagContextKey = keyof Weights["tags"]
+type SimpleIntentKey =
+  | "mechanics"
+  | "narrative"
+  | "vibe"
+  | "structure_loop"
+  | "uniqueness"
+  | "music"
+  | "more_similar"
+  | "more_surprising"
+  | "more_story"
+  | "more_competitive"
 
 function uniqueSorted(values: string[]): string[] {
   return Array.from(new Set(values.filter(Boolean))).sort((a, b) => a.localeCompare(b))
@@ -111,6 +123,31 @@ function buildWeightsFromGame(game: Game): Weights {
   }
 }
 
+function simpleIntentHighlights(intent: SimpleIntentKey): TagContextKey[] {
+  switch (intent) {
+    case "mechanics":
+      return ["mechanics"]
+    case "narrative":
+      return ["narrative"]
+    case "vibe":
+      return ["vibe"]
+    case "structure_loop":
+      return ["structure_loop"]
+    case "uniqueness":
+      return ["uniqueness"]
+    case "music":
+      return ["music"]
+    case "more_similar":
+      return ["mechanics", "structure_loop"]
+    case "more_surprising":
+      return ["uniqueness", "music"]
+    case "more_story":
+      return ["narrative"]
+    case "more_competitive":
+      return ["mechanics"]
+  }
+}
+
 async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
     ...init,
@@ -132,6 +169,7 @@ export default function NextSteamGamePage() {
   const [controlMode, setControlMode] = useState<"simple" | "advanced">("simple")
   const [selectedGame, setSelectedGame] = useState<Game | null>(null)
   const [selectedSimpleTags, setSelectedSimpleTags] = useState<string[]>([])
+  const [simpleHighlightedContexts, setSimpleHighlightedContexts] = useState<TagContextKey[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [searchResults, setSearchResults] = useState<Game[]>([])
   const [searchLoading, setSearchLoading] = useState(false)
@@ -213,6 +251,7 @@ export default function NextSteamGamePage() {
     setWeights(buildWeightsFromGame(selectedGame))
     setTagFilters({ include: [], exclude: [] })
     setSelectedSimpleTags([])
+    setSimpleHighlightedContexts([])
   }, [selectedGame])
 
   useEffect(() => {
@@ -387,7 +426,7 @@ export default function NextSteamGamePage() {
     contextKey: keyof Weights["context"] | null,
     matchKey: keyof Weights["match"] | null,
     contextDelta = 12,
-    matchDelta = 8,
+    matchDelta = 14,
     appealUpdates: Partial<Weights["appeal"]> = {},
   ) => {
     setWeights((prev) => {
@@ -438,19 +477,8 @@ export default function NextSteamGamePage() {
     })
   }
 
-  const handleSimpleIntentBoost = (
-    intent:
-      | "mechanics"
-      | "narrative"
-      | "vibe"
-      | "structure_loop"
-      | "uniqueness"
-      | "music"
-      | "more_similar"
-      | "more_surprising"
-      | "more_story"
-      | "more_competitive",
-  ) => {
+  const handleSimpleIntentBoost = (intent: SimpleIntentKey) => {
+    setSimpleHighlightedContexts(simpleIntentHighlights(intent))
     switch (intent) {
       case "mechanics":
       case "narrative":
@@ -512,6 +540,7 @@ export default function NextSteamGamePage() {
   const toggleSimpleTag = (context: keyof Weights["tags"], tag: string) => {
     const selectionKey = `${context}:${tag}`
     const isSelected = selectedSimpleTags.includes(selectionKey)
+    setSimpleHighlightedContexts([context])
 
     setSelectedSimpleTags((prev) =>
       isSelected ? prev.filter((item) => item !== selectionKey) : [...prev, selectionKey],
@@ -585,7 +614,7 @@ export default function NextSteamGamePage() {
         </div>
       </header>
 
-      <main className={screen === "search" ? "" : "mx-auto max-w-[1800px] px-6 py-8"}>
+      <main className={screen === "search" ? "" : "mx-auto max-w-[1800px] px-3 py-8 md:px-4 xl:px-5"}>
         {screen === "search" && (
           <div className="relative min-h-[calc(100dvh-77px)] overflow-hidden">
             <img
@@ -625,8 +654,7 @@ export default function NextSteamGamePage() {
         )}
 
         {screen === "profile" && (
-          <div className="mx-auto max-w-[1500px]">
-            <div className="relative overflow-hidden rounded-[32px] border border-white/10 bg-[#121b27] shadow-[0_40px_120px_rgba(0,0,0,0.42)]">
+          <div className="relative -mx-6 -mt-8 overflow-hidden bg-[#121b27]">
               {profileHeroImage && (
                 <>
                   <div className="absolute inset-x-0 top-0 flex items-start justify-center overflow-hidden" style={{ height: backgroundHeroHeight }}>
@@ -652,7 +680,7 @@ export default function NextSteamGamePage() {
                 </>
               )}
 
-              <div className="relative z-10 p-6 md:p-8 xl:p-10">
+              <div className="relative z-10 px-4 py-6 md:px-5 md:py-8 xl:px-6 xl:py-10">
                 <div className="flex flex-col gap-6 xl:gap-8">
                   <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
                     <div className="space-y-4">
@@ -733,26 +761,25 @@ export default function NextSteamGamePage() {
                     </div>
                   </div>
 
-                  <div className="rounded-[26px] border border-white/10 bg-[rgba(17,27,39,0.78)] p-4 backdrop-blur-xl md:p-5">
-                    <ControlPanel
-                      selectedGame={selectedGame}
-                      weights={weights}
-                      genreOptions={genreOptions}
-                      featuredTags={simpleFeaturedTags}
-                      mode={controlMode}
-                      onModeChange={setControlMode}
-                      onMatchWeightChange={updateMatchWeight}
-                      onContextWeightChange={updateContextWeight}
-                      onAppealWeightChange={updateAppealWeight}
-                      onTagWeightChange={updateTagWeight}
-                      onGenreToggle={toggleGenre}
-                      onSimpleIntentBoost={handleSimpleIntentBoost}
-                      selectedSimpleTags={selectedSimpleTags}
-                      onSimpleTagToggle={toggleSimpleTag}
-                    />
-                  </div>
+                  <ControlPanel
+                    selectedGame={selectedGame}
+                    weights={weights}
+                    highlightedContexts={simpleHighlightedContexts}
+                    genreOptions={genreOptions}
+                    featuredTags={simpleFeaturedTags}
+                    mode={controlMode}
+                    onModeChange={setControlMode}
+                    onMatchWeightChange={updateMatchWeight}
+                    onContextWeightChange={updateContextWeight}
+                    onAppealWeightChange={updateAppealWeight}
+                    onTagWeightChange={updateTagWeight}
+                    onGenreToggle={toggleGenre}
+                    onSimpleIntentBoost={handleSimpleIntentBoost}
+                    selectedSimpleTags={selectedSimpleTags}
+                    onSimpleTagToggle={toggleSimpleTag}
+                  />
 
-                  <div className="flex justify-end">
+                  <div className="flex justify-end pb-6">
                     <button
                       onClick={() => setScreen("results")}
                       className="inline-flex items-center gap-2 rounded-full bg-[linear-gradient(180deg,#8fd7ff,#66c0f4)] px-6 py-3 text-sm font-semibold text-slate-950 shadow-[0_20px_40px_rgba(26,159,255,0.24)] transition hover:-translate-y-0.5 hover:bg-[linear-gradient(180deg,#a8e1ff,#79cbfb)] hover:text-slate-950"
@@ -763,7 +790,6 @@ export default function NextSteamGamePage() {
                   </div>
                 </div>
               </div>
-            </div>
           </div>
         )}
 
@@ -806,6 +832,8 @@ export default function NextSteamGamePage() {
               <ControlPanel
                 selectedGame={selectedGame}
                 weights={weights}
+                highlightedContexts={simpleHighlightedContexts}
+                resultsCompact={true}
                 genreOptions={genreOptions}
                 featuredTags={simpleFeaturedTags}
                 mode={controlMode}

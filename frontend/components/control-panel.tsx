@@ -3,10 +3,13 @@
 import { useState } from "react"
 import { ChevronDown, ChevronRight, Puzzle, Sparkles, Grid3X3, Activity, Zap } from "lucide-react"
 import type { Game, Weights } from "@/lib/types"
+import { MATCH_LABELS } from "@/lib/score-labels"
 
 interface ControlPanelProps {
   selectedGame: Game | null
   weights: Weights
+  highlightedContexts?: Array<keyof Weights["tags"]>
+  resultsCompact?: boolean
   genreOptions: Weights["genres"]
   featuredTags: Array<{
     context: keyof Weights["tags"]
@@ -77,6 +80,13 @@ const GENRE_LEVELS: Array<{
   { key: "traits", label: "Traits", single: false },
 ]
 
+const MATCH_VISUALS: Record<keyof Weights["match"], { label: string; fill: string; glow: string }> = {
+  vector: { label: MATCH_LABELS.vector, fill: "#7dd3fc", glow: "rgba(125, 211, 252, 0.35)" },
+  genre: { label: MATCH_LABELS.genre, fill: "#86efac", glow: "rgba(134, 239, 172, 0.3)" },
+  appeal: { label: MATCH_LABELS.appeal, fill: "#fda4af", glow: "rgba(253, 164, 175, 0.3)" },
+  music: { label: MATCH_LABELS.music, fill: "#fcd34d", glow: "rgba(252, 211, 77, 0.3)" },
+}
+
 interface CollapsibleSectionProps {
   title: string
   icon: React.ReactNode
@@ -129,9 +139,11 @@ function WeightSlider({ label, value, onChange, max = 100, color = "primary", sh
   
   return (
     <div className="space-y-1.5">
-      <div className="flex items-center justify-between">
-        <span className="terminal-label capitalize">{label.replace(/_/g, " ")}</span>
-        <span className="data-value text-xs">
+      <div className="flex items-start justify-between gap-2">
+        <span className="terminal-label min-w-0 flex-1 pr-2 text-left normal-case tracking-[0.08em] break-words">
+          {label.replace(/_/g, " ")}
+        </span>
+        <span className="data-value shrink-0 text-xs">
           {showPercentage ? `${value}%` : value}
         </span>
       </div>
@@ -174,6 +186,7 @@ interface VectorRadarCardProps {
   onContextWeightChange: (key: keyof Weights["context"], value: number) => void
   onTagWeightChange: (context: keyof Weights["tags"], tag: string, value: number) => void
   interactive?: boolean
+  highlighted?: boolean
 }
 
 function polarPoint(index: number, total: number, radius: number) {
@@ -192,6 +205,7 @@ function VectorRadarCard({
   onContextWeightChange,
   onTagWeightChange,
   interactive = true,
+  highlighted = false,
 }: VectorRadarCardProps) {
   const visual = CONTEXT_VISUALS[context]
   const selectedTags = selectedGame?.tags[context] ?? []
@@ -209,13 +223,21 @@ function VectorRadarCard({
     .join(" ")
   const contextWeight = weights.context[context]
   const topTags = axisLabels.slice(0, 5)
+  const chartCanvasSize = 150 + Math.round(contextWeight * 0.7)
+  const chartScaleClass = highlighted ? "scale-[1.03]" : "scale-100"
+  const contentGridClass = interactive
+    ? "mt-4 grid min-w-0 gap-6 2xl:grid-cols-[220px_minmax(0,1fr)]"
+    : "mt-4 grid min-w-0 gap-6 2xl:grid-cols-[minmax(0,1fr)_220px]"
 
   return (
     <div
-      className="rounded-[26px] border p-5 shadow-[0_28px_80px_rgba(0,0,0,0.34)]"
+      className={`min-w-0 overflow-hidden rounded-[26px] border p-5 shadow-[0_28px_80px_rgba(0,0,0,0.34)] transition-all duration-200 ${chartScaleClass}`}
       style={{
-        borderColor: "rgba(255,255,255,0.08)",
-        background: `linear-gradient(180deg, rgba(10,17,26,0.98), rgba(16,24,36,0.92)), radial-gradient(circle at top, ${visual.glow}, transparent 58%)`,
+        borderColor: highlighted ? `${visual.accent}88` : "rgba(255,255,255,0.08)",
+        background: `linear-gradient(180deg, rgba(10,17,26,0.98), rgba(16,24,36,0.92)), radial-gradient(circle at top, ${highlighted ? visual.glow.replace("0.", "0.55") : visual.glow}, transparent 58%)`,
+        boxShadow: highlighted
+          ? `0 0 0 1px ${visual.accent}55, 0 0 24px ${visual.glow}, 0 28px 80px rgba(0,0,0,0.34)`
+          : "0 28px 80px rgba(0,0,0,0.34)",
       }}
     >
       <div className="flex items-start justify-between gap-3">
@@ -233,9 +255,51 @@ function VectorRadarCard({
         </div>
       </div>
 
-      <div className="mt-4 grid gap-6 lg:grid-cols-[220px_minmax(260px,1fr)]">
-        <div className="relative mx-auto w-[200px] lg:mx-0">
-          <svg viewBox="0 0 160 160" className="h-[180px] w-[180px] overflow-visible">
+      <div className={contentGridClass}>
+        <div className="min-w-0 space-y-3 pr-1">
+          {interactive ? (
+            <>
+              <WeightSlider
+                label={`${label} influence`}
+                value={contextWeight}
+                onChange={(value) => onContextWeightChange(context, value)}
+                color="accent"
+              />
+              <div className="min-w-0 space-y-2">
+                {topTags.map((tag) => (
+                  <WeightSlider
+                    key={`${context}-${tag}`}
+                    label={tag}
+                    value={weights.tags[context][tag] ?? 0}
+                    onChange={(value) => onTagWeightChange(context, tag, value)}
+                    color={context === "music" ? "accent" : "primary"}
+                  />
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="space-y-2">
+              {topTags.map((tag) => (
+                <div
+                  key={`${context}-read-${tag}`}
+                  className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1.5 text-[10px] uppercase tracking-[0.12em] text-white/78"
+                >
+                  {tag.replace(/_/g, " ")}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div
+          className={`relative mx-auto ${interactive ? "lg:mx-0" : "lg:mx-auto"}`}
+          style={{ width: `${chartCanvasSize}px`, minWidth: `${chartCanvasSize}px` }}
+        >
+          <svg
+            viewBox="0 0 160 160"
+            className="overflow-visible"
+            style={{ width: `${chartCanvasSize}px`, height: `${chartCanvasSize}px` }}
+          >
             {[22, 38, 54, 70].map((radius) => (
               <polygon
                 key={radius}
@@ -279,64 +343,13 @@ function VectorRadarCard({
             return (
               <div
                 key={`${axis}-label`}
-                className="pointer-events-none absolute max-w-[96px] -translate-x-1/2 -translate-y-1/2 text-center text-[8px] leading-tight font-medium uppercase tracking-[0.12em] text-white/70"
+                className="pointer-events-none absolute max-w-[124px] -translate-x-1/2 -translate-y-1/2 text-center text-[10px] leading-snug font-semibold uppercase tracking-[0.08em] text-white/88"
                 style={{ left: `${(point.x / 160) * 100}%`, top: `${(point.y / 160) * 100}%` }}
               >
                 {axis.replace(/_/g, " ")}
               </div>
             )
           })}
-        </div>
-
-        <div className="space-y-3 min-w-0 pr-1">
-          <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-3">
-            <div className="text-[10px] uppercase tracking-[0.22em] text-white/45">
-              {interactive ? "Influence readout" : "Live readout"}
-            </div>
-            <div className="mt-2 text-sm leading-6 text-white/82">
-              {interactive ? (
-                <>
-                  The <span style={{ color: visual.accent }}>{label}</span> slider decides how much this vector matters in ranking.
-                </>
-              ) : (
-                <>
-                  <span style={{ color: visual.accent }}>{label}</span> reshapes live as you click simple-mode tags.
-                </>
-              )}
-            </div>
-          </div>
-          {interactive ? (
-            <>
-              <WeightSlider
-                label={`${label} influence`}
-                value={contextWeight}
-                onChange={(value) => onContextWeightChange(context, value)}
-                color="accent"
-              />
-              <div className="space-y-2">
-                {topTags.map((tag) => (
-                  <WeightSlider
-                    key={`${context}-${tag}`}
-                    label={tag}
-                    value={weights.tags[context][tag] ?? 0}
-                    onChange={(value) => onTagWeightChange(context, tag, value)}
-                    color={context === "music" ? "accent" : "primary"}
-                  />
-                ))}
-              </div>
-            </>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {topTags.map((tag) => (
-                <span
-                  key={`${context}-${tag}`}
-                  className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-[10px] uppercase tracking-[0.12em] text-white/72"
-                >
-                  {tag.replace(/_/g, " ")}
-                </span>
-              ))}
-            </div>
-          )}
         </div>
       </div>
     </div>
@@ -346,6 +359,8 @@ function VectorRadarCard({
 export function ControlPanel({
   selectedGame,
   weights,
+  highlightedContexts = [],
+  resultsCompact = false,
   genreOptions,
   featuredTags,
   mode,
@@ -363,6 +378,24 @@ export function ControlPanel({
     const [, ...tagParts] = entry.split(":")
     return tagParts.join(":")
   })
+  const activeSignalTags =
+    selectedSimpleLabels.length > 0
+      ? Array.from(new Set(selectedSimpleLabels)).slice(0, 8)
+      : Object.entries(weights.tags)
+          .flatMap(([context, tagMap]) =>
+            Object.entries(tagMap).map(([tag, value]) => ({
+              key: `${context}:${tag}`,
+              tag,
+              value,
+            })),
+          )
+          .filter((entry) => entry.value > 0)
+          .sort((left, right) => right.value - left.value)
+          .slice(0, 8)
+          .map((entry) => entry.tag)
+  const genrePathSummary = [weights.genres.primary[0], weights.genres.sub[0], weights.genres.sub_sub[0]]
+    .filter(Boolean)
+    .join(" → ")
 
   return (
     <div className="space-y-3">
@@ -390,15 +423,73 @@ export function ControlPanel({
             </button>
           </div>
         </div>
-        <div className="flex flex-wrap gap-1.5 mb-3">
-          {Object.entries(weights.match).map(([key, value]) => (
-            <div key={key} className="flex items-center gap-1.5 px-2 py-1 bg-secondary rounded border border-border">
-              <span className="terminal-label">{key}</span>
-              <span className="data-value text-xs">{value}%</span>
+        <div className="mb-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+          Match Mix
+        </div>
+        <div className="overflow-hidden rounded-full border border-white/10 bg-white/[0.04]">
+          <div className="flex h-3 w-full">
+            {(Object.keys(weights.match) as (keyof Weights["match"])[]).map((key) => (
+              <div
+                key={key}
+                title={`${MATCH_VISUALS[key].label}: ${weights.match[key]}%`}
+                style={{
+                  width: `${weights.match[key]}%`,
+                  backgroundColor: MATCH_VISUALS[key].fill,
+                  boxShadow: `0 0 12px ${MATCH_VISUALS[key].glow}`,
+                }}
+                className="transition-all duration-300"
+              />
+            ))}
+          </div>
+        </div>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {(Object.keys(weights.match) as (keyof Weights["match"])[]).map((key) => (
+            <div key={key} className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+              <span
+                className="h-2.5 w-2.5 rounded-full"
+                style={{ backgroundColor: MATCH_VISUALS[key].fill, boxShadow: `0 0 10px ${MATCH_VISUALS[key].glow}` }}
+              />
+              <span>{MATCH_VISUALS[key].label}</span>
+              <span className="text-foreground">{weights.match[key]}%</span>
             </div>
           ))}
         </div>
-        <div className="h-px bg-border mb-3" />
+        <div className="h-px bg-border my-3" />
+        <div className="mb-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+          Vector Influence
+        </div>
+        <div className="overflow-hidden rounded-full border border-white/10 bg-white/[0.04]">
+          <div className="flex h-3 w-full">
+            {(Object.keys(weights.context) as (keyof Weights["context"])[]).map((key) => (
+              <div
+                key={key}
+                title={`${key.replace(/_/g, " ")}: ${weights.context[key]}%`}
+                style={{
+                  width: `${weights.context[key]}%`,
+                  backgroundColor: CONTEXT_VISUALS[key as keyof Weights["tags"]].accent,
+                  boxShadow: `0 0 12px ${CONTEXT_VISUALS[key as keyof Weights["tags"]].glow}`,
+                }}
+                className="transition-all duration-300"
+              />
+            ))}
+          </div>
+        </div>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {(Object.keys(weights.context) as (keyof Weights["context"])[]).map((key) => (
+            <div key={key} className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+              <span
+                className="h-2.5 w-2.5 rounded-full"
+                style={{
+                  backgroundColor: CONTEXT_VISUALS[key as keyof Weights["tags"]].accent,
+                  boxShadow: `0 0 10px ${CONTEXT_VISUALS[key as keyof Weights["tags"]].glow}`,
+                }}
+              />
+              <span>{key.replace(/_/g, " ")}</span>
+              <span className="text-foreground">{weights.context[key]}%</span>
+            </div>
+          ))}
+        </div>
+        <div className="h-px bg-border my-3" />
         <div className="flex flex-wrap gap-1">
           {Object.entries(weights.context).map(([key, value]) => (
             <span key={key} className="tag-chip text-[9px]">
@@ -406,9 +497,57 @@ export function ControlPanel({
             </span>
           ))}
         </div>
+        {(genrePathSummary || weights.genres.traits.length > 0) && (
+          <>
+            <div className="h-px bg-border my-3" />
+            <div className="space-y-2">
+              {genrePathSummary && (
+                <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                  Genre Path: <span className="text-foreground">{genrePathSummary}</span>
+                </div>
+              )}
+              {weights.genres.traits.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {weights.genres.traits.map((trait) => (
+                    <span key={trait} className="tag-chip text-[9px]">
+                      {trait}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </div>
 
-      {mode === "simple" && (
+      {resultsCompact && (
+        <CollapsibleSection
+          title="Quick Taste Shaping"
+          icon={<Zap className="h-3.5 w-3.5" />}
+          badge="Fast"
+          defaultOpen={true}
+        >
+          <div className="space-y-4">
+            <p className="text-[10px] text-muted-foreground">
+              Use presets to nudge the current formula without opening the full tuning surface.
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {SIMPLE_INTENTS.map((intent) => (
+                <button
+                  key={intent.key}
+                  onClick={() => onSimpleIntentBoost(intent.key)}
+                  className="rounded-2xl border border-border bg-secondary/30 px-3 py-2 text-left transition-colors hover:border-primary/60 hover:bg-secondary/60"
+                >
+                  <div className="text-xs font-medium text-foreground">{intent.label}</div>
+                  <div className="mt-1 text-[10px] text-muted-foreground">{intent.hint}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </CollapsibleSection>
+      )}
+
+      {!resultsCompact && mode === "simple" && (
         <div className="space-y-3">
           <div className="grid gap-5 2xl:grid-cols-2">
             {(Object.keys(weights.tags) as (keyof Weights["tags"])[]).map((context) => (
@@ -421,6 +560,7 @@ export function ControlPanel({
                 onContextWeightChange={onContextWeightChange}
                 onTagWeightChange={onTagWeightChange}
                 interactive={false}
+                highlighted={highlightedContexts.includes(context)}
               />
             ))}
           </div>
@@ -517,7 +657,7 @@ export function ControlPanel({
         </div>
       )}
 
-      {mode === "advanced" && (
+      {!resultsCompact && mode === "advanced" && (
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1.18fr)_minmax(0,0.82fr)]">
           <div className="space-y-4 xl:sticky xl:top-24 xl:self-start">
             <div className="panel p-4 glow-box">
@@ -535,13 +675,14 @@ export function ControlPanel({
                   key={context}
                   context={context}
                   label={context.replace(/_/g, " ")}
-                  selectedGame={selectedGame}
-                  weights={weights}
-                  onContextWeightChange={onContextWeightChange}
-                  onTagWeightChange={onTagWeightChange}
-                />
-              ))}
-            </div>
+                selectedGame={selectedGame}
+                weights={weights}
+                onContextWeightChange={onContextWeightChange}
+                onTagWeightChange={onTagWeightChange}
+                highlighted={highlightedContexts.includes(context)}
+              />
+            ))}
+          </div>
           </div>
 
           <div className="space-y-4">
@@ -617,6 +758,25 @@ export function ControlPanel({
                     </div>
                   </div>
                 ))}
+
+                {activeSignalTags.length > 0 && (
+                  <div>
+                    <div className="mb-2 flex items-center gap-2">
+                      <span className="terminal-label block">Active Signals</span>
+                      <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Live Tags</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {activeSignalTags.map((tag) => (
+                        <span
+                          key={tag}
+                          className="rounded-full border border-sky-300/30 bg-sky-400/12 px-3 py-1.5 text-[11px] font-medium text-sky-50 shadow-[0_0_14px_rgba(56,189,248,0.16)]"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </CollapsibleSection>
 

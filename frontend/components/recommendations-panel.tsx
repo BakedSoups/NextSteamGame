@@ -4,8 +4,16 @@ import { useState } from "react"
 import Image from "next/image"
 import { ChevronDown, ChevronUp, Radar, Zap, Target, AudioLines } from "lucide-react"
 import type { RecommendedGame, Weights } from "@/lib/types"
+import { MATCH_LABELS } from "@/lib/score-labels"
 
 const IMAGE_FALLBACK = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='320' height='180'><rect width='100%' height='100%' fill='%2311161f'/></svg>"
+
+const MATCH_COLORS: Record<keyof Weights["match"], string> = {
+  vector: "#7dd3fc",
+  genre: "#86efac",
+  appeal: "#fda4af",
+  music: "#fcd34d",
+}
 
 interface RecommendationsPanelProps {
   recommendations: RecommendedGame[]
@@ -17,9 +25,10 @@ interface ScoreBarProps {
   value: number
   max?: number
   color?: "primary" | "accent"
+  fillColor?: string
 }
 
-function ScoreBar({ label, value, max = 100, color = "primary" }: ScoreBarProps) {
+function ScoreBar({ label, value, max = 100, color = "primary", fillColor }: ScoreBarProps) {
   const percentage = Math.min((Math.abs(value) / max) * 100, 100)
   const isNegative = value < 0
   
@@ -31,7 +40,7 @@ function ScoreBar({ label, value, max = 100, color = "primary" }: ScoreBarProps)
       <div className="flex-1 progress-track">
         <div 
           className={isNegative ? "h-full bg-destructive" : color === "accent" ? "progress-fill-green" : "progress-fill"}
-          style={{ width: `${percentage}%` }}
+          style={{ width: `${percentage}%`, ...(fillColor ? { background: fillColor } : {}) }}
         />
       </div>
       <span className={`data-value text-[10px] w-12 text-right ${isNegative ? "text-destructive" : ""}`}>
@@ -116,17 +125,18 @@ function RecommendationCard({ game, rank, weights }: RecommendationCardProps) {
             { key: "appeal", value: scorePercentages.appeal ?? game.scores.appeal, weight: weights.match.appeal },
             { key: "music", value: scorePercentages.music ?? game.scores.music, weight: weights.match.music }
           ].map(({ key, value, weight }) => (
-            <div key={key} className="flex-1" title={`${key}: ${value.toFixed(1)}% (weight: ${weight}%)`}>
+            <div key={key} className="flex-1" title={`${MATCH_LABELS[key as keyof Weights["match"]]}: ${value.toFixed(1)}% (weight: ${weight}%)`}>
               <div className="progress-track mb-0.5">
                 <div 
-                  className="progress-fill"
+                  className="h-full rounded-full"
                   style={{ 
                     width: `${Math.min(value, 100)}%`,
-                    opacity: 0.4 + (weight / 100) * 0.6
+                    opacity: 0.4 + (weight / 100) * 0.6,
+                    background: MATCH_COLORS[key as keyof Weights["match"]],
                   }}
                 />
               </div>
-              <span className="terminal-label text-[8px] block text-center capitalize">{key}</span>
+              <span className="terminal-label text-[8px] block text-center">{MATCH_LABELS[key as keyof Weights["match"]]}</span>
             </div>
           ))}
         </div>
@@ -165,10 +175,10 @@ function RecommendationCard({ game, rank, weights }: RecommendationCardProps) {
               <span className="terminal-label text-primary">Score Contribution</span>
             </div>
             <div className="space-y-1.5">
-              <ScoreBar label="Vector" value={scorePercentages.vector ?? game.scores.vector} />
-              <ScoreBar label="Genre" value={scorePercentages.genre ?? game.scores.genre} />
-              <ScoreBar label="Appeal" value={scorePercentages.appeal ?? game.scores.appeal} />
-              <ScoreBar label="Music" value={scorePercentages.music ?? game.scores.music} />
+              <ScoreBar label="Gameplay" value={scorePercentages.vector ?? game.scores.vector} fillColor={MATCH_COLORS.vector} />
+              <ScoreBar label="Genre" value={scorePercentages.genre ?? game.scores.genre} fillColor={MATCH_COLORS.genre} />
+              <ScoreBar label="Appeal" value={scorePercentages.appeal ?? game.scores.appeal} fillColor={MATCH_COLORS.appeal} />
+              <ScoreBar label="Music" value={scorePercentages.music ?? game.scores.music} fillColor={MATCH_COLORS.music} />
             </div>
           </div>
 
