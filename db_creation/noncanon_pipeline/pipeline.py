@@ -17,6 +17,7 @@ def build_skipped_profile(status: str) -> Dict:
             "descriptive": [],
             "artistic": [],
             "music": [],
+            "systems_depth": [],
         },
         "vectors": {
             "status": status,
@@ -24,12 +25,15 @@ def build_skipped_profile(status: str) -> Dict:
             "narrative": {},
             "vibe": {},
             "structure_loop": {},
-            "uniqueness": {},
         },
         "metadata": {
             "status": status,
             "micro_tags": [],
             "signature_tag": "",
+            "niche_anchors": [],
+            "identity_tags": [],
+            "music_primary": "",
+            "music_secondary": "",
             "appeal_axes": {
                 "challenge": 50,
                 "complexity": 50,
@@ -38,12 +42,10 @@ def build_skipped_profile(status: str) -> Dict:
                 "social_energy": 50,
                 "creativity": 50,
             },
-            "soundtrack_tags": [],
             "genre_tree": {
-                "primary": [],
-                "sub": [],
-                "sub_sub": [],
-                "traits": [],
+                "primary": "",
+                "sub": "",
+                "sub_sub": "",
             },
         },
     }
@@ -67,20 +69,20 @@ def build_game_output(appid: str, insightful_words: Dict) -> Dict:
             "metadata": skipped["metadata"],
         }
     except NoReviewsAfterFilteringError as exc:
-        raise NoReviewsError(str(exc)) from exc
+        raise NoReviewsError(str(exc), status="no_reviews_after_filtering") from exc
 
     if not reviews:
-        raise NoReviewsError("No reviews")
+        raise NoReviewsError("No reviews", status="no_reviews")
 
     advance_appid(appid, "fetch", f"raw Steam reviews collected")
     advance_appid(appid, "filter", f"{len(reviews)} reviews survived filtering")
     review_samples = select_review_samples(reviews, insightful_words)
-    if not any(review_samples.get(category) for category in ("descriptive", "artistic", "music")):
-        raise NoReviewsError("No insightful reviews")
+    if not any(review_samples.get(category) for category in ("descriptive", "artistic", "music", "systems_depth")):
+        raise NoReviewsError("No insightful reviews", status="no_insightful_reviews")
 
     sample_counts = {
         category: len(review_samples.get(category, []))
-        for category in ("descriptive", "artistic", "music")
+        for category in ("descriptive", "artistic", "music", "systems_depth")
     }
     advance_appid(
         appid,
@@ -88,7 +90,8 @@ def build_game_output(appid: str, insightful_words: Dict) -> Dict:
         (
             f"descriptive={sample_counts['descriptive']} "
             f"artistic={sample_counts['artistic']} "
-            f"music={sample_counts['music']}"
+            f"music={sample_counts['music']} "
+            f"systems_depth={sample_counts['systems_depth']}"
         ),
     )
     semantics = generate_game_semantics(review_samples, appid=appid)

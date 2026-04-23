@@ -3,7 +3,9 @@ class CreditsExhaustedError(RuntimeError):
 
 
 class NoReviewsError(RuntimeError):
-    pass
+    def __init__(self, message: str, *, status: str) -> None:
+        super().__init__(message)
+        self.status = status
 
 
 class SteamReviewsUnavailableError(RuntimeError):

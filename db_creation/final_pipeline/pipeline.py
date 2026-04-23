@@ -58,6 +58,32 @@ def _split_members(raw_value: str) -> list[str]:
     return [member.strip() for member in raw_value.split(" | ") if member.strip()]
 
 
+def _iter_text_values(raw: object) -> list[str]:
+    if isinstance(raw, str):
+        text = raw.strip()
+        return [text] if text else []
+    if isinstance(raw, list):
+        return [str(item).strip() for item in raw if str(item).strip()]
+    return []
+
+
+def _canonicalize_single_tag(raw: object, context: str, mapping: Dict[str, Dict[str, str]]) -> str:
+    for tag in _iter_text_values(raw):
+        return mapping.get(context, {}).get(normalize_tag_text(tag), tag)
+    return ""
+
+
+def _canonicalize_tag_list(raw: object, context: str, mapping: Dict[str, Dict[str, str]]) -> list[str]:
+    canonicalized: list[str] = []
+    seen = set()
+    for tag in _iter_text_values(raw):
+        canonical = mapping.get(context, {}).get(normalize_tag_text(tag), tag)
+        if canonical not in seen:
+            seen.add(canonical)
+            canonicalized.append(canonical)
+    return canonicalized
+
+
 def load_group_csv(csv_path: Path, family: str) -> dict:
     if not csv_path.exists():
         raise FileNotFoundError(f"Missing {family} canonical CSV: {csv_path}")
@@ -93,31 +119,16 @@ def load_group_csv(csv_path: Path, family: str) -> dict:
 
 def _canonicalize_metadata(metadata: Dict, mapping: Dict[str, Dict[str, str]]) -> Dict:
     status = str(metadata.get("status", "")).strip()
-    canon_micro = []
-    seen_micro = set()
-    for tag in metadata.get("micro_tags", []):
-        canonical = mapping.get("micro_tags", {}).get(normalize_tag_text(tag), tag)
-        if canonical not in seen_micro:
-            seen_micro.add(canonical)
-            canon_micro.append(canonical)
+    canon_micro = _canonicalize_tag_list(metadata.get("micro_tags", []), "micro_tags", mapping)
+    canon_niche_anchors = _canonicalize_tag_list(metadata.get("niche_anchors", []), "niche_anchors", mapping)
+    canon_identity_tags = _canonicalize_tag_list(metadata.get("identity_tags", []), "identity_tags", mapping)
 
-    canon_tree = {"primary": [], "sub": [], "sub_sub": [], "traits": []}
-    for branch in ("primary", "sub", "sub_sub", "traits"):
-        seen_branch = set()
-        context = f"genre_tree.{branch}"
-        for tag in metadata.get("genre_tree", {}).get(branch, []):
-            canonical = mapping.get(context, {}).get(normalize_tag_text(tag), tag)
-            if canonical not in seen_branch:
-                seen_branch.add(canonical)
-                canon_tree[branch].append(canonical)
-
-    canon_soundtrack = []
-    seen_soundtrack = set()
-    for tag in metadata.get("soundtrack_tags", []):
-        canonical = mapping.get("soundtrack_tags", {}).get(normalize_tag_text(tag), tag)
-        if canonical not in seen_soundtrack:
-            seen_soundtrack.add(canonical)
-            canon_soundtrack.append(canonical)
+    genre_tree = metadata.get("genre_tree", {})
+    canon_tree = {
+        "primary": _canonicalize_single_tag(genre_tree.get("primary"), "genre_tree.primary", mapping),
+        "sub": _canonicalize_single_tag(genre_tree.get("sub"), "genre_tree.sub", mapping),
+        "sub_sub": _canonicalize_single_tag(genre_tree.get("sub_sub"), "genre_tree.sub_sub", mapping),
+    }
 
     raw_signature_tag = str(metadata.get("signature_tag", "")).strip()
     canonical_signature_tag = ""
@@ -126,13 +137,24 @@ def _canonicalize_metadata(metadata: Dict, mapping: Dict[str, Dict[str, str]]) -
             normalize_tag_text(raw_signature_tag),
             raw_signature_tag,
         )
+    music_primary = _canonicalize_single_tag(metadata.get("music_primary"), "music_primary", mapping)
+    music_secondary = _canonicalize_single_tag(metadata.get("music_secondary"), "music_secondary", mapping)
+    if not music_primary and not music_secondary:
+        legacy_soundtrack = _canonicalize_tag_list(metadata.get("soundtrack_tags", []), "music_primary", mapping)
+        if legacy_soundtrack:
+            music_primary = legacy_soundtrack[0]
+        if len(legacy_soundtrack) > 1:
+            music_secondary = legacy_soundtrack[1]
     appeal_axes = dict(metadata.get("appeal_axes") or {})
 
     canonical_metadata = {
         "micro_tags": canon_micro,
         "signature_tag": canonical_signature_tag,
+        "niche_anchors": canon_niche_anchors,
+        "identity_tags": canon_identity_tags,
+        "music_primary": music_primary,
+        "music_secondary": music_secondary,
         "appeal_axes": appeal_axes,
-        "soundtrack_tags": canon_soundtrack,
         "genre_tree": canon_tree,
     }
     if status:
@@ -141,7 +163,7 @@ def _canonicalize_metadata(metadata: Dict, mapping: Dict[str, Dict[str, str]]) -
 
 
 def _canonicalize_vectors(vectors: Dict, mapping: Dict[str, Dict[str, str]]) -> Dict:
-    valid_contexts = {"mechanics", "narrative", "vibe", "structure_loop", "uniqueness"}
+    valid_contexts = {"mechanics", "narrative", "vibe", "structure_loop"}
     canonical_vectors: Dict[str, Dict[str, int]] = {}
     status = str(vectors.get("status", "")).strip()
     for context, tag_weights in vectors.items():

@@ -9,12 +9,12 @@ VECTOR_CONTEXT_MULTIPLIERS = {
     "narrative": 0.20,
     "vibe": 0.35,
     "structure_loop": 1.20,
-    "uniqueness": 0.55,
 }
+IDENTITY_CONTEXT_MULTIPLIER = 0.55
 SOUNDTRACK_CONTEXT_MULTIPLIER = 0.41
 
 VECTOR_CONTEXT_ORDER = tuple(VECTOR_CONTEXT_MULTIPLIERS.keys())
-CONTENT_CONTEXT_ORDER = VECTOR_CONTEXT_ORDER + ("music",)
+CONTENT_CONTEXT_ORDER = VECTOR_CONTEXT_ORDER + ("uniqueness", "music")
 APPEAL_AXIS_ORDER = (
     "challenge",
     "complexity",
@@ -41,7 +41,6 @@ GENRE_BRANCH_WEIGHTS = {
     "primary": 0.8,
     "sub": 0.9,
     "sub_sub": 0.95,
-    "traits": 1.0,
 }
 
 VECTOR_SCORE_WEIGHT = 0.55
@@ -87,6 +86,7 @@ def component_percentages_to_weights(percentages: dict[str, float | int] | None)
 def default_context_percentages() -> dict[str, int]:
     raw_weights = {
         **VECTOR_CONTEXT_MULTIPLIERS,
+        "uniqueness": IDENTITY_CONTEXT_MULTIPLIER,
         "music": SOUNDTRACK_CONTEXT_MULTIPLIER,
     }
     total = sum(raw_weights.values()) or 1.0
@@ -107,12 +107,14 @@ def context_percentages_to_multipliers(percentages: dict[str, float | int]) -> d
     if not percentages:
         return {
             **VECTOR_CONTEXT_MULTIPLIERS,
+            "uniqueness": IDENTITY_CONTEXT_MULTIPLIER,
             "music": SOUNDTRACK_CONTEXT_MULTIPLIER,
         }
     total = sum(float(value) for value in percentages.values())
     if total <= 0:
         return {
             **VECTOR_CONTEXT_MULTIPLIERS,
+            "uniqueness": IDENTITY_CONTEXT_MULTIPLIER,
             "music": SOUNDTRACK_CONTEXT_MULTIPLIER,
         }
     context_count = max(len(CONTENT_CONTEXT_ORDER), 1)
@@ -131,8 +133,54 @@ def default_appeal_axes(metadata: dict) -> dict[str, int]:
 
 
 def _top_branch_tags(metadata: dict, branch: str, limit: int) -> list[str]:
-    tags = metadata.get("genre_tree", {}).get(branch, [])
-    return [tag for tag in tags[:limit] if tag]
+    raw = metadata.get("genre_tree", {}).get(branch)
+    if isinstance(raw, list):
+        return [str(tag) for tag in raw[:limit] if str(tag).strip()]
+    if isinstance(raw, str) and raw.strip():
+        return [raw.strip()]
+    return []
+
+
+def _genre_branch_tags(metadata: dict, branch: str) -> set[str]:
+    raw = metadata.get("genre_tree", {}).get(branch)
+    if isinstance(raw, list):
+        return {str(tag).strip() for tag in raw if str(tag).strip()}
+    if isinstance(raw, str) and raw.strip():
+        return {raw.strip()}
+    return set()
+
+
+def _metadata_music_tags(metadata: dict) -> list[str]:
+    tags: list[str] = []
+    for field in ("music_primary", "music_secondary"):
+        value = str(metadata.get(field, "")).strip()
+        if value and value not in tags:
+            tags.append(value)
+    for tag in metadata.get("soundtrack_tags", []) or []:
+        text = str(tag).strip()
+        if text and text not in tags:
+            tags.append(text)
+    return tags
+
+
+def _identity_source_weights(metadata: dict) -> dict[str, float]:
+    weighted: dict[str, float] = {}
+    signature_tag = str(metadata.get("signature_tag", "")).strip()
+    if signature_tag:
+        weighted[signature_tag] = max(weighted.get(signature_tag, 0.0), 1.40)
+    for tag in metadata.get("niche_anchors", []) or []:
+        text = str(tag).strip()
+        if text:
+            weighted[text] = max(weighted.get(text, 0.0), 1.15)
+    for tag in metadata.get("identity_tags", []) or []:
+        text = str(tag).strip()
+        if text:
+            weighted[text] = max(weighted.get(text, 0.0), 1.0)
+    for tag in metadata.get("micro_tags", []) or []:
+        text = str(tag).strip()
+        if text:
+            weighted[text] = max(weighted.get(text, 0.0), 0.65)
+    return weighted
 
 
 def _normalize_weights(tag_weights: dict[str, int | float]) -> dict[str, float]:
@@ -168,12 +216,11 @@ def _build_genre_preferences(
     added_genres: dict[str, list[str]] | None = None,
     removed_genres: dict[str, list[str]] | None = None,
 ) -> dict[str, dict[str, float]]:
-    genre_tree = metadata.get("genre_tree", {})
-    added = added_genres or {"primary": [], "sub": [], "sub_sub": [], "traits": []}
-    removed = removed_genres or {"primary": [], "sub": [], "sub_sub": [], "traits": []}
+    added = added_genres or {"primary": [], "sub": [], "sub_sub": []}
+    removed = removed_genres or {"primary": [], "sub": [], "sub_sub": []}
     preferences: dict[str, dict[str, float]] = {}
-    for branch in ("primary", "sub", "sub_sub", "traits"):
-        branch_tags = set(genre_tree.get(branch, []))
+    for branch in ("primary", "sub", "sub_sub"):
+        branch_tags = set(_genre_branch_tags(metadata, branch))
         branch_tags.update(added.get(branch, []))
         branch_tags.difference_update(removed.get(branch, []))
         preferences[branch] = {
@@ -183,21 +230,36 @@ def _build_genre_preferences(
     return preferences
 
 
-def _build_soundtrack_preferences(
+def _build_music_preferences(
     metadata: dict,
     extra_boosts: dict[str, float] | None = None,
     soundtrack_multiplier: float = 1.0,
 ) -> dict[str, float]:
     boosts = extra_boosts or {}
-    tags = metadata.get("soundtrack_tags", [])
-    if not tags:
+    default_tags = _metadata_music_tags(metadata)
+    source_weights = boosts or {tag: 1.0 for tag in default_tags}
+    if not source_weights:
         return {}
-
-    normalized = _normalize_weights(boosts or {tag: 1 for tag in tags})
+    normalized = _normalize_weights(source_weights)
     preferences: dict[str, float] = {}
     for tag, weight in normalized.items():
         preferences[tag] = weight * soundtrack_multiplier
     return preferences
+
+
+def _build_identity_preferences(
+    metadata: dict,
+    extra_boosts: dict[str, float] | None = None,
+    identity_multiplier: float = 1.0,
+) -> dict[str, float]:
+    source_weights = extra_boosts or _identity_source_weights(metadata)
+    if not source_weights:
+        return {}
+    normalized = _normalize_weights(source_weights)
+    return {
+        tag: weight * identity_multiplier
+        for tag, weight in normalized.items()
+    }
 
 
 def _appeal_match_score(candidate_metadata: dict, target_axes: dict[str, int]) -> float:
@@ -249,42 +311,45 @@ def _genre_match_score(
     candidate_metadata: dict,
     preferences: dict[str, dict[str, float]],
 ) -> float:
-    genre_tree = candidate_metadata.get("genre_tree", {})
     total_weight = sum(sum(branch.values()) for branch in preferences.values()) or 1.0
     matched_weight = 0.0
     for branch, tag_weights in preferences.items():
-        candidate_tags = set(genre_tree.get(branch, []))
+        candidate_tags = _genre_branch_tags(candidate_metadata, branch)
         for tag, weight in tag_weights.items():
             if tag in candidate_tags:
                 matched_weight += weight
     return matched_weight / total_weight
 
 
-def _soundtrack_match_score(candidate_metadata: dict, preferences: dict[str, float]) -> float:
+def _music_match_score(candidate_metadata: dict, preferences: dict[str, float]) -> float:
     if not preferences:
         return 0.0
-    candidate_tags = set(candidate_metadata.get("soundtrack_tags", []))
+    candidate_tags = set(_metadata_music_tags(candidate_metadata))
+    total_weight = sum(preferences.values()) or 1.0
+    matched_weight = sum(weight for tag, weight in preferences.items() if tag in candidate_tags)
+    return matched_weight / total_weight
+
+
+def _identity_match_score(candidate_metadata: dict, preferences: dict[str, float]) -> float:
+    if not preferences:
+        return 0.0
+    candidate_tags = set(_identity_source_weights(candidate_metadata))
     total_weight = sum(preferences.values()) or 1.0
     matched_weight = sum(weight for tag, weight in preferences.items() if tag in candidate_tags)
     return matched_weight / total_weight
 
 
 def _apply_penalties(total_score: float, base_metadata: dict, candidate_metadata: dict) -> float:
-    base_tree = base_metadata.get("genre_tree", {})
-    genre_tree = candidate_metadata.get("genre_tree", {})
-    base_primary = set(base_tree.get("primary", []))
-    base_sub = set(base_tree.get("sub", []))
-    base_sub_sub = set(base_tree.get("sub_sub", []))
-    base_traits = set(base_tree.get("traits", []))
-    primary_tags = set(genre_tree.get("primary", []))
-    sub_tags = set(genre_tree.get("sub", []))
-    sub_sub_tags = set(genre_tree.get("sub_sub", []))
-    trait_tags = set(genre_tree.get("traits", []))
+    base_primary = _genre_branch_tags(base_metadata, "primary")
+    base_sub = _genre_branch_tags(base_metadata, "sub")
+    base_sub_sub = _genre_branch_tags(base_metadata, "sub_sub")
+    primary_tags = _genre_branch_tags(candidate_metadata, "primary")
+    sub_tags = _genre_branch_tags(candidate_metadata, "sub")
+    sub_sub_tags = _genre_branch_tags(candidate_metadata, "sub_sub")
 
     primary_overlap = len(base_primary & primary_tags)
     sub_overlap = len(base_sub & sub_tags)
     sub_sub_overlap = len(base_sub_sub & sub_sub_tags)
-    trait_overlap = len(base_traits & trait_tags)
 
     if base_primary and primary_overlap == 0:
         total_score *= 0.82
@@ -292,8 +357,6 @@ def _apply_penalties(total_score: float, base_metadata: dict, candidate_metadata
         total_score *= 0.88
     if base_sub_sub and sub_sub_overlap == 0:
         total_score *= 0.91
-    if base_traits and trait_overlap == 0:
-        total_score *= 0.94
 
     if base_primary:
         contradictory_primary = primary_tags - base_primary
@@ -308,7 +371,6 @@ def _apply_penalties(total_score: float, base_metadata: dict, candidate_metadata
     base_anchor_primary = set(_top_branch_tags(base_metadata, "primary", 2))
     base_anchor_sub = set(_top_branch_tags(base_metadata, "sub", 3))
     base_anchor_sub_sub = set(_top_branch_tags(base_metadata, "sub_sub", 3))
-    base_anchor_traits = set(_top_branch_tags(base_metadata, "traits", 4))
 
     if base_anchor_primary and (base_anchor_primary & primary_tags):
         total_score *= 1.08
@@ -316,8 +378,6 @@ def _apply_penalties(total_score: float, base_metadata: dict, candidate_metadata
         total_score *= 1.12
     if base_anchor_sub_sub and (base_anchor_sub_sub & sub_sub_tags):
         total_score *= 1.08
-    if base_anchor_traits and (base_anchor_traits & trait_tags):
-        total_score *= 1.05
 
     return total_score
 
@@ -388,7 +448,12 @@ def recommend_games(
         context_multipliers=context_multipliers,
     )
     genre_preferences = _build_genre_preferences(base_game["metadata"], added_genres, removed_genres)
-    soundtrack_preferences = _build_soundtrack_preferences(
+    identity_preferences = _build_identity_preferences(
+        base_game["metadata"],
+        (extra_vector_boosts or {}).get("uniqueness"),
+        identity_multiplier=context_multipliers.get("uniqueness", 1.0),
+    )
+    music_preferences = _build_music_preferences(
         base_game["metadata"],
         extra_soundtrack_boosts,
         soundtrack_multiplier=context_multipliers.get("music", 1.0),
@@ -400,11 +465,22 @@ def recommend_games(
         if int(game["appid"]) == int(base_game["appid"]):
             continue
 
-        vector_score = _vector_match_score(game["vectors"], vector_preferences)
         vector_breakdown = _vector_context_breakdown(game["vectors"], vector_preferences)
+        identity_score = _identity_match_score(game["metadata"], identity_preferences)
+        if identity_preferences:
+            vector_breakdown["uniqueness"] = identity_score
+        active_vector_contexts = [
+            context for context, preferred_weights in vector_preferences.items() if preferred_weights
+        ]
+        if identity_preferences:
+            active_vector_contexts.append("uniqueness")
+        if active_vector_contexts:
+            vector_score = sum(vector_breakdown.get(context, 0.0) for context in active_vector_contexts) / len(active_vector_contexts)
+        else:
+            vector_score = 0.0
         genre_score = _genre_match_score(game["metadata"], genre_preferences)
         appeal_score = _appeal_match_score(game["metadata"], target_appeal_axes)
-        soundtrack_score = _soundtrack_match_score(game["metadata"], soundtrack_preferences)
+        soundtrack_score = _music_match_score(game["metadata"], music_preferences)
         weighted_components = {
             "vector": vector_score * component_weights["vector"],
             "genre": genre_score * component_weights["genre"],

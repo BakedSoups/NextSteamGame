@@ -81,9 +81,22 @@ def iter_row_batches(db_path: Path, batch_size: int) -> Iterator[list[sqlite3.Ro
         connection.close()
 
 
+def _iter_text_values(raw: object) -> Iterator[str]:
+    if isinstance(raw, str):
+        text = raw.strip()
+        if text:
+            yield text
+        return
+    if isinstance(raw, list):
+        for item in raw:
+            text = str(item).strip()
+            if text:
+                yield text
+
+
 def collect_vector_counters(rows: Sequence[sqlite3.Row]) -> Dict[str, Counter]:
     counters: Dict[str, Counter] = {}
-    valid_contexts = {"mechanics", "narrative", "vibe", "structure_loop", "uniqueness"}
+    valid_contexts = {"mechanics", "narrative", "vibe", "structure_loop"}
     for row in rows:
         vectors = json.loads(row["vectors_json"])
         for context, tag_weights in vectors.items():
@@ -99,11 +112,13 @@ def collect_metadata_counters(rows: Sequence[sqlite3.Row]) -> Dict[str, Counter]
     counters: Dict[str, Counter] = {
         "micro_tags": Counter(),
         "signature_tag": Counter(),
-        "soundtrack_tags": Counter(),
+        "niche_anchors": Counter(),
+        "identity_tags": Counter(),
+        "music_primary": Counter(),
+        "music_secondary": Counter(),
         "genre_tree.primary": Counter(),
         "genre_tree.sub": Counter(),
         "genre_tree.sub_sub": Counter(),
-        "genre_tree.traits": Counter(),
     }
     for row in rows:
         metadata = json.loads(row["metadata_json"])
@@ -114,11 +129,17 @@ def collect_metadata_counters(rows: Sequence[sqlite3.Row]) -> Dict[str, Counter]
         signature_tag = str(metadata.get("signature_tag", "")).strip()
         if signature_tag:
             counters["signature_tag"][signature_tag] += 1
-        for tag in metadata.get("soundtrack_tags", []):
-            counters["soundtrack_tags"][tag] += 1
+        for tag in metadata.get("niche_anchors", []):
+            counters["niche_anchors"][tag] += 1
+        for tag in metadata.get("identity_tags", []):
+            counters["identity_tags"][tag] += 1
+        for field in ("music_primary", "music_secondary"):
+            tag = str(metadata.get(field, "")).strip()
+            if tag:
+                counters[field][tag] += 1
         genre_tree = metadata.get("genre_tree", {})
-        for branch in ("primary", "sub", "sub_sub", "traits"):
-            for tag in genre_tree.get(branch, []):
+        for branch in ("primary", "sub", "sub_sub"):
+            for tag in _iter_text_values(genre_tree.get(branch)):
                 counters[f"genre_tree.{branch}"][tag] += 1
     return counters
 

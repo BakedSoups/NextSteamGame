@@ -54,8 +54,22 @@ class PostgresGameStore:
                 return [str(item) for item in parsed if str(item).strip()]
         return []
 
+    @staticmethod
+    def _metadata_music_tags(metadata: dict[str, Any]) -> list[str]:
+        tags: list[str] = []
+        for field in ("music_primary", "music_secondary"):
+            value = str(metadata.get(field, "")).strip()
+            if value and value not in tags:
+                tags.append(value)
+        for tag in metadata.get("soundtrack_tags", []) or []:
+            text = str(tag).strip()
+            if text and text not in tags:
+                tags.append(text)
+        return tags
+
     def _row_to_game(self, row: dict[str, Any]) -> dict[str, Any]:
         metadata = self._coerce_json(row.get("canonical_metadata"))
+        music_tags = self._metadata_music_tags(metadata)
         return {
             "appid": int(row["appid"]),
             "name": row.get("name"),
@@ -84,7 +98,9 @@ class PostgresGameStore:
             "publishers": self._coerce_list(row.get("publishers")),
             "release_date_text": row.get("release_date_text") or "",
             "signature_tag": metadata.get("signature_tag", ""),
-            "soundtrack_tags": metadata.get("soundtrack_tags", []) or [],
+            "soundtrack_tags": music_tags,
+            "music_primary": str(metadata.get("music_primary", "")).strip(),
+            "music_secondary": str(metadata.get("music_secondary", "")).strip(),
         }
 
     def search_games(self, query: str, limit: int = 12) -> list[dict]:
@@ -174,12 +190,15 @@ class PostgresGameStore:
         results = []
         for row in rows:
             metadata = self._coerce_json(row.get("canonical_metadata"))
+            music_tags = self._metadata_music_tags(metadata)
             results.append(
                 {
                     "appid": int(row["appid"]),
                     "name": row.get("name"),
                     "signature_tag": metadata.get("signature_tag", ""),
-                    "soundtrack_tags": metadata.get("soundtrack_tags", []) or [],
+                    "soundtrack_tags": music_tags,
+                    "music_primary": str(metadata.get("music_primary", "")).strip(),
+                    "music_secondary": str(metadata.get("music_secondary", "")).strip(),
                     "short_description": (row.get("short_description") or "").strip(),
                     "header_image": row.get("header_image") or "",
                     "capsule_image": row.get("capsule_image") or "",

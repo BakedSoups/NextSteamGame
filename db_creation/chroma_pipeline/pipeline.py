@@ -48,14 +48,34 @@ def _build_retrieval_document(row: sqlite3.Row) -> str:
     if signature_tag:
         parts.append(signature_tag)
 
-    for branch in ("primary", "sub", "sub_sub", "traits"):
-        for tag in metadata.get("genre_tree", {}).get(branch, []):
-            if tag:
-                parts.append(str(tag))
+    for branch in ("primary", "sub", "sub_sub"):
+        raw_value = metadata.get("genre_tree", {}).get(branch)
+        if isinstance(raw_value, list):
+            for tag in raw_value:
+                if tag:
+                    parts.append(str(tag))
+        elif raw_value:
+            parts.append(str(raw_value))
 
     for tag in metadata.get("micro_tags", []):
         if tag:
             parts.append(str(tag))
+
+    for tag in metadata.get("niche_anchors", []):
+        if tag:
+            parts.append(str(tag))
+
+    for tag in metadata.get("identity_tags", []):
+        if tag:
+            parts.append(str(tag))
+
+    music_primary = str(metadata.get("music_primary", "")).strip()
+    if music_primary:
+        parts.append(music_primary)
+
+    music_secondary = str(metadata.get("music_secondary", "")).strip()
+    if music_secondary:
+        parts.append(music_secondary)
 
     for tag in metadata.get("soundtrack_tags", []):
         if tag:

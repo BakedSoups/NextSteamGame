@@ -103,22 +103,47 @@ def _vector_weight_map(raw: Any) -> dict[str, int]:
     return {}
 
 
+def _genre_branch_values(raw: Any) -> list[str]:
+    if isinstance(raw, list):
+        return [str(tag) for tag in raw if str(tag).strip()]
+    if isinstance(raw, str) and raw.strip():
+        return [raw.strip()]
+    return []
+
+
+def _music_tags(metadata: dict[str, Any]) -> list[str]:
+    tags: list[str] = []
+    for field in ("music_primary", "music_secondary"):
+        value = str(metadata.get(field, "")).strip()
+        if value and value not in tags:
+            tags.append(value)
+    for tag in metadata.get("soundtrack_tags", []) or []:
+        text = str(tag).strip()
+        if text and text not in tags:
+            tags.append(text)
+    return tags
+
+
+def _identity_tags(metadata: dict[str, Any]) -> list[str]:
+    tags: list[str] = []
+    signature_tag = str(metadata.get("signature_tag", "")).strip()
+    if signature_tag:
+        tags.append(signature_tag)
+    for field in ("niche_anchors", "identity_tags", "micro_tags"):
+        for tag in metadata.get(field, []) or []:
+            text = str(tag).strip()
+            if text and text not in tags:
+                tags.append(text)
+    return tags
+
+
 def _build_tag_weights(game: dict) -> dict[str, dict[str, int]]:
     tags: dict[str, dict[str, int]] = {}
     for context, tag_weights in (game.get("vectors") or {}).items():
         tags[context] = _vector_weight_map(tag_weights)
 
-    soundtrack_tags = game["metadata"].get("soundtrack_tags", [])
-    if soundtrack_tags:
-        base = 100 // len(soundtrack_tags)
-        spill = 100 - (base * len(soundtrack_tags))
-        music_weights: dict[str, int] = {}
-        for index, tag in enumerate(soundtrack_tags):
-            normalized = str(tag).replace(" ", "_").replace("-", "_").lower()
-            music_weights[normalized] = base + (1 if index < spill else 0)
-        tags["music"] = music_weights
-    else:
-        tags["music"] = {}
+    tags["uniqueness"] = _vector_weight_map(_identity_tags(game["metadata"]))
+    tags["music"] = _vector_weight_map(_music_tags(game["metadata"]))
     return tags
 
 
@@ -127,9 +152,10 @@ def _serialize_game(game: dict) -> dict[str, Any]:
     genre_tree = metadata.get("genre_tree", {})
     vector_tags = {
         context: _vector_tag_names((game.get("vectors", {}) or {}).get(context))
-        for context in ("mechanics", "narrative", "vibe", "structure_loop", "uniqueness")
+        for context in ("mechanics", "narrative", "vibe", "structure_loop")
     }
-    vector_tags["music"] = list(metadata.get("soundtrack_tags", []) or [])
+    vector_tags["uniqueness"] = _identity_tags(metadata)
+    vector_tags["music"] = _music_tags(metadata)
     assets = {
         "header": str(game.get("header_image", "")),
         "capsule": str(game.get("capsule_image", "")),
@@ -151,10 +177,10 @@ def _serialize_game(game: dict) -> dict[str, Any]:
         "headerImage": str(game.get("header_image", "")),
         "assets": assets,
         "genres": {
-            "primary": list(genre_tree.get("primary", []) or []),
-            "sub": list(genre_tree.get("sub", []) or []),
-            "sub_sub": list(genre_tree.get("sub_sub", []) or []),
-            "traits": list(genre_tree.get("traits", []) or []),
+            "primary": _genre_branch_values(genre_tree.get("primary")),
+            "sub": _genre_branch_values(genre_tree.get("sub")),
+            "sub_sub": _genre_branch_values(genre_tree.get("sub_sub")),
+            "traits": [],
         },
         "tags": vector_tags,
         "weights": {
@@ -192,18 +218,18 @@ def _serialize_recommendation(item: dict) -> dict[str, Any]:
         "headerImage": str(item.get("header_image", "")),
         "assets": assets,
         "genres": {
-            "primary": list(genre_tree.get("primary", []) or []),
-            "sub": list(genre_tree.get("sub", []) or []),
-            "sub_sub": list(genre_tree.get("sub_sub", []) or []),
-            "traits": list(genre_tree.get("traits", []) or []),
+            "primary": _genre_branch_values(genre_tree.get("primary")),
+            "sub": _genre_branch_values(genre_tree.get("sub")),
+            "sub_sub": _genre_branch_values(genre_tree.get("sub_sub")),
+            "traits": [],
         },
         "tags": {
             "mechanics": _vector_tag_names((item.get("vectors", {}) or {}).get("mechanics")),
             "narrative": _vector_tag_names((item.get("vectors", {}) or {}).get("narrative")),
             "vibe": _vector_tag_names((item.get("vectors", {}) or {}).get("vibe")),
             "structure_loop": _vector_tag_names((item.get("vectors", {}) or {}).get("structure_loop")),
-            "uniqueness": _vector_tag_names((item.get("vectors", {}) or {}).get("uniqueness")),
-            "music": list(metadata.get("soundtrack_tags", []) or []),
+            "uniqueness": _identity_tags(metadata),
+            "music": _music_tags(metadata),
         },
         "matchScore": float(item.get("total_score", 0.0)),
         "confidence": float(item.get("confidence_multiplier", 1.0)),
@@ -307,8 +333,14 @@ def get_recommendations(payload: dict[str, Any]) -> JSONResponse:
     genres = (payload.get("weights") or {}).get("genres") or game["metadata"].get("genre_tree", {})
 
     base_tree = game["metadata"].get("genre_tree", {})
-    added_genres = {branch: sorted(set(genres.get(branch, [])) - set(base_tree.get(branch, []))) for branch in ("primary", "sub", "sub_sub", "traits")}
-    removed_genres = {branch: sorted(set(base_tree.get(branch, [])) - set(genres.get(branch, []))) for branch in ("primary", "sub", "sub_sub", "traits")}
+    added_genres = {
+        branch: sorted(set(_genre_branch_values(genres.get(branch))) - set(_genre_branch_values(base_tree.get(branch))))
+        for branch in ("primary", "sub", "sub_sub")
+    }
+    removed_genres = {
+        branch: sorted(set(_genre_branch_values(base_tree.get(branch))) - set(_genre_branch_values(genres.get(branch))))
+        for branch in ("primary", "sub", "sub_sub")
+    }
 
     candidate_games = retriever.retrieve_candidates(game, limit=400)
     recommendations = recommend_games(

@@ -34,9 +34,20 @@ class CandidateRetriever:
         if metadata.get("signature_tag"):
             parts.append(str(metadata["signature_tag"]))
 
-        for branch in ("primary", "sub", "sub_sub", "traits"):
-            parts.extend(str(tag) for tag in metadata.get("genre_tree", {}).get(branch, []) if tag)
+        for branch in ("primary", "sub", "sub_sub"):
+            raw_value = metadata.get("genre_tree", {}).get(branch)
+            if isinstance(raw_value, list):
+                parts.extend(str(tag) for tag in raw_value if tag)
+            elif raw_value:
+                parts.append(str(raw_value))
 
+        parts.extend(str(tag) for tag in metadata.get("micro_tags", []) if tag)
+        parts.extend(str(tag) for tag in metadata.get("niche_anchors", []) if tag)
+        parts.extend(str(tag) for tag in metadata.get("identity_tags", []) if tag)
+        if metadata.get("music_primary"):
+            parts.append(str(metadata["music_primary"]))
+        if metadata.get("music_secondary"):
+            parts.append(str(metadata["music_secondary"]))
         parts.extend(str(tag) for tag in metadata.get("soundtrack_tags", []) if tag)
 
         for context, tag_weights in vectors.items():

@@ -5,7 +5,7 @@ Build the initial non-canonical semantic database for Steam games.
 This stage stores the raw output of the current vectorizer pipeline:
 - selected review samples
 - semantic vectors
-- metadata (micro_tags + genre_tree)
+- metadata (genre spine + identity metadata)
 
 Later stages can read this database and build canonical tag mappings on top of
 it without losing the original model output.
@@ -275,9 +275,10 @@ class InitialNoncanonDbBuilder:
                         "appid": appid,
                         "game_name": game_name,
                         "error": str(exc),
+                        "status": exc.status,
                         "profile": {
                             "appid": appid,
-                            **build_skipped_profile(str(exc).lower().replace(" ", "_")),
+                            **build_skipped_profile(exc.status),
                         },
                     }
                 )
