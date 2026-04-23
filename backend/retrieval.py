@@ -23,8 +23,10 @@ class CandidateRetriever:
         try:
             client = chromadb.PersistentClient(path=str(self.chroma_dir))
             return client.get_collection("steam_final_canon")
-        except Exception:
-            return None
+        except Exception as exc:
+            raise RuntimeError(
+                f"Failed to load Chroma collection 'steam_final_canon' from {self.chroma_dir}"
+            ) from exc
 
     @staticmethod
     def _build_query_text(game: dict) -> str:
@@ -64,8 +66,12 @@ class CandidateRetriever:
                 query_texts=[self._build_query_text(game)],
                 n_results=limit,
             )
-        except Exception:
-            return self.fallback_games
+        except Exception as exc:
+            appid = game.get("appid", "unknown")
+            name = str(game.get("name", "")).strip() or "unknown"
+            raise RuntimeError(
+                f"Chroma candidate retrieval failed for appid={appid} name={name!r}"
+            ) from exc
 
         ids = result.get("ids", [[]])[0]
         candidates = []
