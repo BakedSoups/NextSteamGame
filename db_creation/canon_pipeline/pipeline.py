@@ -28,18 +28,19 @@ VECTOR_THRESHOLDS = {
     "mechanics": 0.74,
     "narrative": 0.78,
     "structure_loop": 0.76,
-    "uniqueness": 0.78,
     "vibe": 0.80,
 }
 
 METADATA_THRESHOLDS = {
     "micro_tags": 0.82,
-    "signature_tag": 0.86,
-    "soundtrack_tags": 0.88,
-    "genre_tree.primary": 0.88,
-    "genre_tree.sub": 0.84,
-    "genre_tree.sub_sub": 0.85,
-    "genre_tree.traits": 0.83,
+    "signature_tag": 0.88,
+    "niche_anchors": 0.90,
+    "identity_tags": 0.86,
+    "music_primary": 0.93,
+    "music_secondary": 0.93,
+    "genre_tree.primary": 0.92,
+    "genre_tree.sub": 0.89,
+    "genre_tree.sub_sub": 0.90,
 }
 
 VECTOR_MAX_NEIGHBORS = 12
