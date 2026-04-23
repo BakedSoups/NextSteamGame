@@ -6,8 +6,8 @@ should be matched by what they are, not only by player-overlap signals.
 The project has three main layers:
 
 - a metadata pipeline that builds and enriches `steam_metadata.db`
-- a semantics/canonicalization pipeline that builds `steam_final_canon.db`
-- a live app stack that serves recommendations through FastAPI + a React frontend
+- a review/semantics pipeline that builds `steam_initial_noncanon.db` and `steam_final_canon.db`
+- a live app stack that serves recommendations through FastAPI + a React frontend backed by Postgres
 
 ## App Stack
 
@@ -16,15 +16,15 @@ Current runtime shape:
 
 - backend: `FastAPI`
 - frontend: `Next.js` / React
-
-- metadata store: `SQLite`
-- retrieval target: `Chroma`
+- runtime game store: `Postgres`
+- retrieval target: local `Chroma`
+- upstream build artifacts: `SQLite`
 
 The app flow is:
 
 1. search for a Steam game
 2. open it as the reference profile
-3. inspect and adjust its vectors, tags, genres, and appeal axes
+3. inspect and adjust its focus vectors, identity tags, genres, and appeal axes
 4. rerank recommendations from the game’s actual semantic profile
 
 ## Main Databases
@@ -82,8 +82,35 @@ This stage:
 
 - reads `steam_metadata.db`
 - fetches and samples Steam reviews
-- calls the semantics model
+- uses `filter=all` first, then falls back to `recent` if Steam pagination stalls too early
+- builds a raw semantic profile from the review corpus
 - writes `steam_initial_noncanon.db`
+
+Current non-canonical schema direction:
+
+- focus vectors
+  - `mechanics`
+  - `narrative`
+  - `vibe`
+  - `structure_loop`
+- genre spine
+  - `primary`
+  - `sub`
+  - `sub_sub`
+- identity metadata
+  - `signature_tag`
+  - `niche_anchors`
+  - `identity_tags`
+  - `music_primary`
+  - `music_secondary`
+  - `micro_tags`
+
+The review sampler currently keeps separate lanes for:
+
+- `descriptive`
+- `artistic`
+- `music`
+- `systems_depth`
 
 ### 3. Canon Export Stage
 
@@ -149,6 +176,7 @@ Examples:
 - [db_creation/canon_export.py](db_creation/canon_export.py)
 - [db_creation/final_db.py](db_creation/final_db.py)
 - [db_creation/chroma_db_migration.py](db_creation/chroma_db_migration.py)
+- [db_creation/postgres_db.py](db_creation/postgres_db.py)
 
 ## Metadata Art Fields
 
@@ -185,8 +213,9 @@ The recommendation controls currently include:
   - `narrative`
   - `vibe`
   - `structure_loop`
-  - `uniqueness`
-  - `music`
+- compatibility UI still exposes `uniqueness` and `music`, but the long-term semantic model is moving toward:
+  - four focus vectors
+  - separate identity metadata for hook/music specificity
 - appeal axes
   - `challenge`
   - `complexity`
@@ -204,10 +233,10 @@ The recommendation controls currently include:
 The semantics pipeline reads the OpenAI key from the process environment:
 
 - `OPENAI_API_KEY`
+- `STEAM_REC_POSTGRES_DSN`
 
-The code currently uses `os.getenv(...)` directly and does not rely on a built-in
-`.env` loader, so export the variable in your shell or provide it through your
-runtime environment.
+`app.py` loads `.env` from the repo root before checking `STEAM_REC_POSTGRES_DSN`.
+The semantics pipeline still reads `OPENAI_API_KEY` from the process environment.
 
 Current rough semantics-stage scale/cost:
 
@@ -217,7 +246,7 @@ Current rough semantics-stage scale/cost:
 Backend:
 
 ```bash
-python3 app.py
+python app.py
 ```
 
 Frontend dev server:
@@ -239,3 +268,53 @@ Default local URLs:
 
 - backend: `http://127.0.0.1:8000`
 - frontend: `http://localhost:3000`
+
+## Useful One-Off Runs
+
+Run the non-canonical pipeline:
+
+```bash
+python db_creation/initial_noncanon_db.py
+```
+
+Run a single-game non-canonical test without writing the full DB:
+
+```bash
+python db_creation/noncanon_pipeline/test_single_game.py 1599600
+```
+
+Run the Postgres load wrapper:
+
+```bash
+python db_creation/postgres_db.py
+```
+
+Run the visual pipeline wrapper:
+
+```bash
+python db_creation/visual_pipeline.py
+```
+
+## Current Direction
+
+The repo is in the middle of a semantic-data redesign.
+
+The main direction is:
+
+- keep only four true focus vectors:
+  - `mechanics`
+  - `narrative`
+  - `vibe`
+  - `structure_loop`
+- keep genre as a single committed spine
+- move music and hook/uniqueness information into identity metadata instead of full vectors
+- improve hyper-niche capture through:
+  - better review sampling
+  - `niche_anchors`
+  - `identity_tags`
+  - deeper systems-focused review extraction
+
+The working design notes for that are in:
+
+- [db_creation/UPDATE_REVIEW_PIPELINE.md](db_creation/UPDATE_REVIEW_PIPELINE.md)
+- [frontend/UPDATE_UI_FOR_VECTOR_DB.md](frontend/UPDATE_UI_FOR_VECTOR_DB.md)

@@ -1,244 +1,472 @@
 # `db_creation`
 
-This folder contains the full database build flow for the project.
+This folder contains the full data-building side of the project.
 
-The stages are intentionally separate:
+The core idea is:
+
+- keep raw Steam/store metadata separate from semantic interpretation
+- keep raw semantic interpretation separate from canonical cleanup
+- keep retrieval/indexing separate from both
+
+That separation is intentional. It lets you:
+
+- rerun only the expensive stage you changed
+- inspect intermediate artifacts instead of debugging the final DB blind
+- preserve raw semantic evidence before canonical grouping flattens it
+- evolve the ontology without rebuilding the whole world every time
+
+## Stage Map
+
+The main stage entrypoints are:
 
 1. `metadata_db.py`
-   Builds the raw/canonical Steam metadata database from the Steam APIs and then backfills extra storefront art assets.
 2. `initial_noncanon_db.py`
-   Builds the first semantic database from review-derived LLM output.
 3. `canon_export.py`
-   Reads the non-canon DB and exports canonical group CSVs.
 4. `final_db.py`
-   Reads the non-canon DB plus the canonical CSV mappings and builds the final canonical DB.
 5. `chroma_db_migration.py`
-   Reads the final canonical DB and migrates retrieval records into a local Chroma collection.
-6. `final_db_viz.py`
-   Reads the final DB and generates QA visualizations.
+6. `postgres_db.py`
+7. `visual_pipeline.py`
 
-## Main Files
+The important databases/artifacts are:
 
-- `db_creation/metadata_db.py`
-- `db_creation/initial_noncanon_db.py`
-- `db_creation/canon_preview.py`
-- `db_creation/canon_export.py`
-- `db_creation/final_db.py`
-- `db_creation/chroma_db_migration.py`
-- `db_creation/final_db_viz.py`
+- `data/steam_metadata.db`
+- `data/steam_initial_noncanon.db`
+- `data/steam_final_canon.db`
+- `data/chroma/`
+
+Path handling is centralized in:
+
 - `db_creation/paths.py`
+
+## Why The Stages Are Split
+
+This pipeline is not just ETL. It is an ontology-building workflow.
+
+The stages exist because they solve different problems:
+
+- metadata stage:
+  - what factual/storefront information exists?
+- non-canon stage:
+  - what do players seem to mean about this game in their own language?
+- canon stage:
+  - which of those expressions should collapse into a shared vocabulary?
+- final stage:
+  - what cleaned, stable representation should downstream systems consume?
+- retrieval stage:
+  - what text/index form best supports candidate generation?
+
+If you collapse all of that into one build step, you lose the ability to:
+
+- audit model mistakes
+- preserve source evidence
+- fix grouping without re-calling the LLM
+- distinguish “bad extraction” from “over-aggressive canonicalization”
 
 ## Pipeline Folders
 
-- `db_creation/metadata_pipeline`
-  Builds the raw Steam metadata database from SteamSpy and Steam Store API data.
-- `db_creation/noncanon_pipeline`
-  Builds raw review-derived semantic outputs before any canonical grouping.
-- `db_creation/canon_pipeline`
-  Converts messy non-canonical tags into canonical CSV mapping artifacts.
-- `db_creation/final_pipeline`
-  Applies canonical mappings and builds the final canonical SQLite database.
-- `db_creation/chroma_pipeline`
-  Migrates retrieval records from the final DB into the local Chroma collection.
-- `db_creation/db_builders`
-  Contains lower-level database builder implementations used by entry scripts.
+- `metadata_pipeline`
+  - Steam metadata ingestion and asset enrichment
+- `noncanon_pipeline`
+  - review fetch, review sampling, semantic extraction
+- `canon_pipeline`
+  - grouping and canonical representative generation
+- `final_pipeline`
+  - canonical DB build
+- `chroma_pipeline`
+  - retrieval document build + Chroma migration
+- `visual_stage`
+  - early visual-identity experiments
+- `db_builders`
+  - lower-level write/resume/orchestration logic used by stage wrappers
 
-## Databases
+## Running The Main Stages
 
-By default the databases live in `data/`:
-
-- `steam_metadata.db`
-- `steam_initial_noncanon.db`
-- `steam_final_canon.db`
-- `chroma/`
-
-`paths.py` centralizes where those files are read and written.
-
-## How The Stages Fit Together
-
-### 1. API / Metadata Stage
-
-Run:
+Metadata:
 
 ```bash
-venv/bin/python db_creation/metadata_db.py
+python db_creation/metadata_db.py
 ```
 
-This stage talks to SteamSpy and Steam Store APIs, fills `steam_metadata.db`,
-and then runs storefront asset enrichment for logos and library art.
-
-### 2. Non-Canonical Semantic Stage
-
-Run:
+Non-canonical semantics:
 
 ```bash
-venv/bin/python db_creation/initial_noncanon_db.py
+python db_creation/initial_noncanon_db.py
 ```
 
-This stage reads `steam_metadata.db`, fetches Steam reviews, selects insightful review samples, calls the semantics model, and writes `steam_initial_noncanon.db`.
-
-It stores more than just tags. Each game row in the non-canon DB keeps:
-
-- selected review samples
-- non-canonical semantic vectors
-- non-canonical metadata
-
-That means the non-canon DB is the raw semantic source of truth for the later canon stage, not just a temporary tag table.
-
-This stage resumes automatically based on already-written `appid` rows in `raw_game_semantics`.
-
-### 3. Canon Mapping Export Stage
-
-Preview a smaller mapping run:
+Canon export:
 
 ```bash
-venv/bin/python db_creation/canon_preview.py
+python db_creation/canon_export.py
 ```
 
-Export the full canonical group CSVs:
+Final canonical DB:
 
 ```bash
-venv/bin/python db_creation/canon_export.py
+python db_creation/final_db.py
 ```
 
-This stage does not build the final DB. It generates the canonical mapping CSVs under `db_creation/analysis/`.
-
-Important outputs:
-
-- `metadata_canon_full.csv`
-- `vectors_canon_full.csv`
-
-### 4. Final Canonical DB Stage
-
-Run:
+Chroma migration:
 
 ```bash
-venv/bin/python db_creation/final_db.py
+python db_creation/chroma_db_migration.py
 ```
 
-This stage assumes the canonical CSVs already exist. It reads:
-
-- `steam_initial_noncanon.db`
-- `metadata_canon_full.csv`
-- `vectors_canon_full.csv`
-
-Then it builds `steam_final_canon.db`.
-
-### 5. Chroma Retrieval Migration Stage
-
-Run:
+Postgres load:
 
 ```bash
-venv/bin/python db_creation/chroma_db_migration.py
+python db_creation/postgres_db.py
 ```
 
-This stage reads the final DB and writes Chroma retrieval records into
-`data/chroma/`.
-
-The intended architecture is:
-
-- `sqlite` for page/search/render content
-- `chroma` for candidate retrieval
-
-### 6. Visualization / QA Stage
-
-Run:
+Visual pipeline:
 
 ```bash
-venv/bin/python db_creation/final_db_viz.py
+python db_creation/visual_pipeline.py
 ```
 
-This stage reads the final DB and writes QA charts into `db_creation/analysis/final_db_viz/`.
-
-## Pipeline Reference
-
-### `metadata_pipeline`
-
-Purpose:
-Builds `data/steam_metadata.db` from Steam metadata APIs. This is the raw metadata source for downstream stages.
-
-Run:
+Single-game non-canon test:
 
 ```bash
-venv/bin/python db_creation/metadata_db.py
+python db_creation/noncanon_pipeline/test_single_game.py 1599600
 ```
 
-### `noncanon_pipeline`
+## Non-Canonical Stage
 
-Purpose:
-Reads `steam_metadata.db`, fetches reviews, runs the semantics model, and writes raw non-canonical outputs into `data/steam_initial_noncanon.db`.
+This is the most important stage conceptually.
 
-Run:
+It is not “the final truth.”
+It is the raw semantic interpretation layer.
 
-```bash
-venv/bin/python db_creation/initial_noncanon_db.py
-```
+The non-canon DB should preserve:
 
-### `canon_pipeline`
+- what reviews were selected
+- what the model inferred before grouping
+- enough source detail that later cleanup can be audited
 
-Purpose:
-Reads `steam_initial_noncanon.db`, groups raw tags into canonical representatives, and writes reviewable CSV mapping artifacts.
+That is why each row stores:
 
-Run preview:
+- `review_samples_json`
+- `vectors_json`
+- `metadata_json`
 
-```bash
-venv/bin/python db_creation/canon_preview.py
-```
+and not just a final list of tags.
 
-Run full export:
+### What The Non-Canon Stage Is Trying To Solve
 
-```bash
-venv/bin/python db_creation/canon_export.py
-```
+The main problem is not “find games in the same store genre.”
+It is:
 
-### `final_pipeline`
-
-Purpose:
-Reads the non-canon DB plus canonical CSV mappings and builds `data/steam_final_canon.db`.
-
-Run:
-
-```bash
-venv/bin/python db_creation/final_db.py
-```
-
-### `chroma_pipeline`
-
-Purpose:
-Reads the final canonical DB and loads retrieval documents into the local Chroma store under `data/chroma/`.
-
-Run:
-
-```bash
-venv/bin/python db_creation/chroma_db_migration.py
-```
-
-### `final_db_viz`
-
-Purpose:
-Reads the final canonical DB and generates QA charts under `db_creation/analysis/final_db_viz/`.
-
-Run:
-
-```bash
-venv/bin/python db_creation/final_db_viz.py
-```
-
-## Running Stages Separately
-
-Each stage can be run independently as long as its inputs already exist.
+- capture what players actually value
+- distinguish broad similarity from niche identity
+- preserve hidden differentiators instead of only surface resemblance
 
 Examples:
 
-- If `steam_metadata.db` already exists, you can run only `initial_noncanon_db.py`.
-- If `steam_initial_noncanon.db` already exists, you can run only `canon_export.py`.
-- If the canonical CSVs already exist, you can run only `final_db.py`.
-- If `steam_final_canon.db` already exists, you can run only `chroma_db_migration.py`.
-- If `steam_final_canon.db` already exists, you can run only `final_db_viz.py`.
+- `PlateUp!`
+  - not just “co-op cooking chaos”
+  - also automation, layout optimization, run-based scaling
+- `Persona 5`
+  - not just “JRPG”
+  - also modern Tokyo, school routine, stylish UI, jazz fusion
+- `Dark Souls`
+  - not just dark fantasy
+  - maybe build variety, stamina combat, orchestral intensity
 
-That separation is intentional so you can:
+That is why the non-canon stage is review-driven instead of relying only on Steam tags.
 
-- resume long jobs
-- inspect intermediate artifacts
-- tune canonical mapping before building the final DB
-- rerun visualization without touching the upstream pipeline
+### Current Non-Canon Schema Direction
+
+The semantic representation is being narrowed to:
+
+#### Focus vectors
+
+- `mechanics`
+- `narrative`
+- `vibe`
+- `structure_loop`
+
+These are the parts that still behave like real blended dimensions.
+
+The current working view is:
+
+- vectors should describe the game’s major focus
+- not every important concept deserves to be a vector
+
+#### Genre spine
+
+- `primary`
+- `sub`
+- `sub_sub`
+
+These are single-value fields, not lists.
+
+The genre tree is being pushed toward:
+
+- recommendation-useful structure
+- not broad store taxonomy
+
+So the target is more like:
+
+- `JRPG -> calendar-driven RPG -> social dungeon crawler`
+
+and less like:
+
+- `RPG -> JRPG -> dungeon crawler`
+
+#### Identity metadata
+
+- `signature_tag`
+- `niche_anchors`
+- `identity_tags`
+- `music_primary`
+- `music_secondary`
+- `micro_tags`
+
+This is where hyper-specificity should live.
+
+The point of this split is:
+
+- vectors = focus
+- genre spine = structure
+- identity metadata = specificity / hook / niche
+
+### What Was Removed Or De-Emphasized
+
+The current redesign intentionally moves away from:
+
+- `music` as a full vector
+- `uniqueness` as a full vector
+- multi-valued genre branches
+- `traits` as a middle genre-ish layer
+
+Reasoning:
+
+- `music` behaves more like named identity than a blended vector
+- `uniqueness` behaves more like hook identity than a weighted semantic branch
+- `traits` overlapped too much with both genre and micro-tags
+
+### Review Fetch Design
+
+The review fetcher currently tries to balance:
+
+- Steam helpfulness ordering
+- enough corpus size for downstream sampling
+- bounded runtime
+
+Current strategy:
+
+- start with `filter=all`
+- if Steam stalls too early, fall back to `filter=recent`
+- dedupe globally by `recommendationid`
+- stop on:
+  - page budgets
+  - duplicate-page limits
+  - cursor stalls
+  - low-yield windows
+  - enough filtered reviews
+
+This is important because the naive version was too expensive:
+
+- it spent far too long proving there was no more useful data
+
+So the current fetcher is explicitly yield-aware, not just duplication-aware.
+
+### Review Sampling Design
+
+The sampler does not just pass arbitrary reviews to the LLM.
+
+It currently tries to surface four different evidence lanes:
+
+- `descriptive`
+- `artistic`
+- `music`
+- `systems_depth`
+
+That last one exists because surface reviews often miss the deeper reason a game is valuable.
+
+Examples:
+
+- `PlateUp!`
+  - the hidden differentiator is automation and layout scaling
+- many reviews only say:
+  - fun
+  - chaotic
+  - co-op
+
+So `systems_depth` is meant to recover:
+
+- hidden mastery
+- optimization
+- system-level distinctiveness
+
+### Review Quality Heuristics
+
+Before reviews reach the LLM, the pipeline now tries to:
+
+- reject obvious template/scorecard reviews
+- downrank meme/joke reviews
+- downrank repeated formatting patterns
+- upweight concrete system/setting/sound/visual language
+
+This matters because bad sample quality was one of the biggest reasons for:
+
+- fake music tags
+- fake artistic signal
+- generic nostalgia sludge
+
+### LLM Prompt Design
+
+The prompt is now being steered toward:
+
+- hidden differentiators
+- sparse-but-correct outputs
+- review-derived labels instead of example-copying
+- match-useful genre paths
+- concrete music style labels instead of value judgments
+
+Important current rules:
+
+- examples in the prompt are generic examples only
+- reviews are the source of truth
+- concrete criticism is valid evidence
+- sparse and correct is better than complete and invented
+
+This is especially important for `gpt-4o-mini`, which will follow examples aggressively if the prompt does not explicitly tell it not to.
+
+### Resume Behavior
+
+The non-canon stage is long-running by design.
+
+Resume happens at the game-row level:
+
+- completed `appid`s already written to `raw_game_semantics` are skipped
+- interrupted in-flight games are retried
+
+That is why you can safely rerun:
+
+```bash
+python db_creation/initial_noncanon_db.py
+```
+
+after a crash or interruption.
+
+## Canon Stage
+
+The canon stage exists because raw extraction should be expressive, not prematurely standardized.
+
+What non-canon may contain:
+
+- franchise-adjacent wording
+- over-specific phrases
+- multiple surface forms for the same idea
+
+What canon should do:
+
+- group similar raw labels
+- choose a useful representative
+- preserve source-membership traceability
+
+This is where things like:
+
+- `persona fusion`
+- `fusion system`
+- `monster fusion`
+
+should be reconciled.
+
+The canon stage is not meant to fix every bad extraction.
+It is meant to standardize good-but-varied extraction.
+
+That distinction matters:
+
+- wrong one-off labels are a prompt/sampling problem
+- over-specific but valid labels are a canon problem
+
+## Final DB Stage
+
+The final DB is the cleaned semantic DB for downstream consumers.
+
+It should preserve:
+
+- canonical vectors
+- canonical metadata
+- source review samples
+- source vectors
+- source metadata
+
+That source traceability is important because canonicalization is not lossless in intent even when it is lossless in storage.
+
+## Retrieval Stage
+
+Retrieval is intentionally separate from semantic scoring.
+
+The Chroma stage builds retrieval documents from:
+
+- title
+- signature tag
+- genre spine
+- micro-tags
+- niche anchors
+- identity tags
+- music identity
+- vector tags
+
+This should optimize candidate recall.
+
+Then the recommender can do the more structured re-ranking step afterward.
+
+## Postgres Stage
+
+Runtime is now Postgres-backed.
+
+That means:
+
+- the build pipeline still produces SQLite artifacts first
+- Postgres is the runtime store loaded from those artifacts
+
+Current wrapper:
+
+```bash
+python db_creation/postgres_db.py
+```
+
+This is a migration/load step, not the source-of-truth authoring stage.
+
+## Visual Stage
+
+The visual pipeline is intentionally separated and currently secondary.
+
+Reason:
+
+- the semantic schema is still moving
+- visual identity should be layered onto a stable schema
+- otherwise you end up integrating a visual subsystem into an ontology that is still being redesigned
+
+So visual work exists, but it is not yet the main architecture driver.
+
+## Running Stages Independently
+
+Each stage can be rerun independently if its inputs already exist.
+
+Examples:
+
+- metadata already exists:
+  - rerun non-canon only
+- non-canon already exists:
+  - rerun canon export only
+- canonical CSVs already exist:
+  - rerun final DB only
+- final DB already exists:
+  - rerun Chroma only
+  - rerun Postgres load only
+
+That independence is deliberate. It is one of the main reasons this repo remains workable while the semantic model is changing.
+
+## Current Working Notes
+
+The deeper redesign notes live in:
+
+- `db_creation/UPDATE_REVIEW_PIPELINE.md`
+
+That file is the forward-looking plan.
+
+This README is the operational/design overview for what `db_creation` is and why it is organized this way.
