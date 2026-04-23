@@ -137,6 +137,88 @@ def load_tag_members(connection: sqlite3.Connection) -> dict[int, list[str]]:
     return members
 
 
+def _coerce_single_genre_value(raw: object) -> str:
+    if isinstance(raw, str):
+        return raw.strip()
+    if isinstance(raw, list):
+        for item in raw:
+            text = str(item).strip()
+            if text:
+                return text
+    return ""
+
+
+def _clean_canonical_vectors(raw_json: str | None) -> dict:
+    try:
+        vectors = json.loads(raw_json or "{}")
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return {}
+    if not isinstance(vectors, dict):
+        return {}
+
+    cleaned: dict[str, object] = {}
+    status = str(vectors.get("status", "")).strip()
+    if status:
+        cleaned["status"] = status
+
+    for context in ("mechanics", "narrative", "vibe", "structure_loop"):
+        tag_weights = vectors.get(context)
+        if isinstance(tag_weights, dict):
+            cleaned[context] = {
+                str(tag): int(weight)
+                for tag, weight in tag_weights.items()
+                if str(tag).strip()
+                and isinstance(weight, (int, float))
+                and int(weight) > 0
+            }
+        else:
+            cleaned[context] = {}
+    return cleaned
+
+
+def _clean_canonical_metadata(raw_json: str | None) -> dict:
+    try:
+        metadata = json.loads(raw_json or "{}")
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return {}
+    if not isinstance(metadata, dict):
+        return {}
+
+    def clean_list(name: str) -> list[str]:
+        raw = metadata.get(name, [])
+        if not isinstance(raw, list):
+            return []
+        seen: set[str] = set()
+        cleaned: list[str] = []
+        for item in raw:
+            text = str(item).strip()
+            lowered = text.lower()
+            if not text or lowered in seen:
+                continue
+            seen.add(lowered)
+            cleaned.append(text)
+        return cleaned
+
+    cleaned: dict[str, object] = {
+        "micro_tags": clean_list("micro_tags"),
+        "niche_anchors": clean_list("niche_anchors"),
+        "identity_tags": clean_list("identity_tags"),
+        "signature_tag": str(metadata.get("signature_tag", "")).strip(),
+        "music_primary": str(metadata.get("music_primary", "")).strip(),
+        "music_secondary": str(metadata.get("music_secondary", "")).strip(),
+        "appeal_axes": dict(metadata.get("appeal_axes") or {}),
+        "genre_tree": {
+            "primary": _coerce_single_genre_value((metadata.get("genre_tree") or {}).get("primary")),
+            "sub": _coerce_single_genre_value((metadata.get("genre_tree") or {}).get("sub")),
+            "sub_sub": _coerce_single_genre_value((metadata.get("genre_tree") or {}).get("sub_sub")),
+        },
+    }
+    status = str(metadata.get("status", "")).strip()
+    if status:
+        cleaned["status"] = status
+    return cleaned
+
+
 def main() -> int:
     try:
         import psycopg
@@ -211,13 +293,15 @@ def main() -> int:
                 game_payload = []
                 for row in canonical_rows:
                     preview = preview_rows.get(int(row["appid"]), {})
+                    canonical_vectors = _clean_canonical_vectors(row["canonical_vectors_json"])
+                    canonical_metadata = _clean_canonical_metadata(row["canonical_metadata_json"])
                     game_payload.append(
                         (
                             int(row["appid"]),
                             row["name"],
                             normalize_search_text(row["name"] or ""),
-                            Jsonb(json.loads(row["canonical_vectors_json"])),
-                            Jsonb(json.loads(row["canonical_metadata_json"])),
+                            Jsonb(canonical_vectors),
+                            Jsonb(canonical_metadata),
                             Jsonb(json.loads(row["source_review_samples_json"] or "{}")),
                             Jsonb(json.loads(row["source_vectors_json"] or "{}")),
                             Jsonb(json.loads(row["source_metadata_json"] or "{}")),
