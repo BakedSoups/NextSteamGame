@@ -429,11 +429,31 @@ Current wrapper:
 python db_creation/postgres_db.py
 ```
 
-This is a migration/load step, not the source-of-truth authoring stage.
+This stage is specifically a SQLite-to-Postgres migration/load step.
+
+Current role:
+
+- read the finalized SQLite artifacts
+- insert runtime-facing game records into Postgres
+- make the FastAPI app run against Postgres instead of the old SQLite path
+
+Important architectural point:
+
+- Postgres is the runtime serving store
+- SQLite stages are still the build-time authoring pipeline
+
+So the source-of-truth flow remains:
+
+1. metadata SQLite
+2. non-canon SQLite
+3. final canonical SQLite
+4. Postgres load for runtime
+
+That keeps the build pipeline inspectable and stage-based while still letting the live app use Postgres.
 
 ## Visual Stage
 
-The visual pipeline is intentionally separated and currently secondary.
+The visual pipeline is intentionally separated and currently secondary to the review/vector pipeline.
 
 Reason:
 
@@ -441,7 +461,27 @@ Reason:
 - visual identity should be layered onto a stable schema
 - otherwise you end up integrating a visual subsystem into an ontology that is still being redesigned
 
-So visual work exists, but it is not yet the main architecture driver.
+Current wrapper:
+
+```bash
+python db_creation/visual_pipeline.py
+```
+
+Current purpose:
+
+- pull a game's stored image URLs from metadata
+- analyze representative storefront images
+- produce structured visual identity output
+
+Current visual direction:
+
+- render style
+- presentation style
+- visual traits
+
+The intent is for this to eventually enrich the semantic DB after the review-derived schema stabilizes, not compete with the non-canon stage at the same time.
+
+So visual work exists, but it is intentionally an add-on layer, not yet the main architecture driver.
 
 ## Running Stages Independently
 
@@ -460,13 +500,5 @@ Examples:
   - rerun Postgres load only
 
 That independence is deliberate. It is one of the main reasons this repo remains workable while the semantic model is changing.
-
-## Current Working Notes
-
-The deeper redesign notes live in:
-
-- `db_creation/UPDATE_REVIEW_PIPELINE.md`
-
-That file is the forward-looking plan.
 
 This README is the operational/design overview for what `db_creation` is and why it is organized this way.
