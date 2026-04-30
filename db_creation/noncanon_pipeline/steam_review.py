@@ -27,7 +27,7 @@ REVIEWS_PER_SAMPLE_BUCKET = {
     "descriptive": 5,
     "artistic": 2,
     "music": 2,
-    "systems_depth": 8,
+    "systems_depth": 4,
 }
 STEAM_REVIEW_RETRIES = 3
 STEAM_REVIEW_RETRY_DELAY = 2.0

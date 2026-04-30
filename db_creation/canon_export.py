@@ -23,9 +23,9 @@ def print_batch_progress(update: dict) -> None:
 
 
 def run_canonical_export() -> dict:
-    from canon_pipeline.full_export import run_full_canonical_export
+    from canon_pipeline.runner import run_canon_export
 
-    return run_full_canonical_export(
+    return run_canon_export(
         noncanon_db_path=NONCANON_DB_PATH,
         analysis_output_dir=ANALYSIS_DIR,
         batch_size=BATCH_SIZE,
@@ -49,22 +49,18 @@ def print_run_summary(summary: dict) -> None:
         f"Metadata groups made: {summary['metadata_groups']}"
     )
     print(
-        f"Metadata tail embedding merges: {summary.get('metadata_tail_embedding_merges', 0)}"
-    )
-    print(
-        f"Metadata tail internal merges: {summary.get('metadata_tail_internal_merges', 0)}"
+        f"Metadata leftovers: {summary.get('metadata_leftovers', 0)}"
     )
     print(
         f"Vector groups made: {summary['vector_groups']}"
     )
     print(
-        f"Vector tail embedding merges: {summary.get('vector_tail_embedding_merges', 0)}"
-    )
-    print(
-        f"Vector tail internal merges: {summary.get('vector_tail_internal_merges', 0)}"
+        f"Vector leftovers: {summary.get('vector_leftovers', 0)}"
     )
     print(f"Metadata CSV: {summary['metadata_csv_path']}")
     print(f"Vector CSV: {summary['vector_csv_path']}")
+    print(f"Metadata leftovers CSV: {summary['metadata_leftovers_csv_path']}")
+    print(f"Vector leftovers CSV: {summary['vector_leftovers_csv_path']}")
     print(f"Summary: {summary['summary_path']}")
     print(f"Elapsed seconds: {summary.get('elapsed_seconds', 'n/a')}")
 
