@@ -32,6 +32,7 @@ def build_skipped_profile(status: str) -> Dict:
             "signature_tag": "",
             "niche_anchors": [],
             "identity_tags": [],
+            "setting_tags": [],
             "music_primary": "",
             "music_secondary": "",
             "appeal_axes": {

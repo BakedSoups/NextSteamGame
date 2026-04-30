@@ -45,11 +45,28 @@ def print_run_summary(summary: dict) -> None:
         f"{summary['metadata_unique_tags']} metadata tags across {summary['metadata_contexts']} contexts, "
         f"{summary['vector_unique_tags']} vector tags across {summary['vector_contexts']} contexts"
     )
-    print(f"Metadata groups made: {summary['metadata_groups']}")
-    print(f"Vector groups made: {summary['vector_groups']}")
+    print(
+        f"Metadata groups made: {summary['metadata_groups']}"
+    )
+    print(
+        f"Metadata tail embedding merges: {summary.get('metadata_tail_embedding_merges', 0)}"
+    )
+    print(
+        f"Metadata tail internal merges: {summary.get('metadata_tail_internal_merges', 0)}"
+    )
+    print(
+        f"Vector groups made: {summary['vector_groups']}"
+    )
+    print(
+        f"Vector tail embedding merges: {summary.get('vector_tail_embedding_merges', 0)}"
+    )
+    print(
+        f"Vector tail internal merges: {summary.get('vector_tail_internal_merges', 0)}"
+    )
     print(f"Metadata CSV: {summary['metadata_csv_path']}")
     print(f"Vector CSV: {summary['vector_csv_path']}")
     print(f"Summary: {summary['summary_path']}")
+    print(f"Elapsed seconds: {summary.get('elapsed_seconds', 'n/a')}")
 
 
 def main() -> int:

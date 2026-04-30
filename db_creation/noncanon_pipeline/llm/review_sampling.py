@@ -1,10 +1,10 @@
 from typing import Dict, List
 
 
-def sample_reviews(results: Dict, per_category: int = 5, max_total: int = 12) -> List[str]:
+def sample_reviews(results: Dict, per_category: int = 5, max_total: int = 14) -> List[str]:
     pool = []
 
-    for category in ["descriptive", "artistic", "music", "systems_depth"]:
+    for category in ["systems_depth", "descriptive", "artistic", "music"]:
         if category in results:
             pool.extend(results[category][:per_category])
 

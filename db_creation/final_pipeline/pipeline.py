@@ -100,6 +100,8 @@ def load_group_csv(csv_path: Path, family: str) -> dict:
                 {
                     "context": context,
                     "representative_tag": representative,
+                    "parent_tag": row.get("parent_tag", representative) or representative,
+                    "specificity_level": int(row.get("specificity_level", 1) or 1),
                     "member_count": int(row["member_count"]),
                     "total_occurrences": int(row["total_occurrences"]),
                     "members": members,
@@ -122,6 +124,7 @@ def _canonicalize_metadata(metadata: Dict, mapping: Dict[str, Dict[str, str]]) -
     canon_micro = _canonicalize_tag_list(metadata.get("micro_tags", []), "micro_tags", mapping)
     canon_niche_anchors = _canonicalize_tag_list(metadata.get("niche_anchors", []), "niche_anchors", mapping)
     canon_identity_tags = _canonicalize_tag_list(metadata.get("identity_tags", []), "identity_tags", mapping)
+    canon_setting_tags = _canonicalize_tag_list(metadata.get("setting_tags", []), "setting_tags", mapping)
 
     genre_tree = metadata.get("genre_tree", {})
     canon_tree = {
@@ -152,6 +155,7 @@ def _canonicalize_metadata(metadata: Dict, mapping: Dict[str, Dict[str, str]]) -
         "signature_tag": canonical_signature_tag,
         "niche_anchors": canon_niche_anchors,
         "identity_tags": canon_identity_tags,
+        "setting_tags": canon_setting_tags,
         "music_primary": music_primary,
         "music_secondary": music_secondary,
         "appeal_axes": appeal_axes,
@@ -201,6 +205,8 @@ def create_schema(connection: sqlite3.Connection) -> None:
             source_family TEXT NOT NULL,
             context TEXT NOT NULL,
             representative_tag TEXT NOT NULL,
+            parent_tag TEXT NOT NULL,
+            specificity_level INTEGER NOT NULL DEFAULT 1,
             member_count INTEGER NOT NULL,
             total_occurrences INTEGER NOT NULL,
             FOREIGN KEY (run_id) REFERENCES final_runs(id) ON DELETE CASCADE
@@ -226,6 +232,21 @@ def create_schema(connection: sqlite3.Connection) -> None:
         );
         """
     )
+
+
+def _ensure_schema_columns(connection: sqlite3.Connection) -> None:
+    columns = {
+        row[1]
+        for row in connection.execute("PRAGMA table_info(canonical_tag_groups)")
+    }
+    if "parent_tag" not in columns:
+        connection.execute(
+            "ALTER TABLE canonical_tag_groups ADD COLUMN parent_tag TEXT NOT NULL DEFAULT ''"
+        )
+    if "specificity_level" not in columns:
+        connection.execute(
+            "ALTER TABLE canonical_tag_groups ADD COLUMN specificity_level INTEGER NOT NULL DEFAULT 1"
+        )
 
 
 def _start_run(connection: sqlite3.Connection) -> int:
@@ -256,16 +277,20 @@ def _store_loaded_groups(connection: sqlite3.Connection, run_id: int, loaded: di
                 source_family,
                 context,
                 representative_tag,
+                parent_tag,
+                specificity_level,
                 member_count,
                 total_occurrences
             )
-            VALUES (?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 run_id,
                 loaded["family"],
                 group["context"],
                 group["representative_tag"],
+                group["parent_tag"],
+                group["specificity_level"],
                 group["member_count"],
                 group["total_occurrences"],
             ),
@@ -375,6 +400,7 @@ def run_final_db_build(
         connection.row_factory = sqlite3.Row
         connection.execute("PRAGMA journal_mode = WAL")
         create_schema(connection)
+        _ensure_schema_columns(connection)
         run_id = _start_run(connection)
         status = "completed"
         processed_rows = 0

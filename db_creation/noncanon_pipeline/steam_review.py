@@ -25,9 +25,9 @@ LOW_YIELD_RAW_DELTA_THRESHOLD = 30
 LOW_YIELD_FILTERED_DELTA_THRESHOLD = 8
 REVIEWS_PER_SAMPLE_BUCKET = {
     "descriptive": 5,
-    "artistic": 4,
-    "music": 3,
-    "systems_depth": 6,
+    "artistic": 2,
+    "music": 2,
+    "systems_depth": 8,
 }
 STEAM_REVIEW_RETRIES = 3
 STEAM_REVIEW_RETRY_DELAY = 2.0
@@ -55,18 +55,38 @@ TEMPLATE_REVIEW_PATTERNS = (
     re.compile(r"---\{\s*price\s*\}---", re.IGNORECASE),
     re.compile(r"---\{\s*bugs\s*\}---", re.IGNORECASE),
     re.compile(r"---\{\s*\?\s*/\s*10\s*\}---", re.IGNORECASE),
-    re.compile(r"[☐☑✅❌].{0,40}[☐☑✅❌]", re.IGNORECASE),
 )
 FORMAT_PATTERN_BONUSES = (
     re.compile(r"\bgraphics\b.{0,40}\bgameplay\b.{0,40}\baudio\b", re.IGNORECASE | re.DOTALL),
     re.compile(r"\bpros?\b.{0,60}\bcons?\b", re.IGNORECASE | re.DOTALL),
     re.compile(r"\bscore\s*:\s*\d+(\.\d+)?\s*/\s*10\b", re.IGNORECASE),
 )
+HARD_TEMPLATE_PHRASES = (
+    "you can run it on a microwave",
+)
 CONCRETE_SIGNAL_PATTERNS = (
     re.compile(r"\b(recoil|spray|aim|crosshair|movement|straf|peek|headshot|weapon|loadout|economy|round|match|server|mod|map|bomb|flash|smoke)\w*\b", re.IGNORECASE),
     re.compile(r"\b(soundtrack|audio|sound design|soundscape|footstep|gunshot|music|mix|voice line)\b", re.IGNORECASE),
     re.compile(r"\b(graphics|visuals|textures|lighting|animation|ui|interface|art style|palette|model)\b", re.IGNORECASE),
     re.compile(r"\b(setting|city|school|dungeon|factory|kitchen|restaurant|ocean|space|wilderness|urban|world)\b", re.IGNORECASE),
+)
+CHECKBOX_EMOJI_PATTERN = re.compile(r"[☐☑✅❌🔲]")
+SYSTEMS_DEPTH_PATTERNS = (
+    re.compile(r"\bautomation\b", re.IGNORECASE),
+    re.compile(r"\bautomate\w*\b", re.IGNORECASE),
+    re.compile(r"\boptimi[sz]\w*\b", re.IGNORECASE),
+    re.compile(r"\befficien\w*\b", re.IGNORECASE),
+    re.compile(r"\bworkflow\b", re.IGNORECASE),
+    re.compile(r"\brouting\b", re.IGNORECASE),
+    re.compile(r"\bthroughput\b", re.IGNORECASE),
+    re.compile(r"\blayout\b", re.IGNORECASE),
+    re.compile(r"\bmastery\b", re.IGNORECASE),
+    re.compile(r"\bskill ceiling\b", re.IGNORECASE),
+    re.compile(r"\bdepth of knowledge\b", re.IGNORECASE),
+    re.compile(r"\blearn\b", re.IGNORECASE),
+    re.compile(r"\bexperiment\w*\b", re.IGNORECASE),
+    re.compile(r"\bprogression\b", re.IGNORECASE),
+    re.compile(r"\bunlock\w*\b", re.IGNORECASE),
 )
 
 
@@ -111,11 +131,21 @@ def _normalize_review_text(text: str) -> str:
     return " ".join(text.split())
 
 
+def _strip_checkbox_emoji(text: str) -> str:
+    return CHECKBOX_EMOJI_PATTERN.sub("", text)
+
+
 def _looks_like_template_review(text: str) -> bool:
-    normalized = text.strip()
+    normalized = _strip_checkbox_emoji(text).strip()
     if not normalized:
         return True
-    return any(pattern.search(normalized) for pattern in TEMPLATE_REVIEW_PATTERNS)
+    lowered = normalized.lower()
+    if any(phrase in lowered for phrase in HARD_TEMPLATE_PHRASES):
+        return True
+    if any(pattern.search(normalized) for pattern in TEMPLATE_REVIEW_PATTERNS):
+        return True
+
+    return False
 
 
 def _format_penalty(text: str) -> float:
@@ -160,6 +190,13 @@ def _review_quality_multiplier(text: str) -> float:
         multiplier *= 0.55
     multiplier += _concrete_signal_bonus(text)
     return max(multiplier, 0.1)
+
+
+def _systems_depth_bonus(text: str) -> float:
+    hits = sum(1 for pattern in SYSTEMS_DEPTH_PATTERNS if pattern.search(text))
+    if hits <= 0:
+        return 0.0
+    return min(1.25 + (0.45 * max(hits - 1, 0)), 4.0)
 
 
 def _steam_session() -> requests.Session:
@@ -488,7 +525,7 @@ def select_review_samples(reviews: list, semantic_lexicon: dict):
     scored_reviews = []
 
     for r in reviews:
-        text = r["review"]
+        text = _strip_checkbox_emoji(r["review"])
         quality_multiplier = _review_quality_multiplier(text)
         if quality_multiplier <= 0.0:
             continue
@@ -554,13 +591,15 @@ def select_review_samples(reviews: list, semantic_lexicon: dict):
         scored_reviews,
         key=lambda x: (
             x["adjusted_scores"].get("explainability", 0.0)
-            + x["adjusted_scores"]["descriptive"]
+            + (x["adjusted_scores"]["descriptive"] * 0.5)
+            + _systems_depth_bonus(x["review"])
         ),
         reverse=True
         )[:40]
         if (
             review["adjusted_scores"].get("explainability", 0.0)
-            + review["adjusted_scores"]["descriptive"]
+            + (review["adjusted_scores"]["descriptive"] * 0.5)
+            + _systems_depth_bonus(review["review"])
         ) > 0
     ]
 
@@ -572,8 +611,9 @@ def select_review_samples(reviews: list, semantic_lexicon: dict):
         "or musical identity of the game rather than generic sound quality"
     )
     systems_depth_query = (
-        "a review explaining the deeper systems, optimization, mastery, or hidden depth "
-        "that makes this game stand out from superficially similar games"
+        "a review explaining the deeper systems, automation, optimization, routing, "
+        "progression, mastery, or hidden depth that makes this game stand out from "
+        "superficially similar games"
     )
 
     top_descriptive = rerank_with_embeddings(top_descriptive, desc_query)[:REVIEWS_PER_SAMPLE_BUCKET["descriptive"]]

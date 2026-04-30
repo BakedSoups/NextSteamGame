@@ -111,16 +111,17 @@ def _genre_branch_values(raw: Any) -> list[str]:
     return []
 
 
+def _single_genre_value(raw: Any) -> str:
+    values = _genre_branch_values(raw)
+    return values[0] if values else ""
+
+
 def _music_tags(metadata: dict[str, Any]) -> list[str]:
     tags: list[str] = []
     for field in ("music_primary", "music_secondary"):
         value = str(metadata.get(field, "")).strip()
         if value and value not in tags:
             tags.append(value)
-    for tag in metadata.get("soundtrack_tags", []) or []:
-        text = str(tag).strip()
-        if text and text not in tags:
-            tags.append(text)
     return tags
 
 
@@ -132,9 +133,37 @@ def _identity_tags(metadata: dict[str, Any]) -> list[str]:
     for field in ("niche_anchors", "identity_tags", "micro_tags"):
         for tag in metadata.get(field, []) or []:
             text = str(tag).strip()
-            if text and text not in tags:
-                tags.append(text)
+                if text and text not in tags:
+                    tags.append(text)
     return tags
+
+
+def _serialize_genre_tree(metadata: dict[str, Any]) -> dict[str, str]:
+    genre_tree = metadata.get("genre_tree", {}) or {}
+    return {
+        "primary": _single_genre_value(genre_tree.get("primary")),
+        "sub": _single_genre_value(genre_tree.get("sub")),
+        "sub_sub": _single_genre_value(genre_tree.get("sub_sub")),
+    }
+
+
+def _serialize_focus_vectors(game: dict) -> dict[str, dict[str, int]]:
+    vectors = game.get("vectors", {}) or {}
+    return {
+        context: dict(vectors.get(context) or {})
+        for context in ("mechanics", "narrative", "vibe", "structure_loop")
+    }
+
+
+def _serialize_identity(metadata: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "signatureTag": str(metadata.get("signature_tag", "")).strip(),
+        "nicheAnchors": [str(tag).strip() for tag in metadata.get("niche_anchors", []) or [] if str(tag).strip()],
+        "identityTags": [str(tag).strip() for tag in metadata.get("identity_tags", []) or [] if str(tag).strip()],
+        "microTags": [str(tag).strip() for tag in metadata.get("micro_tags", []) or [] if str(tag).strip()],
+        "musicPrimary": str(metadata.get("music_primary", "")).strip(),
+        "musicSecondary": str(metadata.get("music_secondary", "")).strip(),
+    }
 
 
 def _build_tag_weights(game: dict) -> dict[str, dict[str, int]]:
@@ -149,9 +178,11 @@ def _build_tag_weights(game: dict) -> dict[str, dict[str, int]]:
 
 def _serialize_game(game: dict) -> dict[str, Any]:
     metadata = game.get("metadata", {})
-    genre_tree = metadata.get("genre_tree", {})
+    genre_tree = _serialize_genre_tree(metadata)
+    focus_vectors = _serialize_focus_vectors(game)
+    identity = _serialize_identity(metadata)
     vector_tags = {
-        context: _vector_tag_names((game.get("vectors", {}) or {}).get(context))
+        context: _vector_tag_names(focus_vectors.get(context))
         for context in ("mechanics", "narrative", "vibe", "structure_loop")
     }
     vector_tags["uniqueness"] = _identity_tags(metadata)
@@ -176,10 +207,13 @@ def _serialize_game(game: dict) -> dict[str, Any]:
         "image": str(game.get("capsule_image", "")),
         "headerImage": str(game.get("header_image", "")),
         "assets": assets,
+        "genreTree": genre_tree,
+        "focusVectors": focus_vectors,
+        "identity": identity,
         "genres": {
-            "primary": _genre_branch_values(genre_tree.get("primary")),
-            "sub": _genre_branch_values(genre_tree.get("sub")),
-            "sub_sub": _genre_branch_values(genre_tree.get("sub_sub")),
+            "primary": _genre_branch_values(genre_tree["primary"]),
+            "sub": _genre_branch_values(genre_tree["sub"]),
+            "sub_sub": _genre_branch_values(genre_tree["sub_sub"]),
             "traits": [],
         },
         "tags": vector_tags,
@@ -196,7 +230,9 @@ def _serialize_game(game: dict) -> dict[str, Any]:
 def _serialize_recommendation(item: dict) -> dict[str, Any]:
     metadata = item.get("metadata", {})
     signals = item.get("signals", {}) or {}
-    genre_tree = metadata.get("genre_tree", {})
+    genre_tree = _serialize_genre_tree(metadata)
+    focus_vectors = _serialize_focus_vectors(item)
+    identity = _serialize_identity(metadata)
     assets = {
         "header": str(item.get("header_image", "")),
         "capsule": str(item.get("capsule_image", "")),
@@ -217,17 +253,20 @@ def _serialize_recommendation(item: dict) -> dict[str, Any]:
         "image": str(item.get("capsule_image", "")),
         "headerImage": str(item.get("header_image", "")),
         "assets": assets,
+        "genreTree": genre_tree,
+        "focusVectors": focus_vectors,
+        "identity": identity,
         "genres": {
-            "primary": _genre_branch_values(genre_tree.get("primary")),
-            "sub": _genre_branch_values(genre_tree.get("sub")),
-            "sub_sub": _genre_branch_values(genre_tree.get("sub_sub")),
+            "primary": _genre_branch_values(genre_tree["primary"]),
+            "sub": _genre_branch_values(genre_tree["sub"]),
+            "sub_sub": _genre_branch_values(genre_tree["sub_sub"]),
             "traits": [],
         },
         "tags": {
-            "mechanics": _vector_tag_names((item.get("vectors", {}) or {}).get("mechanics")),
-            "narrative": _vector_tag_names((item.get("vectors", {}) or {}).get("narrative")),
-            "vibe": _vector_tag_names((item.get("vectors", {}) or {}).get("vibe")),
-            "structure_loop": _vector_tag_names((item.get("vectors", {}) or {}).get("structure_loop")),
+            "mechanics": _vector_tag_names(focus_vectors.get("mechanics")),
+            "narrative": _vector_tag_names(focus_vectors.get("narrative")),
+            "vibe": _vector_tag_names(focus_vectors.get("vibe")),
+            "structure_loop": _vector_tag_names(focus_vectors.get("structure_loop")),
             "uniqueness": _identity_tags(metadata),
             "music": _music_tags(metadata),
         },
