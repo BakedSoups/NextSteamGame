@@ -37,6 +37,15 @@ export interface Game {
 }
 
 export interface RecommendedGame extends Game {
+  matchedTags?: {
+    mechanics: string[]
+    narrative: string[]
+    vibe: string[]
+    structure_loop: string[]
+    identity: string[]
+    setting: string[]
+    music: string[]
+  }
   matchScore: number
   confidence: number
   reviewStats: {

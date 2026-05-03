@@ -3,7 +3,7 @@
 import { useState } from "react"
 import Image from "next/image"
 import { ChevronDown, ChevronUp, Radar, Zap, Target, AudioLines } from "lucide-react"
-import type { RecommendedGame, Weights } from "@/lib/types"
+import type { Game, RecommendedGame, Weights } from "@/lib/types"
 import { MATCH_LABELS } from "@/lib/score-labels"
 
 const VECTOR_CONTEXT_KEYS: Array<keyof RecommendedGame["contextScores"]> = [
@@ -31,6 +31,7 @@ const MATCH_COLORS: Record<keyof Weights["match"], string> = {
 interface RecommendationsPanelProps {
   recommendations: RecommendedGame[]
   weights: Weights
+  selectedGame: Game | null
 }
 
 interface ScoreBarProps {
@@ -63,18 +64,133 @@ function ScoreBar({ label, value, max = 100, color = "primary", fillColor }: Sco
   )
 }
 
+function polarPoint(index: number, total: number, radius: number) {
+  const angle = (-Math.PI / 2) + (index / total) * Math.PI * 2
+  return {
+    x: 80 + Math.cos(angle) * radius,
+    y: 80 + Math.sin(angle) * radius,
+  }
+}
+
+function StructuralRadar({ game, weights }: { game: RecommendedGame; weights: Weights }) {
+  const axes = VECTOR_CONTEXT_KEYS
+  const targetValues = axes.map((axis) => Math.max(8, weights.context[axis]))
+  const matchedValues = axes.map((axis) => Math.max(8, Math.min(100, (game.contextScores[axis] / 30) * 100)))
+  const targetPolygon = targetValues
+    .map((value, index) => {
+      const point = polarPoint(index, axes.length, 14 + (value / 100) * 56)
+      return `${point.x},${point.y}`
+    })
+    .join(" ")
+  const matchedPolygon = matchedValues
+    .map((value, index) => {
+      const point = polarPoint(index, axes.length, 14 + (value / 100) * 56)
+      return `${point.x},${point.y}`
+    })
+    .join(" ")
+
+  return (
+    <div className="mx-auto w-[168px]">
+      <svg viewBox="0 0 160 160" className="h-[168px] w-[168px] overflow-visible">
+        {[22, 38, 54, 70].map((radius) => (
+          <polygon
+            key={radius}
+            points={axes.map((_, index) => {
+              const point = polarPoint(index, axes.length, radius)
+              return `${point.x},${point.y}`
+            }).join(" ")}
+            fill="none"
+            stroke="rgba(255,255,255,0.14)"
+            strokeWidth="1"
+          />
+        ))}
+        {axes.map((_, index) => {
+          const point = polarPoint(index, axes.length, 76)
+          return (
+            <line
+              key={`axis-${index}`}
+              x1="80"
+              y1="80"
+              x2={point.x}
+              y2={point.y}
+              stroke="rgba(255,255,255,0.12)"
+              strokeWidth="1"
+            />
+          )
+        })}
+        <polygon
+          points={targetPolygon}
+          fill="rgba(249, 168, 212, 0.10)"
+          stroke="rgba(249, 168, 212, 0.85)"
+          strokeWidth="1.6"
+          strokeDasharray="4 4"
+        />
+        <polygon
+          points={matchedPolygon}
+          fill="rgba(125, 211, 252, 0.18)"
+          stroke="#7dd3fc"
+          strokeWidth="2.25"
+          style={{ filter: "drop-shadow(0 0 12px rgba(125, 211, 252, 0.35))" }}
+        />
+        {matchedValues.map((value, index) => {
+          const point = polarPoint(index, matchedValues.length, 14 + (value / 100) * 56)
+          return <circle key={`point-${index}`} cx={point.x} cy={point.y} r="3" fill="#7dd3fc" />
+        })}
+      </svg>
+      <div className="mb-2 flex items-center justify-center gap-4 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+        <div className="flex items-center gap-1.5">
+          <span className="h-2.5 w-2.5 rounded-full border border-pink-300/80 bg-pink-300/20" />
+          <span>Requested</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="h-2.5 w-2.5 rounded-full bg-sky-300" />
+          <span>Matched</span>
+        </div>
+      </div>
+      <div className="mt-2 grid grid-cols-2 gap-2 text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+        {axes.map((axis) => (
+          <div key={axis} className="flex items-center justify-between rounded-full border border-white/8 bg-white/[0.03] px-2 py-1">
+            <span>{axis.replace(/_/g, " ")}</span>
+            <span className="text-foreground">{game.contextScores[axis].toFixed(1)}%</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 interface RecommendationCardProps {
   game: RecommendedGame
   rank: number
   weights: Weights
+  selectedGame: Game | null
 }
 
-function RecommendationCard({ game, rank, weights }: RecommendationCardProps) {
+function RecommendationCard({ game, rank, weights, selectedGame }: RecommendationCardProps) {
   const [isExpanded, setIsExpanded] = useState(false)
   const cardImage = game.assets.libraryCapsule || game.assets.capsuleV5 || game.image || IMAGE_FALLBACK
   const logoImage = game.assets.logo
   const scorePercentages = game.scorePercentages ?? {}
   const steamStoreUrl = `https://store.steampowered.com/app/${game.appId}`
+  const matchedTags = game.matchedTags ?? {
+    mechanics: [],
+    narrative: [],
+    vibe: [],
+    structure_loop: [],
+    identity: [],
+    setting: [],
+    music: [],
+  }
+  const showIdentityMatches = matchedTags.identity.length >= 3
+  const showSettingMatches = matchedTags.setting.length >= 3
+  const showStructureMatches = (matchedTags.structure_loop.length + matchedTags.mechanics.length) >= 3
+  const showMusicMatches = matchedTags.music.length >= 3
+  const reasonChips = [
+    ...(showIdentityMatches ? matchedTags.identity : []),
+    ...(showSettingMatches ? matchedTags.setting : []),
+    ...(showStructureMatches ? [...matchedTags.structure_loop, ...matchedTags.mechanics] : []),
+    ...(showMusicMatches ? matchedTags.music : []),
+  ].filter((tag, index, array) => array.indexOf(tag) === index).slice(0, 6)
   
   return (
     <div className="panel overflow-hidden hover:glow-box transition-all corner-brackets">
@@ -140,6 +256,26 @@ function RecommendationCard({ game, rank, weights }: RecommendationCardProps) {
 
       {/* Mini Score Bars */}
       <div className="px-3 pb-2">
+        {reasonChips.length > 0 && (
+          <div className="mb-3">
+            <div className="mb-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+              Why It Matches
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {reasonChips.map((tag) => (
+                <span key={tag} className="tag-chip included">{tag}</span>
+              ))}
+            </div>
+          </div>
+        )}
+        {selectedGame && (
+          <div className="mb-3">
+            <div className="mb-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+              Structural Overlap
+            </div>
+            <StructuralRadar game={game} weights={weights} />
+          </div>
+        )}
         <div className="flex gap-2">
           {[
             { key: "vector", value: scorePercentages.vector ?? game.scores.vector, weight: weights.match.vector },
@@ -204,17 +340,59 @@ function RecommendationCard({ game, rank, weights }: RecommendationCardProps) {
             </div>
           </div>
 
-          {/* Vector Breakdown */}
+          <div>
+            <span className="terminal-label block mb-2 text-accent">Matched Tags</span>
+            <div className="space-y-3">
+              {showIdentityMatches && (
+                <div>
+                  <div className="mb-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Identity</div>
+                  <div className="flex flex-wrap gap-1">
+                    {matchedTags.identity.map((tag) => (
+                      <span key={`identity-${tag}`} className="tag-chip included">{tag}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {showSettingMatches && (
+                <div>
+                  <div className="mb-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Setting</div>
+                  <div className="flex flex-wrap gap-1">
+                    {matchedTags.setting.map((tag) => (
+                      <span key={`setting-${tag}`} className="tag-chip">{tag}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {showStructureMatches && (
+                <div>
+                  <div className="mb-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Structure & Mechanics</div>
+                  <div className="flex flex-wrap gap-1">
+                    {[...matchedTags.structure_loop, ...matchedTags.mechanics].map((tag) => (
+                      <span key={`structure-${tag}`} className="tag-chip">{tag}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {showMusicMatches && (
+                <div>
+                  <div className="mb-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Music</div>
+                  <div className="flex flex-wrap gap-1">
+                    {matchedTags.music.map((tag) => (
+                      <span key={`music-${tag}`} className="tag-chip">{tag}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Structural Scan */}
           <div>
             <div className="flex items-center gap-2 mb-2">
               <AudioLines className="h-3 w-3 text-accent" />
-              <span className="terminal-label text-accent">Vector Match</span>
+              <span className="terminal-label text-accent">Structural Scan</span>
             </div>
-            <div className="space-y-1.5">
-              {VECTOR_CONTEXT_KEYS.map((key) => (
-                <ScoreBar key={key} label={key} value={game.contextScores[key]} max={30} color="accent" />
-              ))}
-            </div>
+            <StructuralRadar game={game} weights={weights} />
           </div>
 
           <div>
@@ -242,7 +420,7 @@ function RecommendationCard({ game, rank, weights }: RecommendationCardProps) {
             </div>
           </div>
 
-          {/* Tag Signals */}
+          {/* Full Tag Signals */}
           <div>
             <span className="terminal-label block mb-2">Identity & Setting</span>
             <div className="flex flex-wrap gap-1">
@@ -269,7 +447,7 @@ function RecommendationCard({ game, rank, weights }: RecommendationCardProps) {
   )
 }
 
-export function RecommendationsPanel({ recommendations, weights }: RecommendationsPanelProps) {
+export function RecommendationsPanel({ recommendations, weights, selectedGame }: RecommendationsPanelProps) {
   return (
     <div className="space-y-3">
       {/* Header */}
@@ -302,6 +480,7 @@ export function RecommendationsPanel({ recommendations, weights }: Recommendatio
             game={game}
             rank={index + 1}
             weights={weights}
+            selectedGame={selectedGame}
           />
         ))}
       </div>

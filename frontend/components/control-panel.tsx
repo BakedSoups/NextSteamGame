@@ -425,7 +425,7 @@ export function ControlPanel({
       <div className="panel p-3 glow-box">
         <div className="flex items-center gap-2 mb-3">
           <Activity className="w-3.5 h-3.5 text-primary" />
-          <span className="terminal-label text-primary">Active Match Formula</span>
+          <span className="terminal-label text-primary">Current Search Profile</span>
           <div className="ml-auto inline-flex rounded-full border border-border bg-secondary/40 p-0.5">
             <button
               onClick={() => onModeChange("simple")}
@@ -446,107 +446,30 @@ export function ControlPanel({
           </div>
         </div>
         <div className="mb-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-          Recommendation Formula
+          What You&apos;re Chasing
         </div>
-        <div className="overflow-hidden rounded-full border border-white/10 bg-white/[0.04]">
-          <div className="flex h-3 w-full">
-            {(Object.keys(weights.match) as (keyof Weights["match"])[]).map((key) => (
-              <div
-                key={key}
-                title={`${MATCH_VISUALS[key].label}: ${weights.match[key]}%`}
-                style={{
-                  width: `${weights.match[key]}%`,
-                  backgroundColor: MATCH_VISUALS[key].fill,
-                  boxShadow: `0 0 12px ${MATCH_VISUALS[key].glow}`,
-                }}
-                className="transition-all duration-300"
-              />
-            ))}
-          </div>
-        </div>
-        <div className="mt-2 flex flex-wrap gap-2">
-          {(Object.keys(weights.match) as (keyof Weights["match"])[]).map((key) => (
-            <div key={key} className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-              <span
-                className="h-2.5 w-2.5 rounded-full"
-                style={{ backgroundColor: MATCH_VISUALS[key].fill, boxShadow: `0 0 10px ${MATCH_VISUALS[key].glow}` }}
-              />
-              <span>{MATCH_VISUALS[key].label}</span>
-              <span className="text-foreground">{weights.match[key]}%</span>
+        {activeSignalTags.length > 0 ? (
+          <div className="space-y-2">
+            <p className="text-[10px] text-muted-foreground">
+              These reasons are currently steering search and will keep building as you click more tags below.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {activeSignalTags.map((tag) => (
+                <span
+                  key={tag}
+                  className="rounded-full border border-sky-300/30 bg-sky-400/12 px-3 py-1.5 text-[11px] font-medium text-sky-50 shadow-[0_0_14px_rgba(56,189,248,0.16)]"
+                >
+                  {tag}
+                </span>
+              ))}
             </div>
-          ))}
-        </div>
-        <div className="h-px bg-border my-3" />
-        <div className="mb-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-          Vector Mix
-        </div>
-        <div className="overflow-hidden rounded-full border border-white/10 bg-white/[0.04]">
-          <div className="flex h-3 w-full">
-            {VECTOR_CONTEXT_KEYS.map((key, index) => (
-              <div
-                key={key}
-                title={`${key.replace(/_/g, " ")}: ${weights.context[key]}%`}
-                style={{
-                  width: `${weights.context[key]}%`,
-                  backgroundColor: VECTOR_INFLUENCE_COLORS[key].fill,
-                  boxShadow: `0 0 12px ${VECTOR_INFLUENCE_COLORS[key].glow}`,
-                }}
-                className={`transition-all duration-300 ${index > 0 ? "border-l border-black/30" : ""}`}
-              />
-            ))}
           </div>
-        </div>
-        <div className="mt-2 flex flex-wrap gap-2">
-          {VECTOR_CONTEXT_KEYS.map((key) => (
-            <div key={key} className="flex items-center gap-1.5 rounded-full border border-white/8 bg-white/[0.03] px-2.5 py-1 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-              <span
-                className="h-2.5 w-2.5 rounded-full"
-                style={{
-                  backgroundColor: VECTOR_INFLUENCE_COLORS[key].fill,
-                  boxShadow: `0 0 10px ${VECTOR_INFLUENCE_COLORS[key].glow}`,
-                }}
-              />
-              <span>{key.replace(/_/g, " ")}</span>
-              <span className="text-foreground">{weights.context[key]}%</span>
-            </div>
-          ))}
-        </div>
-        <div className="h-px bg-border my-3" />
-        <div className="mb-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-          Tag Signal Mix
-        </div>
-        <div className="overflow-hidden rounded-full border border-white/10 bg-white/[0.04]">
-          <div className="flex h-3 w-full">
-            {TAG_SIGNAL_CONTEXT_KEYS.map((key, index) => (
-              <div
-                key={key}
-                title={`${key.replace(/_/g, " ")}: ${weights.context[key]}%`}
-                style={{
-                  width: `${weights.context[key]}%`,
-                  backgroundColor: VECTOR_INFLUENCE_COLORS[key].fill,
-                  boxShadow: `0 0 12px ${VECTOR_INFLUENCE_COLORS[key].glow}`,
-                }}
-                className={`transition-all duration-300 ${index > 0 ? "border-l border-black/30" : ""}`}
-              />
-            ))}
-          </div>
-        </div>
-        <div className="mt-2 flex flex-wrap gap-2">
-          {TAG_SIGNAL_CONTEXT_KEYS.map((key) => (
-            <div key={key} className="flex items-center gap-1.5 rounded-full border border-white/8 bg-white/[0.03] px-2.5 py-1 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-              <span
-                className="h-2.5 w-2.5 rounded-full"
-                style={{
-                  backgroundColor: VECTOR_INFLUENCE_COLORS[key].fill,
-                  boxShadow: `0 0 10px ${VECTOR_INFLUENCE_COLORS[key].glow}`,
-                }}
-              />
-              <span>{key.replace(/_/g, " ")}</span>
-              <span className="text-foreground">{weights.context[key]}%</span>
-            </div>
-          ))}
-        </div>
-        {(genrePathSummary || weights.genres.traits.length > 0) && (
+        ) : (
+          <p className="text-[10px] text-muted-foreground">
+            Pick identity, setting, music, or structural tags below to define the reason you want more of this game.
+          </p>
+        )}
+        {mode === "advanced" && (genrePathSummary || weights.genres.traits.length > 0) && (
           <>
             <div className="h-px bg-border my-3" />
             <div className="space-y-2">
@@ -564,6 +487,50 @@ export function ControlPanel({
                   ))}
                 </div>
               )}
+            </div>
+          </>
+        )}
+        {mode === "advanced" && (
+          <>
+            <div className="h-px bg-border my-3" />
+            <div className="grid gap-3 md:grid-cols-2">
+              <div>
+                <div className="mb-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                  Match Weighting
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {(Object.keys(weights.match) as (keyof Weights["match"])[]).map((key) => (
+                    <div key={key} className="flex items-center gap-1.5 rounded-full border border-white/8 bg-white/[0.03] px-2.5 py-1 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                      <span
+                        className="h-2.5 w-2.5 rounded-full"
+                        style={{ backgroundColor: MATCH_VISUALS[key].fill, boxShadow: `0 0 10px ${MATCH_VISUALS[key].glow}` }}
+                      />
+                      <span>{MATCH_VISUALS[key].label}</span>
+                      <span className="text-foreground">{weights.match[key]}%</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <div className="mb-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                  Core Structure
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {VECTOR_CONTEXT_KEYS.map((key) => (
+                    <div key={key} className="flex items-center gap-1.5 rounded-full border border-white/8 bg-white/[0.03] px-2.5 py-1 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                      <span
+                        className="h-2.5 w-2.5 rounded-full"
+                        style={{
+                          backgroundColor: VECTOR_INFLUENCE_COLORS[key].fill,
+                          boxShadow: `0 0 10px ${VECTOR_INFLUENCE_COLORS[key].glow}`,
+                        }}
+                      />
+                      <span>{key.replace(/_/g, " ")}</span>
+                      <span className="text-foreground">{weights.context[key]}%</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </>
         )}
@@ -618,30 +585,6 @@ export function ControlPanel({
 
           <div className="space-y-4">
             <CollapsibleSection
-              title="Selected Words"
-              icon={<Activity className="h-3.5 w-3.5" />}
-              badge={selectedSimpleLabels.length > 0 ? String(selectedSimpleLabels.length) : "None"}
-              defaultOpen={true}
-            >
-              {selectedSimpleLabels.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {selectedSimpleLabels.map((tag) => (
-                    <span
-                      key={tag}
-                      className="rounded-full border border-primary/40 bg-primary/12 px-3 py-1.5 text-xs text-foreground shadow-[0_0_10px_var(--glow-cyan)]"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-[10px] text-muted-foreground">
-                  Click words below and they will appear here while the radar shapes adjust live.
-                </p>
-              )}
-            </CollapsibleSection>
-
-            <CollapsibleSection
               title="What Do You Care About?"
               icon={<Zap className="h-3.5 w-3.5" />}
               badge="Tags"
@@ -649,7 +592,7 @@ export function ControlPanel({
             >
               <div className="space-y-4">
                 <p className="text-[10px] text-muted-foreground">
-                  Click the actual traits you care about. This pushes the real profile under the hood.
+                  Pick the reasons you want more of. Start with identity anchors and structure, then add mechanics or setting details.
                 </p>
                 <div className="space-y-4">
                   {featuredTags.map((group) => (
@@ -717,7 +660,7 @@ export function ControlPanel({
             <div className="panel p-4 glow-box">
               <div className="flex items-center gap-2">
                 <Puzzle className="h-4 w-4 text-primary" />
-                <span className="terminal-label text-primary">Stand Stats</span>
+                <span className="terminal-label text-primary">Core Vector Shape</span>
               </div>
               <p className="mt-3 text-xs leading-6 text-muted-foreground">
                 The left side shows the four core vectors. The right side lets you rebalance both those vectors and the tag-signal groups that sit on top of them.
@@ -752,6 +695,31 @@ export function ControlPanel({
             <div className="panel overflow-hidden glow-box-subtle">
               <div className="panel-header">
                 <div className="text-primary">
+                  <Zap className="h-3.5 w-3.5" />
+                </div>
+                <span className="text-xs font-medium text-foreground">Match Weighting</span>
+                <span className="ml-auto data-value text-[10px]">Direct Control</span>
+              </div>
+              <div className="border-t border-border/50 p-3">
+                <div className="space-y-3">
+                  <p className="mb-2 text-[10px] text-muted-foreground">
+                    This changes how much each ranking component contributes to the final recommendation score.
+                  </p>
+                  {(Object.keys(weights.match) as (keyof Weights["match"])[]).map((key) => (
+                    <WeightSlider
+                      key={key}
+                      label={MATCH_VISUALS[key].label}
+                      value={weights.match[key]}
+                      onChange={(value) => onMatchWeightChange(key, value)}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="panel overflow-hidden glow-box-subtle">
+              <div className="panel-header">
+                <div className="text-primary">
                   <Sparkles className="h-3.5 w-3.5" />
                 </div>
                 <span className="text-xs font-medium text-foreground">Appeal Axes</span>
@@ -780,8 +748,8 @@ export function ControlPanel({
                   <div className="text-primary">
                     <Grid3X3 className="h-3.5 w-3.5" />
                   </div>
-                  <span className="text-xs font-medium text-foreground">Active Signals</span>
-                  <span className="ml-auto data-value text-[10px]">Live Tags</span>
+                  <span className="text-xs font-medium text-foreground">Why These Results</span>
+                  <span className="ml-auto data-value text-[10px]">Active Reasons</span>
                 </div>
                 <div className="border-t border-border/50 p-3">
                   <div className="flex flex-wrap gap-2">

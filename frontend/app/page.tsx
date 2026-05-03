@@ -58,6 +58,20 @@ function uniqueSorted(values: string[]): string[] {
   return Array.from(new Set(values.filter(Boolean))).sort((a, b) => a.localeCompare(b))
 }
 
+function frequentTags(games: Game[], select: (game: Game) => string[], minimumCount = 3): string[] {
+  const counts = new Map<string, number>()
+  for (const game of games) {
+    const uniqueTags = new Set(select(game).filter(Boolean))
+    for (const tag of uniqueTags) {
+      counts.set(tag, (counts.get(tag) ?? 0) + 1)
+    }
+  }
+  return Array.from(counts.entries())
+    .filter(([, count]) => count >= minimumCount)
+    .map(([tag]) => tag)
+    .sort((a, b) => a.localeCompare(b))
+}
+
 function normalizeToHundred(tags: string[]): Record<string, number> {
   if (tags.length === 0) {
     return {}
@@ -98,11 +112,11 @@ function featuredTagGroups(game: Game | null): Array<{
     label: string
     tags: string[]
   }> = [
-    { context: "identity", label: "Signature", tags: game.tags.identity.slice(0, 4) },
-    { context: "setting", label: "Setting", tags: game.tags.setting.slice(0, 4) },
-    { context: "vibe", label: "Mood", tags: game.tags.vibe.slice(0, 4) },
+    { context: "identity", label: "Identity Anchors", tags: game.tags.identity.slice(0, 5) },
+    { context: "setting", label: "World / Setting", tags: game.tags.setting.slice(0, 4) },
+    { context: "structure_loop", label: "Structure", tags: game.tags.structure_loop.slice(0, 4) },
     { context: "mechanics", label: "Mechanics", tags: game.tags.mechanics.slice(0, 4) },
-    { context: "music", label: "Sound", tags: game.tags.music.slice(0, 4) },
+    { context: "music", label: "Music", tags: game.tags.music.slice(0, 3) },
   ]
   return groups.filter((group) => group.tags.length > 0)
 }
@@ -391,13 +405,13 @@ export default function NextSteamGamePage() {
   const tagOptions = useMemo<Record<string, string[]>>(() => {
     const sourceGames = selectedGame ? [selectedGame, ...recommendations] : recommendations
     return {
-      mechanics: uniqueSorted(sourceGames.flatMap((game) => game.tags.mechanics)),
-      narrative: uniqueSorted(sourceGames.flatMap((game) => game.tags.narrative)),
-      vibe: uniqueSorted(sourceGames.flatMap((game) => game.tags.vibe)),
-      structure_loop: uniqueSorted(sourceGames.flatMap((game) => game.tags.structure_loop)),
-      identity: uniqueSorted(sourceGames.flatMap((game) => game.tags.identity)),
-      setting: uniqueSorted(sourceGames.flatMap((game) => game.tags.setting)),
-      music: uniqueSorted(sourceGames.flatMap((game) => game.tags.music)),
+      mechanics: frequentTags(sourceGames, (game) => game.tags.mechanics),
+      narrative: frequentTags(sourceGames, (game) => game.tags.narrative),
+      vibe: frequentTags(sourceGames, (game) => game.tags.vibe),
+      structure_loop: frequentTags(sourceGames, (game) => game.tags.structure_loop),
+      identity: frequentTags(sourceGames, (game) => game.tags.identity),
+      setting: frequentTags(sourceGames, (game) => game.tags.setting),
+      music: frequentTags(sourceGames, (game) => game.tags.music),
     }
   }, [selectedGame, recommendations])
 
@@ -848,17 +862,10 @@ export default function NextSteamGamePage() {
                   Loading recommendations from the live backend...
                 </div>
               )}
-              <RecommendationsPanel recommendations={recommendations} weights={weights} />
+              <RecommendationsPanel recommendations={recommendations} weights={weights} selectedGame={selectedGame} />
             </div>
 
             <div className="xl:sticky xl:top-24 xl:h-fit xl:max-h-[calc(100vh-7rem)] xl:overflow-y-auto custom-scrollbar pl-2">
-              <div className="mb-4 rounded-2xl border border-border bg-card/60 p-4">
-                <div className="text-[11px] font-medium uppercase tracking-[0.25em] text-muted-foreground">Step 3</div>
-                <div className="mt-2 text-lg font-semibold text-foreground">Refine the results</div>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Keep adjusting the profile here to learn what matters most and steer the next set of matches.
-                </p>
-              </div>
               <ControlPanel
                 selectedGame={selectedGame}
                 weights={weights}
