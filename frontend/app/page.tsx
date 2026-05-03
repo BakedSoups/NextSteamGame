@@ -24,8 +24,9 @@ const DEFAULT_CONTEXT_WEIGHTS: Weights["context"] = {
   mechanics: 33,
   narrative: 5,
   vibe: 9,
-  structure_loop: 30,
-  uniqueness: 13,
+  structure_loop: 29,
+  identity: 9,
+  setting: 5,
   music: 10,
 }
 
@@ -45,7 +46,8 @@ type SimpleIntentKey =
   | "narrative"
   | "vibe"
   | "structure_loop"
-  | "uniqueness"
+  | "identity"
+  | "setting"
   | "music"
   | "more_similar"
   | "more_surprising"
@@ -76,7 +78,8 @@ function buildTagWeights(game: Game): Weights["tags"] {
     narrative: normalizeToHundred(game.tags.narrative),
     vibe: normalizeToHundred(game.tags.vibe),
     structure_loop: normalizeToHundred(game.tags.structure_loop),
-    uniqueness: normalizeToHundred(game.tags.uniqueness),
+    identity: normalizeToHundred(game.tags.identity),
+    setting: normalizeToHundred(game.tags.setting),
     music: normalizeToHundred(game.tags.music),
   }
 }
@@ -90,12 +93,18 @@ function featuredTagGroups(game: Game | null): Array<{
     return []
   }
 
-  return [
-    { context: "uniqueness", label: "Signature", tags: game.tags.uniqueness.slice(0, 4) },
+  const groups: Array<{
+    context: keyof Weights["tags"]
+    label: string
+    tags: string[]
+  }> = [
+    { context: "identity", label: "Signature", tags: game.tags.identity.slice(0, 4) },
+    { context: "setting", label: "Setting", tags: game.tags.setting.slice(0, 4) },
     { context: "vibe", label: "Mood", tags: game.tags.vibe.slice(0, 4) },
     { context: "mechanics", label: "Mechanics", tags: game.tags.mechanics.slice(0, 4) },
     { context: "music", label: "Sound", tags: game.tags.music.slice(0, 4) },
-  ].filter((group) => group.tags.length > 0)
+  ]
+  return groups.filter((group) => group.tags.length > 0)
 }
 
 function buildWeightsFromGame(game: Game): Weights {
@@ -110,7 +119,8 @@ function buildWeightsFromGame(game: Game): Weights {
           narrative: liveWeights.tags.narrative ?? {},
           vibe: liveWeights.tags.vibe ?? {},
           structure_loop: liveWeights.tags.structure_loop ?? {},
-          uniqueness: liveWeights.tags.uniqueness ?? {},
+          identity: liveWeights.tags.identity ?? {},
+          setting: liveWeights.tags.setting ?? {},
           music: liveWeights.tags.music ?? {},
         }
       : buildTagWeights(game),
@@ -133,14 +143,16 @@ function simpleIntentHighlights(intent: SimpleIntentKey): TagContextKey[] {
       return ["vibe"]
     case "structure_loop":
       return ["structure_loop"]
-    case "uniqueness":
-      return ["uniqueness"]
+    case "identity":
+      return ["identity"]
+    case "setting":
+      return ["setting"]
     case "music":
       return ["music"]
     case "more_similar":
       return ["mechanics", "structure_loop"]
     case "more_surprising":
-      return ["uniqueness", "music"]
+      return ["identity", "setting", "music"]
     case "more_story":
       return ["narrative"]
     case "more_competitive":
@@ -207,7 +219,8 @@ export default function NextSteamGamePage() {
       narrative: {},
       vibe: {},
       structure_loop: {},
-      uniqueness: {},
+      identity: {},
+      setting: {},
       music: {},
     },
     genres: {
@@ -282,6 +295,9 @@ export default function NextSteamGamePage() {
     let cancelled = false
 
     async function loadRecommendations() {
+      if (!selectedGame) {
+        return
+      }
       try {
         setResultsLoading(true)
         setResultsError(null)
@@ -324,7 +340,8 @@ export default function NextSteamGamePage() {
           ...rec.tags.narrative,
           ...rec.tags.vibe,
           ...rec.tags.structure_loop,
-          ...rec.tags.uniqueness,
+          ...rec.tags.identity,
+          ...rec.tags.setting,
           ...rec.tags.music,
         ].map((tag) => tag.toLowerCase())
 
@@ -341,7 +358,8 @@ export default function NextSteamGamePage() {
           ...rec.tags.narrative,
           ...rec.tags.vibe,
           ...rec.tags.structure_loop,
-          ...rec.tags.uniqueness,
+          ...rec.tags.identity,
+          ...rec.tags.setting,
           ...rec.tags.music,
         ].map((tag) => tag.toLowerCase())
 
@@ -377,7 +395,8 @@ export default function NextSteamGamePage() {
       narrative: uniqueSorted(sourceGames.flatMap((game) => game.tags.narrative)),
       vibe: uniqueSorted(sourceGames.flatMap((game) => game.tags.vibe)),
       structure_loop: uniqueSorted(sourceGames.flatMap((game) => game.tags.structure_loop)),
-      uniqueness: uniqueSorted(sourceGames.flatMap((game) => game.tags.uniqueness)),
+      identity: uniqueSorted(sourceGames.flatMap((game) => game.tags.identity)),
+      setting: uniqueSorted(sourceGames.flatMap((game) => game.tags.setting)),
       music: uniqueSorted(sourceGames.flatMap((game) => game.tags.music)),
     }
   }, [selectedGame, recommendations])
@@ -510,7 +529,8 @@ export default function NextSteamGamePage() {
       case "narrative":
       case "vibe":
       case "structure_loop":
-      case "uniqueness":
+      case "identity":
+      case "setting":
       case "music":
         applySimpleIntentBoost(intent, "vector")
         return
@@ -518,7 +538,7 @@ export default function NextSteamGamePage() {
         applySimpleIntentBoost("mechanics", "vector", 10, 10)
         return
       case "more_surprising":
-        applySimpleIntentBoost("uniqueness", "music", 14, 8, { creativity: 70 })
+        applySimpleIntentBoost("identity", "music", 10, 8, { creativity: 70 })
         return
       case "more_story":
         applySimpleIntentBoost("narrative", "appeal", 14, 8, { narrative_focus: 80 })
@@ -588,14 +608,15 @@ export default function NextSteamGamePage() {
     if (context === "music") {
       applySimpleIntentBoost("music", "music", 8, 6)
     } else {
-      const contextMap: Record<string, keyof Weights["context"]> = {
-        mechanics: "mechanics",
-        narrative: "narrative",
-        vibe: "vibe",
-        structure_loop: "structure_loop",
-        uniqueness: "uniqueness",
-        music: "music",
-      }
+        const contextMap: Record<string, keyof Weights["context"]> = {
+          mechanics: "mechanics",
+          narrative: "narrative",
+          vibe: "vibe",
+          structure_loop: "structure_loop",
+          identity: "identity",
+          setting: "setting",
+          music: "music",
+        }
       applySimpleIntentBoost(contextMap[context], "vector", 6, 4)
     }
   }

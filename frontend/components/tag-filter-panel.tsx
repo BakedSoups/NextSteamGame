@@ -21,7 +21,8 @@ const CATEGORY_LABELS: Record<string, string> = {
   narrative: "Narrative",
   vibe: "Vibe",
   structure_loop: "Structure",
-  uniqueness: "Uniqueness",
+  identity: "Identity",
+  setting: "Setting",
   music: "Music"
 }
 

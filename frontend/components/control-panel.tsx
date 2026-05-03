@@ -5,6 +5,19 @@ import { ChevronDown, ChevronRight, Puzzle, Sparkles, Grid3X3, Activity, Zap } f
 import type { Game, Weights } from "@/lib/types"
 import { MATCH_LABELS } from "@/lib/score-labels"
 
+const VECTOR_CONTEXT_KEYS: Array<keyof Weights["tags"]> = [
+  "mechanics",
+  "narrative",
+  "vibe",
+  "structure_loop",
+]
+
+const TAG_SIGNAL_CONTEXT_KEYS: Array<keyof Weights["tags"]> = [
+  "identity",
+  "setting",
+  "music",
+]
+
 interface ControlPanelProps {
   selectedGame: Game | null
   weights: Weights
@@ -31,7 +44,8 @@ type SimpleIntent =
   | "narrative"
   | "vibe"
   | "structure_loop"
-  | "uniqueness"
+  | "identity"
+  | "setting"
   | "music"
   | "more_similar"
   | "more_surprising"
@@ -43,7 +57,8 @@ const SIMPLE_INTENTS: { key: SimpleIntent; label: string; hint: string }[] = [
   { key: "narrative", label: "Narrative", hint: "Push story and character presence" },
   { key: "vibe", label: "Vibe", hint: "Favor mood, tone, and atmosphere" },
   { key: "structure_loop", label: "Structure", hint: "Emphasize the core repeatable loop" },
-  { key: "uniqueness", label: "Uniqueness", hint: "Bias toward unusual traits" },
+  { key: "identity", label: "Identity", hint: "Bias toward signature traits and niche anchors" },
+  { key: "setting", label: "Setting", hint: "Bias toward world, era, and environment" },
   { key: "music", label: "Music", hint: "Give soundtrack and sonic identity more pull" },
   { key: "more_similar", label: "More Similar", hint: "Tighten the match around close neighbors" },
   { key: "more_surprising", label: "More Surprising", hint: "Loosen genre and reward novelty" },
@@ -63,7 +78,8 @@ const CONTEXT_VISUALS: Record<
   narrative: { stat: "RESOLVE", accent: "#fda4af", glow: "rgba(253, 164, 175, 0.28)" },
   vibe: { stat: "AURA", accent: "#c4b5fd", glow: "rgba(196, 181, 253, 0.3)" },
   structure_loop: { stat: "PRECISION", accent: "#86efac", glow: "rgba(134, 239, 172, 0.28)" },
-  uniqueness: { stat: "BIZARRE", accent: "#fcd34d", glow: "rgba(252, 211, 77, 0.28)" },
+  identity: { stat: "SIGNAL", accent: "#fcd34d", glow: "rgba(252, 211, 77, 0.28)" },
+  setting: { stat: "WORLD", accent: "#60a5fa", glow: "rgba(96, 165, 250, 0.28)" },
   music: { stat: "RHYTHM", accent: "#f9a8d4", glow: "rgba(249, 168, 212, 0.3)" },
 }
 
@@ -79,7 +95,8 @@ const VECTOR_INFLUENCE_COLORS: Record<keyof Weights["context"], { fill: string; 
   narrative: { fill: "#c084fc", glow: "rgba(192, 132, 252, 0.30)" },
   vibe: { fill: "#2dd4bf", glow: "rgba(45, 212, 191, 0.30)" },
   structure_loop: { fill: "#f97316", glow: "rgba(249, 115, 22, 0.28)" },
-  uniqueness: { fill: "#fb7185", glow: "rgba(251, 113, 133, 0.30)" },
+  identity: { fill: "#fb7185", glow: "rgba(251, 113, 133, 0.30)" },
+  setting: { fill: "#60a5fa", glow: "rgba(96, 165, 250, 0.30)" },
   music: { fill: "#fcd34d", glow: "rgba(252, 211, 77, 0.3)" },
 }
 
@@ -461,11 +478,11 @@ export function ControlPanel({
         </div>
         <div className="h-px bg-border my-3" />
         <div className="mb-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-          Vector Influence
+          Vector Mix
         </div>
         <div className="overflow-hidden rounded-full border border-white/10 bg-white/[0.04]">
           <div className="flex h-3 w-full">
-            {(Object.keys(weights.context) as (keyof Weights["context"])[]).map((key, index) => (
+            {VECTOR_CONTEXT_KEYS.map((key, index) => (
               <div
                 key={key}
                 title={`${key.replace(/_/g, " ")}: ${weights.context[key]}%`}
@@ -480,7 +497,42 @@ export function ControlPanel({
           </div>
         </div>
         <div className="mt-2 flex flex-wrap gap-2">
-          {(Object.keys(weights.context) as (keyof Weights["context"])[]).map((key) => (
+          {VECTOR_CONTEXT_KEYS.map((key) => (
+            <div key={key} className="flex items-center gap-1.5 rounded-full border border-white/8 bg-white/[0.03] px-2.5 py-1 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+              <span
+                className="h-2.5 w-2.5 rounded-full"
+                style={{
+                  backgroundColor: VECTOR_INFLUENCE_COLORS[key].fill,
+                  boxShadow: `0 0 10px ${VECTOR_INFLUENCE_COLORS[key].glow}`,
+                }}
+              />
+              <span>{key.replace(/_/g, " ")}</span>
+              <span className="text-foreground">{weights.context[key]}%</span>
+            </div>
+          ))}
+        </div>
+        <div className="h-px bg-border my-3" />
+        <div className="mb-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+          Tag Signal Mix
+        </div>
+        <div className="overflow-hidden rounded-full border border-white/10 bg-white/[0.04]">
+          <div className="flex h-3 w-full">
+            {TAG_SIGNAL_CONTEXT_KEYS.map((key, index) => (
+              <div
+                key={key}
+                title={`${key.replace(/_/g, " ")}: ${weights.context[key]}%`}
+                style={{
+                  width: `${weights.context[key]}%`,
+                  backgroundColor: VECTOR_INFLUENCE_COLORS[key].fill,
+                  boxShadow: `0 0 12px ${VECTOR_INFLUENCE_COLORS[key].glow}`,
+                }}
+                className={`transition-all duration-300 ${index > 0 ? "border-l border-black/30" : ""}`}
+              />
+            ))}
+          </div>
+        </div>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {TAG_SIGNAL_CONTEXT_KEYS.map((key) => (
             <div key={key} className="flex items-center gap-1.5 rounded-full border border-white/8 bg-white/[0.03] px-2.5 py-1 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
               <span
                 className="h-2.5 w-2.5 rounded-full"
@@ -548,7 +600,7 @@ export function ControlPanel({
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1.18fr)_minmax(0,0.82fr)]">
           <div className="space-y-4 xl:sticky xl:top-24 xl:self-start">
             <div className="grid gap-5 2xl:grid-cols-2">
-              {(Object.keys(weights.tags) as (keyof Weights["tags"])[]).map((context) => (
+              {VECTOR_CONTEXT_KEYS.map((context) => (
                 <VectorRadarCard
                   key={`simple-${context}`}
                   context={context}
@@ -638,7 +690,7 @@ export function ControlPanel({
             >
               <div className="space-y-4">
                 <p className="text-[10px] text-muted-foreground">
-                  Use broad presets if you want faster shaping before opening the full vector editor.
+                  Use broad presets if you want faster shaping before opening the full editor.
                 </p>
                 <div className="grid grid-cols-2 gap-2">
                   {SIMPLE_INTENTS.map((intent) => (
@@ -668,11 +720,11 @@ export function ControlPanel({
                 <span className="terminal-label text-primary">Stand Stats</span>
               </div>
               <p className="mt-3 text-xs leading-6 text-muted-foreground">
-                The left side is the selected game's vector silhouette. The right side is where you decide how strongly each vector and tag changes ranking.
+                The left side shows the four core vectors. The right side lets you rebalance both those vectors and the tag-signal groups that sit on top of them.
               </p>
             </div>
             <div className="grid gap-5 2xl:grid-cols-2">
-              {(Object.keys(weights.tags) as (keyof Weights["tags"])[]).map((context) => (
+              {VECTOR_CONTEXT_KEYS.map((context) => (
                 <VectorRadarCard
                   key={context}
                   context={context}
@@ -745,6 +797,50 @@ export function ControlPanel({
                 </div>
               </div>
             )}
+
+            <div className="panel overflow-hidden glow-box-subtle">
+              <div className="panel-header">
+                <div className="text-primary">
+                  <Grid3X3 className="h-3.5 w-3.5" />
+                </div>
+                <span className="text-xs font-medium text-foreground">Tag Signal Editors</span>
+                <span className="ml-auto data-value text-[10px]">Identity / Setting / Music</span>
+              </div>
+              <div className="border-t border-border/50 p-3 space-y-5">
+                {TAG_SIGNAL_CONTEXT_KEYS.map((context) => {
+                  const tags = Object.entries(weights.tags[context])
+                    .sort((left, right) => right[1] - left[1])
+                    .slice(0, 5)
+                  return (
+                    <div key={context} className="space-y-3">
+                      <WeightSlider
+                        label={`${context.replace(/_/g, " ")} influence`}
+                        value={weights.context[context]}
+                        onChange={(value) => onContextWeightChange(context, value)}
+                        color="accent"
+                      />
+                      {tags.length > 0 ? (
+                        <div className="space-y-2">
+                          {tags.map(([tag, value]) => (
+                            <WeightSlider
+                              key={`${context}-${tag}`}
+                              label={tag}
+                              value={value}
+                              onChange={(next) => onTagWeightChange(context, tag, next)}
+                              color="accent"
+                            />
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-[10px] text-muted-foreground">
+                          No active {context.replace(/_/g, " ")} tags on the selected game.
+                        </p>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
           </div>
         </div>
       )}

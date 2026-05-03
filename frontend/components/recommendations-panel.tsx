@@ -6,6 +6,19 @@ import { ChevronDown, ChevronUp, Radar, Zap, Target, AudioLines } from "lucide-r
 import type { RecommendedGame, Weights } from "@/lib/types"
 import { MATCH_LABELS } from "@/lib/score-labels"
 
+const VECTOR_CONTEXT_KEYS: Array<keyof RecommendedGame["contextScores"]> = [
+  "mechanics",
+  "narrative",
+  "vibe",
+  "structure_loop",
+]
+
+const TAG_SIGNAL_KEYS: Array<keyof RecommendedGame["contextScores"]> = [
+  "identity",
+  "setting",
+  "music",
+]
+
 const IMAGE_FALLBACK = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='320' height='180'><rect width='100%' height='100%' fill='%2311161f'/></svg>"
 
 const MATCH_COLORS: Record<keyof Weights["match"], string> = {
@@ -184,22 +197,31 @@ function RecommendationCard({ game, rank, weights }: RecommendationCardProps) {
               <span className="terminal-label text-primary">Score Contribution</span>
             </div>
             <div className="space-y-1.5">
-              <ScoreBar label="Gameplay" value={scorePercentages.vector ?? game.scores.vector} fillColor={MATCH_COLORS.vector} />
+              <ScoreBar label="Core Match" value={scorePercentages.vector ?? game.scores.vector} fillColor={MATCH_COLORS.vector} />
               <ScoreBar label="Genre" value={scorePercentages.genre ?? game.scores.genre} fillColor={MATCH_COLORS.genre} />
               <ScoreBar label="Appeal" value={scorePercentages.appeal ?? game.scores.appeal} fillColor={MATCH_COLORS.appeal} />
               <ScoreBar label="Music" value={scorePercentages.music ?? game.scores.music} fillColor={MATCH_COLORS.music} />
             </div>
           </div>
 
-          {/* Context Breakdown */}
+          {/* Vector Breakdown */}
           <div>
             <div className="flex items-center gap-2 mb-2">
               <AudioLines className="h-3 w-3 text-accent" />
-              <span className="terminal-label text-accent">Context Breakdown</span>
+              <span className="terminal-label text-accent">Vector Match</span>
             </div>
             <div className="space-y-1.5">
-              {Object.entries(game.contextScores).map(([key, value]) => (
-                <ScoreBar key={key} label={key} value={value} max={30} color="accent" />
+              {VECTOR_CONTEXT_KEYS.map((key) => (
+                <ScoreBar key={key} label={key} value={game.contextScores[key]} max={30} color="accent" />
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <span className="terminal-label block mb-2 text-accent">Tag Signal Match</span>
+            <div className="space-y-1.5">
+              {TAG_SIGNAL_KEYS.map((key) => (
+                <ScoreBar key={key} label={key} value={game.contextScores[key]} max={30} color="accent" />
               ))}
             </div>
           </div>
@@ -220,9 +242,21 @@ function RecommendationCard({ game, rank, weights }: RecommendationCardProps) {
             </div>
           </div>
 
-          {/* Soundtrack Tags */}
+          {/* Tag Signals */}
           <div>
-            <span className="terminal-label block mb-2">Soundtrack Profile</span>
+            <span className="terminal-label block mb-2">Identity & Setting</span>
+            <div className="flex flex-wrap gap-1">
+              {game.tags.identity.slice(0, 4).map(tag => (
+                <span key={`identity-${tag}`} className="tag-chip">{tag}</span>
+              ))}
+              {game.tags.setting.slice(0, 4).map(tag => (
+                <span key={`setting-${tag}`} className="tag-chip">{tag}</span>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <span className="terminal-label block mb-2">Music Tags</span>
             <div className="flex flex-wrap gap-1">
               {game.tags.music.map(tag => (
                 <span key={tag} className="tag-chip">{tag}</span>

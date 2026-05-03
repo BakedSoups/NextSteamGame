@@ -28,7 +28,8 @@ export interface Game {
     narrative: string[]
     vibe: string[]
     structure_loop: string[]
-    uniqueness: string[]
+    identity: string[]
+    setting: string[]
     music: string[]
   }
   weights?: Partial<Weights>
@@ -55,7 +56,8 @@ export interface RecommendedGame extends Game {
     narrative: number
     vibe: number
     structure_loop: number
-    uniqueness: number
+    identity: number
+    setting: number
     music: number
   }
   scorePercentages?: Record<string, number>
@@ -80,7 +82,8 @@ export interface Weights {
     narrative: number
     vibe: number
     structure_loop: number
-    uniqueness: number
+    identity: number
+    setting: number
     music: number
   }
   appeal: {
@@ -96,7 +99,8 @@ export interface Weights {
     narrative: Record<string, number>
     vibe: Record<string, number>
     structure_loop: Record<string, number>
-    uniqueness: Record<string, number>
+    identity: Record<string, number>
+    setting: Record<string, number>
     music: Record<string, number>
   }
   genres: {

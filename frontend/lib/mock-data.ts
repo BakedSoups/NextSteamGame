@@ -1,5 +1,22 @@
 import type { Game, RecommendedGame } from "./types"
 
+const EMPTY_ASSETS = {
+  header: "",
+  capsule: "",
+  capsuleV5: "",
+  background: "",
+  backgroundRaw: "",
+  logo: "",
+  libraryHero: "",
+  libraryCapsule: "",
+}
+
+const EMPTY_REVIEW_STATS = {
+  positive: 0,
+  negative: 0,
+  reviewCount: 0,
+}
+
 export const mockGames: Game[] = [
   {
     id: 1,
@@ -10,6 +27,7 @@ export const mockGames: Game[] = [
     category: "open world adventure",
     image: "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1623730/capsule_231x87.jpg",
     headerImage: "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1623730/header.jpg",
+    assets: EMPTY_ASSETS,
     genres: {
       primary: ["Action", "Adventure"],
       sub: ["Open World", "Sandbox", "Survival"],
@@ -21,7 +39,8 @@ export const mockGames: Game[] = [
       narrative: ["Environmental Storytelling", "Emergent Narrative"],
       vibe: ["Colorful", "Whimsical", "Expansive"],
       structure_loop: ["Survival Loop", "Collection Loop", "Crafting Loop"],
-      uniqueness: ["Creature Workers", "Dark Comedy Undertones"],
+      identity: ["Creature Workers", "Dark Comedy Undertones"],
+      setting: [],
       music: ["Orchestral", "Ambient", "Adventure"]
     }
   },
@@ -34,6 +53,7 @@ export const mockGames: Game[] = [
     category: "survival exploration",
     image: "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/892970/capsule_231x87.jpg",
     headerImage: "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/892970/header.jpg",
+    assets: EMPTY_ASSETS,
     genres: {
       primary: ["Action", "Adventure"],
       sub: ["Open World", "Survival"],
@@ -45,7 +65,8 @@ export const mockGames: Game[] = [
       narrative: ["Norse Mythology", "Environmental"],
       vibe: ["Atmospheric", "Challenging", "Expansive"],
       structure_loop: ["Boss Progression", "Exploration Loop"],
-      uniqueness: ["Viking Theme", "Physics Building"],
+      identity: ["Viking Theme", "Physics Building"],
+      setting: [],
       music: ["Nordic", "Ambient", "Epic"]
     }
   },
@@ -58,6 +79,7 @@ export const mockGames: Game[] = [
     category: "sandbox adventure",
     image: "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/105600/capsule_231x87.jpg",
     headerImage: "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/105600/header.jpg",
+    assets: EMPTY_ASSETS,
     genres: {
       primary: ["Action", "Adventure"],
       sub: ["Sandbox", "2D"],
@@ -69,7 +91,8 @@ export const mockGames: Game[] = [
       narrative: ["Discovery", "Progression"],
       vibe: ["Retro", "Colorful", "Chaotic"],
       structure_loop: ["Loot Loop", "Boss Progression"],
-      uniqueness: ["2D Depth", "Item Variety"],
+      identity: ["2D Depth", "Item Variety"],
+      setting: [],
       music: ["Chiptune", "Ambient", "Boss Themes"]
     }
   },
@@ -82,6 +105,7 @@ export const mockGames: Game[] = [
     category: "roguelike action",
     image: "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1145360/capsule_231x87.jpg",
     headerImage: "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1145360/header.jpg",
+    assets: EMPTY_ASSETS,
     genres: {
       primary: ["Action", "RPG"],
       sub: ["Roguelike", "Hack and Slash"],
@@ -93,7 +117,8 @@ export const mockGames: Game[] = [
       narrative: ["Greek Mythology", "Character Driven"],
       vibe: ["Stylish", "Intense", "Witty"],
       structure_loop: ["Run Loop", "Relationship Building"],
-      uniqueness: ["Narrative Roguelike", "Art Style"],
+      identity: ["Narrative Roguelike", "Art Style"],
+      setting: [],
       music: ["Rock", "Metal", "Orchestral"]
     }
   },
@@ -106,6 +131,7 @@ export const mockGames: Game[] = [
     category: "survival horror",
     image: "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/251570/capsule_231x87.jpg",
     headerImage: "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/251570/header.jpg",
+    assets: EMPTY_ASSETS,
     genres: {
       primary: ["Survival", "Horror"],
       sub: ["Open World", "Crafting"],
@@ -117,7 +143,8 @@ export const mockGames: Game[] = [
       narrative: ["Post-Apocalyptic", "Environmental"],
       vibe: ["Tense", "Gritty", "Strategic"],
       structure_loop: ["7-Day Horde Cycle", "Survival Loop"],
-      uniqueness: ["Voxel Destruction", "Horde Nights"],
+      identity: ["Voxel Destruction", "Horde Nights"],
+      setting: [],
       music: ["Dark Ambient", "Tension", "Horror"]
     }
   }
@@ -133,6 +160,7 @@ export const mockRecommendations: RecommendedGame[] = [
     category: "creature adventure",
     image: "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1366540/capsule_231x87.jpg",
     headerImage: "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1366540/header.jpg",
+    assets: EMPTY_ASSETS,
     genres: {
       primary: ["Action", "Adventure"],
       sub: ["Roguelike", "Shooter"],
@@ -144,11 +172,13 @@ export const mockRecommendations: RecommendedGame[] = [
       narrative: ["Space Hunting", "Competition"],
       vibe: ["Intense", "Colorful", "Chaotic"],
       structure_loop: ["Hunt Loop", "Tournament"],
-      uniqueness: ["Harpoon Mechanic", "Boss Dismemberment"],
+      identity: ["Harpoon Mechanic", "Boss Dismemberment"],
+      setting: [],
       music: ["Electronic", "Intense", "Space"]
     },
     matchScore: 0.82,
     confidence: 1.016,
+    reviewStats: EMPTY_REVIEW_STATS,
     scores: {
       total: 82,
       vector: 28.3,
@@ -161,7 +191,8 @@ export const mockRecommendations: RecommendedGame[] = [
       narrative: 3.8,
       vibe: 0.8,
       structure_loop: 0.8,
-      uniqueness: 13.8,
+      identity: 13.8,
+      setting: 0,
       music: 0
     }
   },
@@ -174,6 +205,7 @@ export const mockRecommendations: RecommendedGame[] = [
     category: "space survival scifi",
     image: "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/402710/capsule_231x87.jpg",
     headerImage: "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/402710/header.jpg",
+    assets: EMPTY_ASSETS,
     genres: {
       primary: ["Action", "Survival"],
       sub: ["Open World", "Multiplayer"],
@@ -185,11 +217,13 @@ export const mockRecommendations: RecommendedGame[] = [
       narrative: ["Martian Mystery", "Survival Story"],
       vibe: ["Desolate", "Atmospheric", "Tense"],
       structure_loop: ["Season Wipe", "Base Defense"],
-      uniqueness: ["Mars Setting", "FLOP System"],
+      identity: ["Mars Setting", "FLOP System"],
+      setting: [],
       music: ["Sci-Fi Ambient", "Electronic", "Tension"]
     },
     matchScore: 0.79,
     confidence: 0.946,
+    reviewStats: EMPTY_REVIEW_STATS,
     scores: {
       total: 79,
       vector: 14.4,
@@ -202,7 +236,8 @@ export const mockRecommendations: RecommendedGame[] = [
       narrative: 0.9,
       vibe: 0.9,
       structure_loop: 0.9,
-      uniqueness: 0,
+      identity: 0,
+      setting: 0,
       music: 0
     }
   },
@@ -215,6 +250,7 @@ export const mockRecommendations: RecommendedGame[] = [
     category: "space survival sim",
     image: "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/526870/capsule_231x87.jpg",
     headerImage: "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/526870/header.jpg",
+    assets: EMPTY_ASSETS,
     genres: {
       primary: ["Survival", "Adventure"],
       sub: ["Open World", "Sci-Fi"],
@@ -226,11 +262,13 @@ export const mockRecommendations: RecommendedGame[] = [
       narrative: ["Space Colonization", "Discovery"],
       vibe: ["Atmospheric", "Alien", "Expansive"],
       structure_loop: ["Survival Loop", "Exploration"],
-      uniqueness: ["Alien Planets", "Vehicle Building"],
+      identity: ["Alien Planets", "Vehicle Building"],
+      setting: [],
       music: ["Sci-Fi", "Ambient", "Atmospheric"]
     },
     matchScore: 0.76,
     confidence: 1.12,
+    reviewStats: EMPTY_REVIEW_STATS,
     scores: {
       total: 76,
       vector: 11.1,
@@ -243,7 +281,8 @@ export const mockRecommendations: RecommendedGame[] = [
       narrative: 26.5,
       vibe: 0.0,
       structure_loop: -3.1,
-      uniqueness: 20,
+      identity: 20,
+      setting: 0,
       music: 0
     }
   },
@@ -256,6 +295,7 @@ export const mockRecommendations: RecommendedGame[] = [
     category: "dinosaur adventure",
     image: "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/346110/capsule_231x87.jpg",
     headerImage: "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/346110/header.jpg",
+    assets: EMPTY_ASSETS,
     genres: {
       primary: ["Action", "Adventure"],
       sub: ["Open World", "Survival"],
@@ -267,11 +307,13 @@ export const mockRecommendations: RecommendedGame[] = [
       narrative: ["Mystery Island", "Tek Lore"],
       vibe: ["Epic", "Dangerous", "Expansive"],
       structure_loop: ["Taming Loop", "Boss Ascension"],
-      uniqueness: ["Dinosaur Taming", "Tek Tier"],
+      identity: ["Dinosaur Taming", "Tek Tier"],
+      setting: [],
       music: ["Orchestral", "Epic", "Ambient"]
     },
     matchScore: 0.74,
     confidence: 0.89,
+    reviewStats: EMPTY_REVIEW_STATS,
     scores: {
       total: 74,
       vector: 0.8,
@@ -284,7 +326,8 @@ export const mockRecommendations: RecommendedGame[] = [
       narrative: 1.8,
       vibe: 0.8,
       structure_loop: 0,
-      uniqueness: 0,
+      identity: 0,
+      setting: 0,
       music: 0
     }
   },
@@ -297,6 +340,7 @@ export const mockRecommendations: RecommendedGame[] = [
     category: "creative exploration sim",
     image: "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/361420/capsule_231x87.jpg",
     headerImage: "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/361420/header.jpg",
+    assets: EMPTY_ASSETS,
     genres: {
       primary: ["Adventure", "Sandbox"],
       sub: ["Open World", "Exploration"],
@@ -308,11 +352,13 @@ export const mockRecommendations: RecommendedGame[] = [
       narrative: ["Space Discovery", "Wonder"],
       vibe: ["Colorful", "Relaxing", "Whimsical"],
       structure_loop: ["Exploration Loop", "Automation"],
-      uniqueness: ["Terrain Tool", "Low Poly Art"],
+      identity: ["Terrain Tool", "Low Poly Art"],
+      setting: [],
       music: ["Ambient", "Synth", "Relaxing"]
     },
     matchScore: 0.71,
     confidence: 0.98,
+    reviewStats: EMPTY_REVIEW_STATS,
     scores: {
       total: 71,
       vector: 3.8,
@@ -325,7 +371,8 @@ export const mockRecommendations: RecommendedGame[] = [
       narrative: 0,
       vibe: 0,
       structure_loop: 0,
-      uniqueness: 0,
+      identity: 0,
+      setting: 0,
       music: 0
     }
   }
@@ -356,6 +403,7 @@ export const availableTagOptions = {
   narrative: uniqueSorted(allGames.flatMap((game) => game.tags.narrative)),
   vibe: uniqueSorted(allGames.flatMap((game) => game.tags.vibe)),
   structure_loop: uniqueSorted(allGames.flatMap((game) => game.tags.structure_loop)),
-  uniqueness: uniqueSorted(allGames.flatMap((game) => game.tags.uniqueness)),
+  identity: uniqueSorted(allGames.flatMap((game) => game.tags.identity)),
+  setting: uniqueSorted(allGames.flatMap((game) => game.tags.setting)),
   music: uniqueSorted(allGames.flatMap((game) => game.tags.music)),
 }
