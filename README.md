@@ -318,7 +318,7 @@ For a DigitalOcean droplet with `nextsteamgame.com`, the intended flow is:
 One-time droplet setup:
 
 ```bash
-sudo DOMAIN=nextsteamgame.com EMAIL=you@example.com bash scripts/deploy/setup_droplet.sh
+sudo DOMAIN=nextsteamgame.com bash scripts/server_deploy/setup_droplet.sh
 ```
 
 What it does:
@@ -340,7 +340,7 @@ docker compose up -d --build
 Later redeploys:
 
 ```bash
-bash scripts/deploy/redeploy.sh
+bash scripts/server_deploy/redeploy.sh
 ```
 
 That script does:
@@ -348,6 +348,43 @@ That script does:
 - `git pull --ff-only`
 - `docker compose down`
 - `docker compose up -d --build`
+
+## Rsync Deployment Flow
+
+If you want to deploy by pushing the repo directly to the droplet instead of pulling on-server:
+
+Local machine:
+
+```bash
+bash scripts/server_deploy/rsync_push.sh
+```
+
+Defaults:
+
+- remote host: `root@134.209.35.2`
+- remote dir: `/root/Steam_Reccomender`
+- ssh key: `~/.ssh/id_ed25519`
+
+Then on the droplet:
+
+```bash
+cd /root/Steam_Reccomender
+sudo DOMAIN=nextsteamgame.com bash scripts/server_deploy/cutover_server.sh
+```
+
+That cutover script:
+
+- stops the old gunicorn path on port `5000`
+- rewrites the Nginx proxy config
+- brings the Docker stack down
+- rebuilds and starts the Docker stack
+- reloads Nginx
+
+This is the safer version of “kill the old ports and serve from Docker” because it only targets:
+
+- the old gunicorn app on `5000`
+- the app’s Docker stack
+- the app’s Nginx config
 
 ## Useful One-Off Runs
 

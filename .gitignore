@@ -23,6 +23,7 @@ htmlcov/
 .env
 .env.local
 .env.*.local
+scripts/server_deploy/.env
 
 # Logs
 *.log

@@ -442,14 +442,14 @@ function RecommendationCard({ game, rank, weights, selectedGame, highlights, onO
         className="block border-b border-transparent transition-colors hover:bg-secondary/20"
         aria-label={`Open ${game.title} on Steam`}
       >
-      <div className="flex gap-4 p-4">
+      <div className="flex flex-col gap-4 p-4 sm:flex-row">
         <div className="relative flex-shrink-0">
-          <div className="h-20 w-40 rounded-xl overflow-hidden bg-muted border border-border">
+          <div className="h-32 w-full rounded-xl overflow-hidden bg-muted border border-border sm:h-20 sm:w-40">
             <Image
               src={cardImage}
               alt={game.title}
               width={160}
-              height={80}
+              height={128}
               className="object-cover w-full h-full"
               unoptimized
             />
@@ -471,16 +471,16 @@ function RecommendationCard({ game, rank, weights, selectedGame, highlights, onO
 
         {/* Info */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-start gap-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-4">
             <div className="min-w-0 flex-1">
-              <h4 className="text-sm font-medium text-foreground truncate">{game.title}</h4>
+              <h4 className="text-base font-medium text-foreground sm:text-sm sm:truncate">{game.title}</h4>
               <div className="mt-1 flex flex-wrap items-center gap-2">
                 <span className="tag-chip">{game.category}</span>
               </div>
             </div>
 
-            <div className="ml-auto flex flex-shrink-0 flex-col items-end gap-2 text-right">
-              <div>
+            <div className="flex flex-col gap-2 sm:ml-auto sm:flex-shrink-0 sm:items-end sm:text-right">
+              <div className="flex items-end justify-between gap-4 sm:block">
                 <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
                   Match
                 </div>
@@ -489,7 +489,7 @@ function RecommendationCard({ game, rank, weights, selectedGame, highlights, onO
                 </div>
               </div>
               {highlights.length > 0 && (
-                <div className="flex max-w-[190px] flex-wrap justify-end gap-1.5">
+                <div className="flex max-w-[220px] flex-wrap gap-1.5 sm:justify-end">
                   {highlights.map((label) => (
                     <span
                       key={label}

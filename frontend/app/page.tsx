@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { ArrowLeft, ArrowRight, MessageCircleMore, X } from "lucide-react"
+import { ArrowLeft, ArrowRight, Github, MessageCircleMore, Star, X } from "lucide-react"
 import steamLogo from "@/art_assets/Steam-Logo.png"
 import gameShelfBackground from "@/art_assets/game_collection_background.webp"
 import { SearchBar } from "@/components/search-bar"
@@ -724,9 +724,9 @@ export default function NextSteamGamePage() {
 
             {controlMode === "advanced" && showModeHint ? (
               <div
-                className="pointer-events-auto absolute left-[92px] top-[58px] z-[70] w-[240px] rounded-[22px] border border-black/10 bg-white px-4 py-3 text-[11px] leading-5 text-slate-950 shadow-[0_18px_42px_rgba(0,0,0,0.28)]"
+                className="pointer-events-auto absolute left-3 right-3 top-[58px] z-[70] rounded-[22px] border border-black/10 bg-white px-4 py-3 text-[11px] leading-5 text-slate-950 shadow-[0_18px_42px_rgba(0,0,0,0.28)] sm:left-[92px] sm:right-auto sm:w-[240px]"
               >
-                <div className="absolute -top-2 left-[118px] h-4 w-4 rotate-45 border-l border-t border-black/10 bg-white" />
+                <div className="absolute -top-2 left-10 h-4 w-4 rotate-45 border-l border-t border-black/10 bg-white sm:left-[118px]" />
                 <div className="flex items-start gap-3">
                   <div className="mt-0.5 rounded-full border border-black/10 bg-slate-100 p-1.5 text-slate-900">
                     <MessageCircleMore className="h-3.5 w-3.5" />
@@ -763,10 +763,20 @@ export default function NextSteamGamePage() {
               className="absolute inset-0 h-full w-full object-cover"
             />
             <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(8,13,19,0.58),rgba(8,13,19,0.78)),linear-gradient(90deg,rgba(8,13,19,0.30),rgba(8,13,19,0.42))]" />
-            <div className="relative z-10 flex min-h-[calc(100dvh-77px)] items-center justify-center px-12 py-12">
+            <a
+              href="https://github.com/BakedSoups/NextSteamGame"
+              target="_blank"
+              rel="noreferrer"
+              className="absolute right-4 top-4 z-20 inline-flex items-center gap-2 rounded-full border border-white/18 bg-black/40 px-3 py-2 text-sm font-medium text-white shadow-[0_12px_30px_rgba(0,0,0,0.28)] backdrop-blur transition hover:bg-black/55 sm:right-6 sm:top-6"
+            >
+              <Github className="h-4 w-4" />
+              <span>Star on GitHub</span>
+              <Star className="h-3.5 w-3.5 fill-current" />
+            </a>
+            <div className="relative z-10 flex min-h-[calc(100dvh-77px)] items-center justify-center px-4 py-10 sm:px-8 md:px-12">
               <div className="w-full max-w-3xl text-center">
-                <div className="flex items-center justify-center gap-4">
-                  <h1 className="text-5xl font-semibold tracking-tight text-white md:text-6xl">
+                <div className="flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4">
+                  <h1 className="text-4xl font-semibold tracking-tight text-white sm:text-5xl md:text-6xl">
                     NextSteamGame
                   </h1>
                   <img
@@ -778,7 +788,7 @@ export default function NextSteamGamePage() {
                 <p className="mx-auto mt-5 max-w-2xl text-base text-slate-200 md:text-lg">
                   Have fun exploring your taste in games. Start with one you already love, discover why it clicks, and find what to play next.
                 </p>
-                <div className="mx-auto mt-10 max-w-2xl">
+                <div className="mx-auto mt-8 max-w-2xl sm:mt-10">
                   <SearchBar
                     games={searchResults}
                     isLoading={searchLoading}
@@ -846,9 +856,35 @@ export default function NextSteamGamePage() {
                     )}
                   </div>
 
-                  <div className="grid items-end gap-6 xl:gap-8" style={{ gridTemplateColumns: `${thumbnailWidth}px minmax(0, 1fr)` }}>
+                  <div
+                    className="grid items-end gap-5 md:[grid-template-columns:210px_minmax(0,1fr)] xl:gap-8"
+                  >
+                    <div className="contents md:hidden">
+                      <div
+                        className="w-full max-w-[220px] self-end overflow-hidden shadow-[0_24px_44px_rgba(0,0,0,0.32)]"
+                        style={{ borderRadius: `${thumbnailRadius}px` }}
+                      >
+                        {profileCardImage ? (
+                          <div style={{ height: `${Math.round(thumbnailHeight * 0.82)}px` }}>
+                            <img
+                              src={profileCardImage}
+                              alt={selectedGame?.title || "Selected game"}
+                              className="block h-full w-full object-cover"
+                              style={{
+                                borderRadius: `${thumbnailRadius}px`,
+                                objectPosition: thumbnailPosition,
+                                transform: `scale(${thumbnailZoom})`,
+                                transformOrigin: "center center",
+                              }}
+                            />
+                          </div>
+                        ) : (
+                          <div className="aspect-square" />
+                        )}
+                      </div>
+                    </div>
                     <div
-                      className="w-full self-end overflow-hidden shadow-[0_24px_44px_rgba(0,0,0,0.32)]"
+                      className="hidden w-full self-end overflow-hidden shadow-[0_24px_44px_rgba(0,0,0,0.32)] md:block"
                       style={{ maxWidth: `${thumbnailWidth}px`, borderRadius: `${thumbnailRadius}px` }}
                     >
                       {profileCardImage ? (
@@ -871,7 +907,7 @@ export default function NextSteamGamePage() {
                     </div>
 
                     <div className="min-w-0 pt-2">
-                      <h2 className="text-4xl font-semibold tracking-tight text-white md:text-5xl">
+                      <h2 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl md:text-5xl">
                         {selectedGame?.title}
                       </h2>
                       <div className="mt-4 flex flex-wrap gap-2">
@@ -981,7 +1017,7 @@ export default function NextSteamGamePage() {
         )}
 
         {screen === "results" && (
-          <div className="grid grid-cols-1 gap-8 xl:grid-cols-[340px_1fr_360px]">
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-[340px_1fr_360px] xl:gap-8">
             <div className="space-y-6 xl:sticky xl:top-24 xl:h-fit xl:max-h-[calc(100vh-7rem)] xl:overflow-y-auto custom-scrollbar pr-2">
               <button
                 onClick={() => setScreen("profile")}

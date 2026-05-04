@@ -1,10 +1,22 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ENV_FILE="${ENV_FILE:-${SCRIPT_DIR}/.env}"
+
+if [[ -f "${ENV_FILE}" ]]; then
+  set -a
+  # shellcheck disable=SC1090
+  source "${ENV_FILE}"
+  set +a
+fi
+
 DOMAIN="${DOMAIN:-nextsteamgame.com}"
-EMAIL="${EMAIL:-}"
-APP_DIR="${APP_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
+EMAIL="${EMAIL:-overbakedrice@gmail.com}"
+APP_DIR="${APP_DIR:-$(cd "${SCRIPT_DIR}/../.." && pwd)}"
 SERVER_NAME="${SERVER_NAME:-nextsteamgame}"
+INSTALL_BASE="${INSTALL_BASE:-1}"
+RUN_CERTBOT="${RUN_CERTBOT:-1}"
 NGINX_CONF_PATH="/etc/nginx/sites-available/${SERVER_NAME}.conf"
 NGINX_ENABLED_PATH="/etc/nginx/sites-enabled/${SERVER_NAME}.conf"
 
@@ -97,6 +109,11 @@ write_local_env_defaults() {
 }
 
 issue_certificate() {
+  if [[ "${RUN_CERTBOT}" != "1" ]]; then
+    echo "Skipping certbot because RUN_CERTBOT=${RUN_CERTBOT}."
+    return
+  fi
+
   if [[ -z "${EMAIL}" ]]; then
     echo "Skipping certbot because EMAIL is empty."
     return
@@ -112,14 +129,20 @@ grant_docker_group_access() {
 }
 
 main() {
-  install_base_packages
-  install_docker
-  install_certbot
-  configure_firewall
+  if [[ "${INSTALL_BASE}" == "1" ]]; then
+    install_base_packages
+    install_docker
+    install_certbot
+    configure_firewall
+  else
+    echo "Skipping package installation because INSTALL_BASE=${INSTALL_BASE}."
+  fi
   write_local_env_defaults
   write_nginx_config
   issue_certificate
-  grant_docker_group_access
+  if [[ "${INSTALL_BASE}" == "1" ]]; then
+    grant_docker_group_access
+  fi
 
   cat <<EOF
 
