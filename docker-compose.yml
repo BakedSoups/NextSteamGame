@@ -42,7 +42,7 @@ services:
       STEAM_REC_POSTGRES_DSN: postgresql://steam_rec:steam_rec@postgres:5432/steam_rec
       DB_CREATION_DATA_DIR: /app/data
     volumes:
-      - ./data:/app/data:ro
+      - ./data:/app/data
     ports:
       - "127.0.0.1:8000:8000"
     restart: unless-stopped

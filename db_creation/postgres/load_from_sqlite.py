@@ -52,6 +52,16 @@ def postgres_dsn() -> str:
     return value
 
 
+def open_sqlite_readonly(path: Path) -> sqlite3.Connection:
+    resolved = path.resolve()
+    if not resolved.exists():
+        raise FileNotFoundError(f"SQLite database not found: {resolved}")
+
+    # Use immutable read-only mode so Docker bind mounts can be mounted read-only
+    # without SQLite trying to create lock or WAL sidecar files inside the container.
+    return sqlite3.connect(f"file:{resolved}?mode=ro&immutable=1", uri=True)
+
+
 def load_preview_rows(connection: sqlite3.Connection) -> dict[int, dict]:
     connection.row_factory = sqlite3.Row
     rows = connection.execute(
@@ -255,8 +265,8 @@ def main() -> int:
     with schema_path().open("r", encoding="utf-8") as handle:
         schema_sql = handle.read()
 
-    metadata_sqlite = sqlite3.connect(metadata_db_path())
-    final_sqlite = sqlite3.connect(final_canon_db_path())
+    metadata_sqlite = open_sqlite_readonly(metadata_db_path())
+    final_sqlite = open_sqlite_readonly(final_canon_db_path())
 
     try:
         preview_rows = load_preview_rows(metadata_sqlite)
@@ -406,6 +416,11 @@ def main() -> int:
     except Exception:
         with psycopg.connect(postgres_dsn()) as pg_connection:
             with pg_connection.cursor() as cursor:
+                cursor.execute("SELECT to_regclass('public.pipeline_runs')")
+                pipeline_runs_table = cursor.fetchone()[0]
+                if not pipeline_runs_table:
+                    pg_connection.commit()
+                    raise
                 cursor.execute(
                     """
                     UPDATE pipeline_runs
