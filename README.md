@@ -306,6 +306,49 @@ Notes:
 - the loader service reruns on `docker compose up` and rebuilds the Postgres tables from your current SQLite outputs
 - the API container reads Chroma from the mounted `data/chroma`
 
+## Droplet Deployment
+
+For a DigitalOcean droplet with `nextsteamgame.com`, the intended flow is:
+
+1. clone the repo onto the droplet
+2. run the server setup script once
+3. use `docker compose up -d --build`
+4. later, use the redeploy script for `git pull` + `compose down/up`
+
+One-time droplet setup:
+
+```bash
+sudo DOMAIN=nextsteamgame.com EMAIL=you@example.com bash scripts/deploy/setup_droplet.sh
+```
+
+What it does:
+
+- installs Docker Engine + Docker Compose plugin
+- installs Nginx and Certbot
+- configures Nginx to proxy:
+  - `/` -> frontend on `127.0.0.1:3000`
+  - `/api/` -> backend on `127.0.0.1:8000`
+- writes `NEXT_PUBLIC_API_BASE_URL=https://nextsteamgame.com` into `.env` if missing
+- optionally issues the TLS certificate if `EMAIL` is provided
+
+Start the app stack:
+
+```bash
+docker compose up -d --build
+```
+
+Later redeploys:
+
+```bash
+bash scripts/deploy/redeploy.sh
+```
+
+That script does:
+
+- `git pull --ff-only`
+- `docker compose down`
+- `docker compose up -d --build`
+
 ## Useful One-Off Runs
 
 Run the non-canonical pipeline:
