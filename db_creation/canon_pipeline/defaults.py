@@ -29,8 +29,5 @@ VECTOR_CONTEXTS = (
     "structure_loop",
 )
 
-METADATA_CSV_PATH = DEFAULT_ANALYSIS_DIR / "metadata_canon_full.csv"
-VECTORS_CSV_PATH = DEFAULT_ANALYSIS_DIR / "vectors_canon_full.csv"
-METADATA_LEFTOVERS_CSV_PATH = DEFAULT_ANALYSIS_DIR / "metadata_canon_leftovers.csv"
-VECTORS_LEFTOVERS_CSV_PATH = DEFAULT_ANALYSIS_DIR / "vectors_canon_leftovers.csv"
+GROUPS_CSV_PATH = DEFAULT_ANALYSIS_DIR / "canon_groups.csv"
 SUMMARY_PATH = DEFAULT_ANALYSIS_DIR / "canon_export_summary.txt"

@@ -37,7 +37,11 @@ def print_run_summary(summary: dict) -> None:
     print(
         f"Run {summary['run_id']}: "
         f"{summary['completed_games']}/{summary['attempted_games']} stored, "
-        f"{summary['error_count']} errors"
+        f"{summary['semantics_retry_count']} semantics retries, "
+        f"{summary['error_count']} errors, "
+        f"{summary['skip_count']} skips, "
+        f"{summary['no_review_count']} no-review cases, "
+        f"{summary['no_steam_review_count']} no-Steam-review cases"
     )
 
 

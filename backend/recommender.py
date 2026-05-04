@@ -11,10 +11,11 @@ VECTOR_CONTEXT_MULTIPLIERS = {
     "structure_loop": 1.20,
 }
 IDENTITY_CONTEXT_MULTIPLIER = 0.55
+SETTING_CONTEXT_MULTIPLIER = 0.32
 SOUNDTRACK_CONTEXT_MULTIPLIER = 0.41
 
 VECTOR_CONTEXT_ORDER = tuple(VECTOR_CONTEXT_MULTIPLIERS.keys())
-CONTENT_CONTEXT_ORDER = VECTOR_CONTEXT_ORDER + ("uniqueness", "music")
+CONTENT_CONTEXT_ORDER = VECTOR_CONTEXT_ORDER + ("identity", "setting", "music")
 APPEAL_AXIS_ORDER = (
     "challenge",
     "complexity",
@@ -86,7 +87,8 @@ def component_percentages_to_weights(percentages: dict[str, float | int] | None)
 def default_context_percentages() -> dict[str, int]:
     raw_weights = {
         **VECTOR_CONTEXT_MULTIPLIERS,
-        "uniqueness": IDENTITY_CONTEXT_MULTIPLIER,
+        "identity": IDENTITY_CONTEXT_MULTIPLIER,
+        "setting": SETTING_CONTEXT_MULTIPLIER,
         "music": SOUNDTRACK_CONTEXT_MULTIPLIER,
     }
     total = sum(raw_weights.values()) or 1.0
@@ -107,14 +109,16 @@ def context_percentages_to_multipliers(percentages: dict[str, float | int]) -> d
     if not percentages:
         return {
             **VECTOR_CONTEXT_MULTIPLIERS,
-            "uniqueness": IDENTITY_CONTEXT_MULTIPLIER,
+            "identity": IDENTITY_CONTEXT_MULTIPLIER,
+            "setting": SETTING_CONTEXT_MULTIPLIER,
             "music": SOUNDTRACK_CONTEXT_MULTIPLIER,
         }
     total = sum(float(value) for value in percentages.values())
     if total <= 0:
         return {
             **VECTOR_CONTEXT_MULTIPLIERS,
-            "uniqueness": IDENTITY_CONTEXT_MULTIPLIER,
+            "identity": IDENTITY_CONTEXT_MULTIPLIER,
+            "setting": SETTING_CONTEXT_MULTIPLIER,
             "music": SOUNDTRACK_CONTEXT_MULTIPLIER,
         }
     context_count = max(len(CONTENT_CONTEXT_ORDER), 1)
@@ -156,10 +160,6 @@ def _metadata_music_tags(metadata: dict) -> list[str]:
         value = str(metadata.get(field, "")).strip()
         if value and value not in tags:
             tags.append(value)
-    for tag in metadata.get("soundtrack_tags", []) or []:
-        text = str(tag).strip()
-        if text and text not in tags:
-            tags.append(text)
     return tags
 
 
@@ -180,6 +180,15 @@ def _identity_source_weights(metadata: dict) -> dict[str, float]:
         text = str(tag).strip()
         if text:
             weighted[text] = max(weighted.get(text, 0.0), 0.65)
+    return weighted
+
+
+def _setting_source_weights(metadata: dict) -> dict[str, float]:
+    weighted: dict[str, float] = {}
+    for tag in metadata.get("setting_tags", []) or []:
+        text = str(tag).strip()
+        if text:
+            weighted[text] = max(weighted.get(text, 0.0), 1.0)
     return weighted
 
 
@@ -262,6 +271,21 @@ def _build_identity_preferences(
     }
 
 
+def _build_setting_preferences(
+    metadata: dict,
+    extra_boosts: dict[str, float] | None = None,
+    setting_multiplier: float = 1.0,
+) -> dict[str, float]:
+    source_weights = extra_boosts or _setting_source_weights(metadata)
+    if not source_weights:
+        return {}
+    normalized = _normalize_weights(source_weights)
+    return {
+        tag: weight * setting_multiplier
+        for tag, weight in normalized.items()
+    }
+
+
 def _appeal_match_score(candidate_metadata: dict, target_axes: dict[str, int]) -> float:
     if not target_axes:
         return 0.0
@@ -271,24 +295,6 @@ def _appeal_match_score(candidate_metadata: dict, target_axes: dict[str, int]) -
         candidate = candidate_axes.get(axis, 50)
         total += max(0.0, 1.0 - (abs(candidate - target) / 100.0))
     return total / max(len(target_axes), 1)
-
-
-def _vector_match_score(
-    candidate_vectors: dict[str, dict[str, int]],
-    preferences: dict[str, dict[str, float]],
-) -> float:
-    total = 0.0
-    contexts_seen = 0
-    for context, preferred_weights in preferences.items():
-        if not preferred_weights:
-            continue
-        candidate_weights = _normalize_weights(candidate_vectors.get(context, {}))
-        overlap = 0.0
-        for tag, preferred_weight in preferred_weights.items():
-            overlap += min(preferred_weight, candidate_weights.get(tag, 0.0))
-        total += overlap
-        contexts_seen += 1
-    return total / max(contexts_seen, 1)
 
 
 def _vector_context_breakdown(
@@ -334,6 +340,15 @@ def _identity_match_score(candidate_metadata: dict, preferences: dict[str, float
     if not preferences:
         return 0.0
     candidate_tags = set(_identity_source_weights(candidate_metadata))
+    total_weight = sum(preferences.values()) or 1.0
+    matched_weight = sum(weight for tag, weight in preferences.items() if tag in candidate_tags)
+    return matched_weight / total_weight
+
+
+def _setting_match_score(candidate_metadata: dict, preferences: dict[str, float]) -> float:
+    if not preferences:
+        return 0.0
+    candidate_tags = set(_setting_source_weights(candidate_metadata))
     total_weight = sum(preferences.values()) or 1.0
     matched_weight = sum(weight for tag, weight in preferences.items() if tag in candidate_tags)
     return matched_weight / total_weight
@@ -427,6 +442,38 @@ def _percent_breakdown(values: dict[str, float]) -> dict[str, float]:
     }
 
 
+def _top_weighted_matches(
+    candidate_tags: set[str],
+    preferences: dict[str, float],
+    *,
+    limit: int = 4,
+) -> list[str]:
+    matches = [
+        (tag, weight)
+        for tag, weight in preferences.items()
+        if tag in candidate_tags
+    ]
+    matches.sort(key=lambda item: item[1], reverse=True)
+    return [tag for tag, _weight in matches[:limit]]
+
+
+def _top_vector_matches(
+    candidate_vectors: dict[str, dict[str, int]],
+    preferences: dict[str, dict[str, float]],
+    *,
+    per_context_limit: int = 3,
+) -> dict[str, list[str]]:
+    matched: dict[str, list[str]] = {}
+    for context, preferred_weights in preferences.items():
+        if not preferred_weights:
+            continue
+        candidate_tags = set((candidate_vectors.get(context) or {}).keys())
+        top = _top_weighted_matches(candidate_tags, preferred_weights, limit=per_context_limit)
+        if top:
+            matched[context] = top
+    return matched
+
+
 def recommend_games(
     base_game: dict,
     candidate_games: Iterable[dict],
@@ -450,8 +497,13 @@ def recommend_games(
     genre_preferences = _build_genre_preferences(base_game["metadata"], added_genres, removed_genres)
     identity_preferences = _build_identity_preferences(
         base_game["metadata"],
-        (extra_vector_boosts or {}).get("uniqueness"),
-        identity_multiplier=context_multipliers.get("uniqueness", 1.0),
+        (extra_vector_boosts or {}).get("identity"),
+        identity_multiplier=context_multipliers.get("identity", 1.0),
+    )
+    setting_preferences = _build_setting_preferences(
+        base_game["metadata"],
+        (extra_vector_boosts or {}).get("setting"),
+        setting_multiplier=context_multipliers.get("setting", 1.0),
     )
     music_preferences = _build_music_preferences(
         base_game["metadata"],
@@ -467,13 +519,18 @@ def recommend_games(
 
         vector_breakdown = _vector_context_breakdown(game["vectors"], vector_preferences)
         identity_score = _identity_match_score(game["metadata"], identity_preferences)
+        setting_score = _setting_match_score(game["metadata"], setting_preferences)
         if identity_preferences:
-            vector_breakdown["uniqueness"] = identity_score
+            vector_breakdown["identity"] = identity_score
+        if setting_preferences:
+            vector_breakdown["setting"] = setting_score
         active_vector_contexts = [
             context for context, preferred_weights in vector_preferences.items() if preferred_weights
         ]
         if identity_preferences:
-            active_vector_contexts.append("uniqueness")
+            active_vector_contexts.append("identity")
+        if setting_preferences:
+            active_vector_contexts.append("setting")
         if active_vector_contexts:
             vector_score = sum(vector_breakdown.get(context, 0.0) for context in active_vector_contexts) / len(active_vector_contexts)
         else:
@@ -481,6 +538,22 @@ def recommend_games(
         genre_score = _genre_match_score(game["metadata"], genre_preferences)
         appeal_score = _appeal_match_score(game["metadata"], target_appeal_axes)
         soundtrack_score = _music_match_score(game["metadata"], music_preferences)
+        matched_vector_tags = _top_vector_matches(game["vectors"], vector_preferences)
+        matched_identity_tags = _top_weighted_matches(
+            set(_identity_source_weights(game["metadata"])),
+            identity_preferences,
+            limit=4,
+        )
+        matched_setting_tags = _top_weighted_matches(
+            set(_setting_source_weights(game["metadata"])),
+            setting_preferences,
+            limit=4,
+        )
+        matched_music_tags = _top_weighted_matches(
+            set(_metadata_music_tags(game["metadata"])),
+            music_preferences,
+            limit=3,
+        )
         weighted_components = {
             "vector": vector_score * component_weights["vector"],
             "genre": genre_score * component_weights["genre"],
@@ -517,6 +590,15 @@ def recommend_games(
                 "vector_context_percentages": vector_component_percentages,
                 "weighted_components": weighted_components,
                 "confidence_multiplier": confidence_multiplier,
+                "matched_tags": {
+                    "mechanics": matched_vector_tags.get("mechanics", []),
+                    "narrative": matched_vector_tags.get("narrative", []),
+                    "vibe": matched_vector_tags.get("vibe", []),
+                    "structure_loop": matched_vector_tags.get("structure_loop", []),
+                    "identity": matched_identity_tags,
+                    "setting": matched_setting_tags,
+                    "music": matched_music_tags,
+                },
                 "active_context_percentages": {
                     context: int(round(float((context_percentages or default_context_percentages()).get(context, 0))))
                     for context in CONTENT_CONTEXT_ORDER

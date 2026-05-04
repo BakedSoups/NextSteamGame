@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Dict
 
-from canon_pipeline.tag_loader import normalize_tag_text
+from canon_pipeline.layer_1_normalization import normalize_tag
 from paths import analysis_dir, final_canon_db_path, initial_noncanon_db_path
 
 
@@ -15,8 +15,8 @@ BATCH_SIZE = 500
 NONCANON_DB_PATH = initial_noncanon_db_path()
 OUTPUT_DB_PATH = final_canon_db_path()
 ANALYSIS_DIR = analysis_dir()
-METADATA_CSV_PATH = ANALYSIS_DIR / "metadata_canon_full.csv"
-VECTORS_CSV_PATH = ANALYSIS_DIR / "vectors_canon_full.csv"
+CANON_GROUPS_CSV_PATH = ANALYSIS_DIR / "canon_groups_v5.csv"
+VECTOR_CONTEXTS = {"mechanics", "narrative", "vibe", "structure_loop"}
 
 
 def utcnow_iso() -> str:
@@ -69,7 +69,7 @@ def _iter_text_values(raw: object) -> list[str]:
 
 def _canonicalize_single_tag(raw: object, context: str, mapping: Dict[str, Dict[str, str]]) -> str:
     for tag in _iter_text_values(raw):
-        return mapping.get(context, {}).get(normalize_tag_text(tag), tag)
+        return mapping.get(context, {}).get(normalize_tag(tag), tag)
     return ""
 
 
@@ -77,16 +77,20 @@ def _canonicalize_tag_list(raw: object, context: str, mapping: Dict[str, Dict[st
     canonicalized: list[str] = []
     seen = set()
     for tag in _iter_text_values(raw):
-        canonical = mapping.get(context, {}).get(normalize_tag_text(tag), tag)
+        canonical = mapping.get(context, {}).get(normalize_tag(tag), tag)
         if canonical not in seen:
             seen.add(canonical)
             canonicalized.append(canonical)
     return canonicalized
 
 
-def load_group_csv(csv_path: Path, family: str) -> dict:
+def _group_family_for_context(context: str) -> str:
+    return "vectors" if context in VECTOR_CONTEXTS else "metadata"
+
+
+def load_group_csv(csv_path: Path) -> dict:
     if not csv_path.exists():
-        raise FileNotFoundError(f"Missing {family} canonical CSV: {csv_path}")
+        raise FileNotFoundError(f"Missing canonical groups CSV: {csv_path}")
 
     groups = []
     mapping: Dict[str, Dict[str, str]] = {}
@@ -94,26 +98,28 @@ def load_group_csv(csv_path: Path, family: str) -> dict:
         reader = csv.DictReader(handle)
         for row in reader:
             context = row["context"]
-            representative = row["representative_tag"]
-            members = _split_members(row["members"])
+            representative = row["final_tag"].strip() or row["canon_tag"].strip()
+            if not representative:
+                continue
+            members = _split_members(row["member_tags"])
             groups.append(
                 {
+                    "source_family": _group_family_for_context(context),
                     "context": context,
                     "representative_tag": representative,
-                    "parent_tag": row.get("parent_tag", representative) or representative,
-                    "specificity_level": int(row.get("specificity_level", 1) or 1),
-                    "member_count": int(row["member_count"]),
-                    "total_occurrences": int(row["total_occurrences"]),
+                    "parent_tag": representative,
+                    "specificity_level": 1,
+                    "member_count": int(row.get("member_count", 0) or 0),
+                    "total_occurrences": int(row.get("total_occurrences", 0) or 0),
                     "members": members,
                 }
             )
             context_map = mapping.setdefault(context, {})
-            context_map[normalize_tag_text(representative)] = representative
+            context_map[normalize_tag(representative)] = representative
             for member in members:
-                context_map[normalize_tag_text(member)] = representative
+                context_map[normalize_tag(member)] = representative
 
     return {
-        "family": family,
         "groups": groups,
         "mapping": mapping,
     }
@@ -137,7 +143,7 @@ def _canonicalize_metadata(metadata: Dict, mapping: Dict[str, Dict[str, str]]) -
     canonical_signature_tag = ""
     if raw_signature_tag:
         canonical_signature_tag = mapping.get("signature_tag", {}).get(
-            normalize_tag_text(raw_signature_tag),
+            normalize_tag(raw_signature_tag),
             raw_signature_tag,
         )
     music_primary = _canonicalize_single_tag(metadata.get("music_primary"), "music_primary", mapping)
@@ -167,15 +173,14 @@ def _canonicalize_metadata(metadata: Dict, mapping: Dict[str, Dict[str, str]]) -
 
 
 def _canonicalize_vectors(vectors: Dict, mapping: Dict[str, Dict[str, str]]) -> Dict:
-    valid_contexts = {"mechanics", "narrative", "vibe", "structure_loop"}
     canonical_vectors: Dict[str, Dict[str, int]] = {}
     status = str(vectors.get("status", "")).strip()
     for context, tag_weights in vectors.items():
-        if context not in valid_contexts or not isinstance(tag_weights, dict):
+        if context not in VECTOR_CONTEXTS or not isinstance(tag_weights, dict):
             continue
         merged: Dict[str, int] = {}
         for tag, weight in tag_weights.items():
-            canonical = mapping.get(context, {}).get(normalize_tag_text(tag), tag)
+            canonical = mapping.get(context, {}).get(normalize_tag(tag), tag)
             try:
                 merged[canonical] = merged.get(canonical, 0) + int(weight)
             except (TypeError, ValueError):
@@ -286,7 +291,7 @@ def _store_loaded_groups(connection: sqlite3.Connection, run_id: int, loaded: di
             """,
             (
                 run_id,
-                loaded["family"],
+                group["source_family"],
                 group["context"],
                 group["representative_tag"],
                 group["parent_tag"],
@@ -386,13 +391,11 @@ def _store_games(
 def run_final_db_build(
     noncanon_db_path: Path = NONCANON_DB_PATH,
     output_db_path: Path = OUTPUT_DB_PATH,
-    metadata_csv_path: Path = METADATA_CSV_PATH,
-    vectors_csv_path: Path = VECTORS_CSV_PATH,
+    canon_groups_csv_path: Path = CANON_GROUPS_CSV_PATH,
     batch_size: int = BATCH_SIZE,
     progress: Callable[[dict], None] | None = None,
 ) -> dict:
-    loaded_metadata = load_group_csv(metadata_csv_path, "metadata")
-    loaded_vectors = load_group_csv(vectors_csv_path, "vectors")
+    loaded_groups = load_group_csv(canon_groups_csv_path)
 
     output_db_path.parent.mkdir(parents=True, exist_ok=True)
     connection = sqlite3.connect(output_db_path)
@@ -408,15 +411,14 @@ def run_final_db_build(
             connection.execute("DELETE FROM canonical_tag_members")
             connection.execute("DELETE FROM canonical_tag_groups")
             connection.execute("DELETE FROM canonical_game_semantics")
-            _store_loaded_groups(connection, run_id, loaded_metadata)
-            _store_loaded_groups(connection, run_id, loaded_vectors)
+            _store_loaded_groups(connection, run_id, loaded_groups)
             connection.commit()
             processed_rows = _store_games(
                 connection,
                 noncanon_db_path,
                 batch_size,
-                loaded_metadata["mapping"],
-                loaded_vectors["mapping"],
+                loaded_groups["mapping"],
+                loaded_groups["mapping"],
                 progress=progress,
             )
         except Exception:
@@ -432,7 +434,6 @@ def run_final_db_build(
         "run_id": run_id,
         "status": status,
         "processed_rows": processed_rows,
-        "metadata_groups": len(loaded_metadata["groups"]),
-        "vector_groups": len(loaded_vectors["groups"]),
+        "canon_groups": len(loaded_groups["groups"]),
         "output_db_path": str(output_db_path),
     }

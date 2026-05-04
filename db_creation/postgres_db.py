@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
-from db_creation.paths import final_canon_db_path, metadata_db_path
-from db_creation.postgres.load_from_sqlite import postgres_dsn
+from paths import final_canon_db_path, metadata_db_path
+from postgres.load_from_sqlite import postgres_dsn
 
 
 METADATA_DB_PATH = metadata_db_path()
@@ -16,7 +16,7 @@ def print_run_configuration() -> None:
 
 
 def run_postgres_load() -> int:
-    from db_creation.postgres.load_from_sqlite import main as load_main
+    from postgres.load_from_sqlite import main as load_main
 
     return load_main()
 

@@ -142,9 +142,20 @@ interface WeightSliderProps {
   max?: number
   color?: "primary" | "accent"
   showPercentage?: boolean
+  fillColor?: string
+  thumbColor?: string
 }
 
-function WeightSlider({ label, value, onChange, max = 100, color = "primary", showPercentage = true }: WeightSliderProps) {
+function WeightSlider({
+  label,
+  value,
+  onChange,
+  max = 100,
+  color = "primary",
+  showPercentage = true,
+  fillColor,
+  thumbColor,
+}: WeightSliderProps) {
   const percentage = (value / max) * 100
   const thumbClass = color === "accent"
     ? "border-accent/70 bg-accent/15 shadow-[0_0_10px_var(--glow-green)]"
@@ -169,11 +180,11 @@ function WeightSlider({ label, value, onChange, max = 100, color = "primary", sh
           <div className="progress-track overflow-visible">
             <div 
               className={color === "accent" ? "progress-fill-green" : "progress-fill"}
-              style={{ width: `${percentage}%` }}
+              style={fillColor ? { width: `${percentage}%`, background: fillColor } : { width: `${percentage}%` }}
             />
             <div
               className={`absolute top-1/2 h-3 w-3 -translate-y-1/2 -translate-x-1/2 rounded-full border ${thumbClass}`}
-              style={{ left: `${percentage}%` }}
+              style={thumbColor ? { left: `${percentage}%`, borderColor: thumbColor, backgroundColor: `${thumbColor}22`, boxShadow: `0 0 10px ${thumbColor}` } : { left: `${percentage}%` }}
               aria-hidden="true"
             />
           </div>
@@ -210,6 +221,11 @@ function polarPoint(index: number, total: number, radius: number) {
   }
 }
 
+function tagRadarRadius(value: number) {
+  const normalized = Math.max(0, Math.min(100, value)) / 100
+  return 4 + Math.pow(normalized, 1.65) * 72
+}
+
 function VectorRadarCard({
   context,
   label,
@@ -227,20 +243,20 @@ function VectorRadarCard({
     .map(([tag]) => tag)
   const axes = Array.from(new Set([...selectedTags, ...fallbackTags])).slice(0, 6)
   const axisLabels = axes.length > 0 ? axes : ["signal", "profile", "tone", "focus", "identity"]
-  const values = axisLabels.map((axis) => Math.max(6, weights.tags[context][axis] ?? 12))
+  const values = axisLabels.map((axis) => Math.max(0, weights.tags[context][axis] ?? 0))
   const polygon = values
     .map((value, index) => {
-      const point = polarPoint(index, values.length, 14 + (value / 100) * 42)
+      const point = polarPoint(index, values.length, tagRadarRadius(value))
       return `${point.x},${point.y}`
     })
     .join(" ")
   const contextWeight = weights.context[context]
   const topTags = axisLabels.slice(0, 5)
-  const chartCanvasSize = 150 + Math.round(contextWeight * 0.7)
-  const simpleChartCanvasSize = Math.max(112, Math.round(chartCanvasSize * 0.52))
+  const chartCanvasSize = 236 + Math.round(contextWeight * 1.05)
+  const simpleChartCanvasSize = Math.max(210, Math.round(chartCanvasSize * 0.78))
   const chartScaleClass = highlighted ? "scale-[1.03]" : "scale-100"
   const [isAnimating, setIsAnimating] = useState(false)
-  const contentGridClass = interactive ? "mt-4 grid min-w-0 gap-6 2xl:grid-cols-[220px_minmax(0,1fr)]" : "mt-4"
+  const contentGridClass = interactive ? "mt-5 grid min-w-0 gap-8 xl:grid-cols-[260px_minmax(0,1fr)] 2xl:grid-cols-[280px_minmax(0,1fr)]" : "mt-5"
 
   useEffect(() => {
     setIsAnimating(true)
@@ -250,7 +266,7 @@ function VectorRadarCard({
 
   return (
     <div
-      className={`min-w-0 overflow-hidden rounded-[26px] border p-5 shadow-[0_28px_80px_rgba(0,0,0,0.34)] transition-all duration-300 ${chartScaleClass} ${isAnimating ? "scale-[1.015]" : ""}`}
+      className={`min-w-0 overflow-hidden rounded-[26px] border p-5 shadow-[0_28px_80px_rgba(0,0,0,0.34)] transition-all duration-300 ${chartScaleClass} ${isAnimating ? "scale-[1.015]" : ""} ${interactive ? "min-h-[460px]" : "min-h-[360px]"}`}
       style={{
         borderColor: highlighted ? `${visual.accent}88` : "rgba(255,255,255,0.08)",
         background: `linear-gradient(180deg, rgba(10,17,26,0.98), rgba(16,24,36,0.92)), radial-gradient(circle at top, ${highlighted ? visual.glow.replace("0.", "0.55") : visual.glow}, transparent 58%)`,
@@ -273,12 +289,13 @@ function VectorRadarCard({
 
       <div className={contentGridClass}>
         {interactive ? (
-          <div className="min-w-0 space-y-3 pr-1">
+          <div className="min-w-0 space-y-3 pr-2">
             <WeightSlider
               label={`${label} influence`}
               value={contextWeight}
               onChange={(value) => onContextWeightChange(context, value)}
-              color="accent"
+              fillColor={VECTOR_INFLUENCE_COLORS[context].fill}
+              thumbColor={VECTOR_INFLUENCE_COLORS[context].fill}
             />
             <div className="min-w-0 space-y-2">
               {topTags.map((tag) => (
@@ -287,7 +304,8 @@ function VectorRadarCard({
                   label={tag}
                   value={weights.tags[context][tag] ?? 0}
                   onChange={(value) => onTagWeightChange(context, tag, value)}
-                  color={context === "music" ? "accent" : "primary"}
+                  fillColor={VECTOR_INFLUENCE_COLORS[context].fill}
+                  thumbColor={VECTOR_INFLUENCE_COLORS[context].fill}
                 />
               ))}
             </div>
@@ -295,7 +313,7 @@ function VectorRadarCard({
         ) : null}
 
         <div
-          className={`relative ${interactive ? "mx-auto lg:mx-0" : "mx-auto"}`}
+          className={`relative ${interactive ? "mx-auto xl:mx-0" : "mx-auto"}`}
           style={{
             width: interactive ? `${chartCanvasSize}px` : `${simpleChartCanvasSize}px`,
             minWidth: interactive ? `${chartCanvasSize}px` : undefined,
@@ -311,7 +329,7 @@ function VectorRadarCard({
               aspectRatio: "1 / 1",
             }}
           >
-            {[22, 38, 54, 70].map((radius) => (
+            {[24, 42, 60, 78].map((radius) => (
               <polygon
                 key={radius}
                 points={axisLabels.map((_, index) => {
@@ -324,7 +342,7 @@ function VectorRadarCard({
               />
             ))}
             {axisLabels.map((_, index) => {
-              const point = polarPoint(index, axisLabels.length, 76)
+              const point = polarPoint(index, axisLabels.length, 84)
               return (
                 <line
                   key={`axis-${index}`}
@@ -349,7 +367,7 @@ function VectorRadarCard({
               }}
             />
             {values.map((value, index) => {
-              const point = polarPoint(index, values.length, 18 + (value / 100) * 52)
+              const point = polarPoint(index, values.length, tagRadarRadius(value))
               return (
                 <circle
                   key={`point-${index}`}
@@ -363,11 +381,11 @@ function VectorRadarCard({
             })}
           </svg>
           {axisLabels.map((axis, index) => {
-            const point = polarPoint(index, axisLabels.length, 96)
+            const point = polarPoint(index, axisLabels.length, interactive ? 114 : 122)
             return (
               <div
                 key={`${axis}-label`}
-                className={`pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 text-center leading-snug font-semibold uppercase text-white/92 ${interactive ? "max-w-[124px] text-[10px] tracking-[0.08em]" : "max-w-[148px] text-[12px] tracking-[0.05em]"}`}
+                className={`pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 text-center leading-snug font-semibold uppercase text-white/92 ${interactive ? "max-w-[148px] text-[10px] tracking-[0.08em]" : "max-w-[186px] text-[12px] tracking-[0.05em]"}`}
                 style={{ left: `${(point.x / 160) * 100}%`, top: `${(point.y / 160) * 100}%` }}
               >
                 {axis.replace(/_/g, " ")}
@@ -711,6 +729,8 @@ export function ControlPanel({
                       label={MATCH_VISUALS[key].label}
                       value={weights.match[key]}
                       onChange={(value) => onMatchWeightChange(key, value)}
+                      fillColor={MATCH_VISUALS[key].fill}
+                      thumbColor={MATCH_VISUALS[key].fill}
                     />
                   ))}
                 </div>

@@ -61,10 +61,6 @@ class PostgresGameStore:
             value = str(metadata.get(field, "")).strip()
             if value and value not in tags:
                 tags.append(value)
-        for tag in metadata.get("soundtrack_tags", []) or []:
-            text = str(tag).strip()
-            if text and text not in tags:
-                tags.append(text)
         return tags
 
     def _row_to_game(self, row: dict[str, Any]) -> dict[str, Any]:
@@ -98,7 +94,6 @@ class PostgresGameStore:
             "publishers": self._coerce_list(row.get("publishers")),
             "release_date_text": row.get("release_date_text") or "",
             "signature_tag": metadata.get("signature_tag", ""),
-            "soundtrack_tags": music_tags,
             "music_primary": str(metadata.get("music_primary", "")).strip(),
             "music_secondary": str(metadata.get("music_secondary", "")).strip(),
         }
@@ -196,7 +191,6 @@ class PostgresGameStore:
                     "appid": int(row["appid"]),
                     "name": row.get("name"),
                     "signature_tag": metadata.get("signature_tag", ""),
-                    "soundtrack_tags": music_tags,
                     "music_primary": str(metadata.get("music_primary", "")).strip(),
                     "music_secondary": str(metadata.get("music_secondary", "")).strip(),
                     "short_description": (row.get("short_description") or "").strip(),

@@ -69,6 +69,10 @@ def _build_retrieval_document(row: sqlite3.Row) -> str:
         if tag:
             parts.append(str(tag))
 
+    for tag in metadata.get("setting_tags", []):
+        if tag:
+            parts.append(str(tag))
+
     music_primary = str(metadata.get("music_primary", "")).strip()
     if music_primary:
         parts.append(music_primary)
@@ -77,11 +81,9 @@ def _build_retrieval_document(row: sqlite3.Row) -> str:
     if music_secondary:
         parts.append(music_secondary)
 
-    for tag in metadata.get("soundtrack_tags", []):
-        if tag:
-            parts.append(str(tag))
-
     for context, tag_weights in vectors.items():
+        if context == "status" or not isinstance(tag_weights, dict):
+            continue
         for tag in tag_weights:
             if tag:
                 parts.append(f"{context}:{tag}")

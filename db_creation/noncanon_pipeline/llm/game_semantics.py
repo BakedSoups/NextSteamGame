@@ -1,7 +1,10 @@
 import json
 import os
 from math import floor
+import threading
 import time
+from collections import Counter
+import re
 from typing import Any, Dict, List
 
 from openai import OpenAI
@@ -14,6 +17,10 @@ from .review_sampling import sample_reviews
 
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+_SEMANTICS_RETRY_LOCK = threading.Lock()
+_SEMANTICS_RETRY_TOTAL = 0
+_SEMANTICS_RETRY_REASONS: Counter[str] = Counter()
+WEIGHT_NUMBER_RE = re.compile(r"-?\d+")
 
 APPEAL_AXIS_KEYS = (
     "challenge",
@@ -111,6 +118,27 @@ SUSPICIOUS_FRAGMENT_ENDINGS = (
     "spott",
     "styliz",
 )
+
+
+def reset_semantics_retry_stats() -> None:
+    global _SEMANTICS_RETRY_TOTAL
+    with _SEMANTICS_RETRY_LOCK:
+        _SEMANTICS_RETRY_TOTAL = 0
+        _SEMANTICS_RETRY_REASONS.clear()
+
+
+def get_semantics_retry_stats() -> Dict[str, int]:
+    with _SEMANTICS_RETRY_LOCK:
+        data = {"total": _SEMANTICS_RETRY_TOTAL}
+        data.update({f"reason:{reason}": count for reason, count in _SEMANTICS_RETRY_REASONS.items()})
+        return data
+
+
+def _record_semantics_retry(reason: str) -> None:
+    global _SEMANTICS_RETRY_TOTAL
+    with _SEMANTICS_RETRY_LOCK:
+        _SEMANTICS_RETRY_TOTAL += 1
+        _SEMANTICS_RETRY_REASONS[reason] += 1
 
 
 def _normalize_label(text: str) -> str:
@@ -429,19 +457,20 @@ def _build_evidence_block(evidence: Dict) -> str:
     return "\n".join(lines)
 
 
-def _flatten_evidence_terms(evidence: Dict) -> set[str]:
-    terms: set[str] = set()
-    for key in (
-        "repeated_systems",
-        "repeated_differentiators",
-        "repeated_complaints",
-        "hidden_depth",
+def _priority_evidence_terms(evidence: Dict) -> list[str]:
+    prioritized: list[str] = []
+    for key, limit in (
+        ("repeated_differentiators", 1),
+        ("repeated_systems", 1),
+        ("hidden_depth", 1),
+        ("music_signals", 1),
     ):
-        for item in evidence.get(key) or []:
+        values = list(evidence.get(key) or [])[:limit]
+        for item in values:
             normalized = _normalize_label(item)
-            if normalized:
-                terms.add(normalized)
-    return terms
+            if normalized and normalized not in prioritized:
+                prioritized.append(normalized)
+    return prioritized
 
 
 def _metadata_terms(metadata: Dict) -> set[str]:
@@ -459,7 +488,7 @@ def _metadata_terms(metadata: Dict) -> set[str]:
 
 
 def _evidence_is_reflected(evidence: Dict, semantics: Dict) -> bool:
-    evidence_terms = _flatten_evidence_terms(evidence)
+    evidence_terms = _priority_evidence_terms(evidence)
     if not evidence_terms:
         return True
     metadata_terms = _metadata_terms(semantics.get("metadata", {}))
@@ -736,21 +765,56 @@ REVIEWS:
 """
 
 
-def _normalize_weight_map(weight_map: Dict[str, int]) -> Dict[str, int]:
+def _coerce_weight(raw_weight: Any) -> int | None:
+    if isinstance(raw_weight, bool):
+        return None
+    if isinstance(raw_weight, int):
+        return raw_weight
+    if isinstance(raw_weight, float):
+        return int(raw_weight)
+    text = str(raw_weight or "").strip()
+    if not text:
+        return None
+    match = WEIGHT_NUMBER_RE.search(text)
+    if not match:
+        return None
+    try:
+        return int(match.group(0))
+    except (TypeError, ValueError):
+        return None
+
+
+def _coerce_weight_entries(raw_value: Any) -> list[tuple[str, int | None]]:
+    if isinstance(raw_value, dict):
+        return [(str(key).strip(), _coerce_weight(value)) for key, value in raw_value.items()]
+    if isinstance(raw_value, list):
+        return [(" ".join(str(item).strip().split()), 1) for item in raw_value]
+    if isinstance(raw_value, str):
+        text = " ".join(raw_value.strip().split())
+        return [(text, 100)] if text else []
+    return []
+
+
+def _normalize_weight_map(raw_value: Any) -> Dict[str, int]:
     cleaned: Dict[str, int] = {}
-    for raw_tag, raw_weight in weight_map.items():
-        tag = str(raw_tag).strip()
+    fallback_tags: list[str] = []
+    for raw_tag, raw_weight in _coerce_weight_entries(raw_value):
+        tag = " ".join(str(raw_tag).strip().split())
         if not tag:
             continue
-        try:
-            weight = int(raw_weight)
-        except (TypeError, ValueError):
+        fallback_tags.append(tag)
+        weight = raw_weight
+        if weight is None:
             continue
         if weight > 0:
             cleaned[tag] = cleaned.get(tag, 0) + weight
 
     if not cleaned:
-        raise ValueError("Vector category contained no positive integer weights.")
+        if fallback_tags:
+            for tag in fallback_tags:
+                cleaned[tag] = cleaned.get(tag, 0) + 1
+        else:
+            raise ValueError("Vector category contained no positive integer weights.")
 
     total = sum(cleaned.values())
     if total == 100:
@@ -784,15 +848,40 @@ def _normalize_weight_map(weight_map: Dict[str, int]) -> Dict[str, int]:
     return {tag: weight for tag, weight in normalized.items() if weight > 0}
 
 
+def _fallback_vector_seed(metadata: Dict, key: str) -> list[str]:
+    def _clean_list(raw: Any) -> list[str]:
+        if isinstance(raw, list):
+            return [" ".join(str(item).strip().split()) for item in raw if str(item).strip()]
+        if isinstance(raw, str):
+            text = " ".join(raw.strip().split())
+            return [text] if text else []
+        return []
+
+    micro = _clean_list(metadata.get("micro_tags"))
+    niche = _clean_list(metadata.get("niche_anchors"))
+    identity = _clean_list(metadata.get("identity_tags"))
+    setting = _clean_list(metadata.get("setting_tags"))
+    signature = " ".join(str(metadata.get("signature_tag", "")).strip().split())
+
+    if key == "mechanics":
+        candidates = micro + niche + ([signature] if signature else [])
+    elif key == "narrative":
+        candidates = niche + identity + ([signature] if signature else [])
+    elif key == "vibe":
+        candidates = identity + setting + ([signature] if signature else [])
+    else:
+        candidates = niche + micro + ([signature] if signature else [])
+
+    seen: list[str] = []
+    for item in candidates:
+        normalized = _normalize_label(item)
+        if normalized and normalized not in seen:
+            seen.append(normalized)
+    return seen[:3]
+
+
 def _repair_semantics_payload(payload: Dict) -> Dict:
     repaired = dict(payload)
-    vectors = dict(repaired.get("vectors") or {})
-    repaired_vectors: Dict[str, Dict[str, int]] = {}
-
-    for key in VECTOR_KEYS:
-        repaired_vectors[key] = _normalize_weight_map(dict(vectors.get(key) or {}))
-
-    repaired["vectors"] = repaired_vectors
     metadata = dict(repaired.get("metadata") or {})
     genre_tree = dict(metadata.get("genre_tree") or {})
 
@@ -823,7 +912,36 @@ def _repair_semantics_payload(payload: Dict) -> Dict:
         "sub_sub": _first_text(genre_tree.get("sub_sub")),
     }
     repaired["metadata"] = metadata
+
+    vectors = dict(repaired.get("vectors") or {})
+    repaired_vectors: Dict[str, Dict[str, int]] = {}
+    for key in VECTOR_KEYS:
+        raw_value = vectors.get(key) or {}
+        try:
+            repaired_vectors[key] = _normalize_weight_map(raw_value)
+        except ValueError:
+            fallback_seed = _fallback_vector_seed(metadata, key)
+            if not fallback_seed:
+                raise
+            repaired_vectors[key] = _normalize_weight_map(fallback_seed)
+
+    repaired["vectors"] = repaired_vectors
     return repaired
+
+
+def _classify_semantics_retry_reason(exc: Exception) -> str:
+    message = str(exc).lower()
+    if isinstance(exc, json.JSONDecodeError):
+        return "invalid_json"
+    if "vector must sum to 100" in message or "contained no positive integer weights" in message:
+        return "vector_sum_invalid"
+    if "must not be empty" in message:
+        return "missing_required_field"
+    if "did not preserve strong evidence signals" in message:
+        return "evidence_not_reflected"
+    if "validation" in message:
+        return "schema_validation_failed"
+    return "unknown_validation_failure"
 
 
 def _generate_semantics(sampled_reviews: List[str], appid: str | int | None = None) -> Dict:
@@ -875,7 +993,13 @@ def _generate_semantics(sampled_reviews: List[str], appid: str | int | None = No
         except KeyboardInterrupt:
             raise
         except Exception as exc:
-            log_stage("semantics", appid=appid, detail=f"retrying semantics ({attempt}/{MAX_SEMANTICS_RETRIES})")
+            reason = _classify_semantics_retry_reason(exc)
+            _record_semantics_retry(reason)
+            log_stage(
+                "semantics",
+                appid=appid,
+                detail=f"retrying semantics ({attempt}/{MAX_SEMANTICS_RETRIES}) reason={reason}",
+            )
             if attempt >= MAX_SEMANTICS_RETRIES:
                 raise RuntimeError(
                     f"Failed to generate valid semantics after {MAX_SEMANTICS_RETRIES} attempts."

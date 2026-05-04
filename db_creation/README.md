@@ -21,7 +21,7 @@ The main stage entrypoints are:
 
 1. `metadata_db.py`
 2. `initial_noncanon_db.py`
-3. `canon_export.py`
+3. `canon_group_pipeline/canon_full_pipeline.py`
 4. `final_db.py`
 5. `chroma_db_migration.py`
 6. `postgres_db.py`
@@ -96,7 +96,7 @@ python db_creation/initial_noncanon_db.py
 Canon export:
 
 ```bash
-python db_creation/canon_export.py
+python db_creation/canon_group_pipeline/canon_full_pipeline.py
 ```
 
 Final canonical DB:

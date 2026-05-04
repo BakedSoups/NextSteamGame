@@ -133,8 +133,17 @@ def _identity_tags(metadata: dict[str, Any]) -> list[str]:
     for field in ("niche_anchors", "identity_tags", "micro_tags"):
         for tag in metadata.get(field, []) or []:
             text = str(tag).strip()
-                if text and text not in tags:
-                    tags.append(text)
+            if text and text not in tags:
+                tags.append(text)
+    return tags
+
+
+def _setting_tags(metadata: dict[str, Any]) -> list[str]:
+    tags: list[str] = []
+    for tag in metadata.get("setting_tags", []) or []:
+        text = str(tag).strip()
+        if text and text not in tags:
+            tags.append(text)
     return tags
 
 
@@ -161,6 +170,7 @@ def _serialize_identity(metadata: dict[str, Any]) -> dict[str, Any]:
         "nicheAnchors": [str(tag).strip() for tag in metadata.get("niche_anchors", []) or [] if str(tag).strip()],
         "identityTags": [str(tag).strip() for tag in metadata.get("identity_tags", []) or [] if str(tag).strip()],
         "microTags": [str(tag).strip() for tag in metadata.get("micro_tags", []) or [] if str(tag).strip()],
+        "settingTags": _setting_tags(metadata),
         "musicPrimary": str(metadata.get("music_primary", "")).strip(),
         "musicSecondary": str(metadata.get("music_secondary", "")).strip(),
     }
@@ -171,7 +181,8 @@ def _build_tag_weights(game: dict) -> dict[str, dict[str, int]]:
     for context, tag_weights in (game.get("vectors") or {}).items():
         tags[context] = _vector_weight_map(tag_weights)
 
-    tags["uniqueness"] = _vector_weight_map(_identity_tags(game["metadata"]))
+    tags["identity"] = _vector_weight_map(_identity_tags(game["metadata"]))
+    tags["setting"] = _vector_weight_map(_setting_tags(game["metadata"]))
     tags["music"] = _vector_weight_map(_music_tags(game["metadata"]))
     return tags
 
@@ -185,7 +196,8 @@ def _serialize_game(game: dict) -> dict[str, Any]:
         context: _vector_tag_names(focus_vectors.get(context))
         for context in ("mechanics", "narrative", "vibe", "structure_loop")
     }
-    vector_tags["uniqueness"] = _identity_tags(metadata)
+    vector_tags["identity"] = _identity_tags(metadata)
+    vector_tags["setting"] = _setting_tags(metadata)
     vector_tags["music"] = _music_tags(metadata)
     assets = {
         "header": str(game.get("header_image", "")),
@@ -267,8 +279,18 @@ def _serialize_recommendation(item: dict) -> dict[str, Any]:
             "narrative": _vector_tag_names(focus_vectors.get("narrative")),
             "vibe": _vector_tag_names(focus_vectors.get("vibe")),
             "structure_loop": _vector_tag_names(focus_vectors.get("structure_loop")),
-            "uniqueness": _identity_tags(metadata),
+            "identity": _identity_tags(metadata),
+            "setting": _setting_tags(metadata),
             "music": _music_tags(metadata),
+        },
+        "matchedTags": {
+            "mechanics": [str(tag) for tag in (item.get("matched_tags", {}) or {}).get("mechanics", [])],
+            "narrative": [str(tag) for tag in (item.get("matched_tags", {}) or {}).get("narrative", [])],
+            "vibe": [str(tag) for tag in (item.get("matched_tags", {}) or {}).get("vibe", [])],
+            "structure_loop": [str(tag) for tag in (item.get("matched_tags", {}) or {}).get("structure_loop", [])],
+            "identity": [str(tag) for tag in (item.get("matched_tags", {}) or {}).get("identity", [])],
+            "setting": [str(tag) for tag in (item.get("matched_tags", {}) or {}).get("setting", [])],
+            "music": [str(tag) for tag in (item.get("matched_tags", {}) or {}).get("music", [])],
         },
         "matchScore": float(item.get("total_score", 0.0)),
         "confidence": float(item.get("confidence_multiplier", 1.0)),
@@ -285,7 +307,8 @@ def _serialize_recommendation(item: dict) -> dict[str, Any]:
             "narrative": float(item.get("vector_context_percentages", {}).get("narrative", 0.0)),
             "vibe": float(item.get("vector_context_percentages", {}).get("vibe", 0.0)),
             "structure_loop": float(item.get("vector_context_percentages", {}).get("structure_loop", 0.0)),
-            "uniqueness": float(item.get("vector_context_percentages", {}).get("uniqueness", 0.0)),
+            "identity": float(item.get("vector_context_percentages", {}).get("identity", 0.0)),
+            "setting": float(item.get("vector_context_percentages", {}).get("setting", 0.0)),
             "music": float(item.get("active_context_percentages", {}).get("music", 0.0)),
         },
         "reviewStats": {

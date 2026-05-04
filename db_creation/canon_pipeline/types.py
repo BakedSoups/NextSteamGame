@@ -15,7 +15,7 @@ class CanonGroup:
 
     @property
     def member_count(self) -> int:
-        return len(self.counts)
+        return len(self.raw_counts) if self.raw_counts else len(self.counts)
 
     @property
     def total_occurrences(self) -> int:

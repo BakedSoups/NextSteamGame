@@ -10,12 +10,13 @@ def build_group(context: str, normalized_tag: str, total_occurrences: int, raw_c
     representative = choose_representative(normalized_tag, raw_counts)
     parent = derive_parent_tag(context, normalized_tag)
     specificity = 1 if parent == normalized_tag else 2
+    grouped_counts = {format_display(raw_tag): count for raw_tag, count in raw_counts.items()} if raw_counts else {representative: total_occurrences}
     return CanonGroup(
         context=context,
         representative_tag=representative,
         parent_tag=format_display(parent),
         specificity_level=specificity,
-        counts={representative: total_occurrences},
+        counts=grouped_counts,
         raw_counts=dict(raw_counts),
     )
 

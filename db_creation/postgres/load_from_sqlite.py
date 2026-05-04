@@ -8,7 +8,7 @@ import re
 import sqlite3
 from pathlib import Path
 
-from db_creation.paths import final_canon_db_path, metadata_db_path
+from paths import final_canon_db_path, metadata_db_path
 
 
 def normalize_search_text(text: str) -> str:
@@ -114,6 +114,8 @@ def load_tag_groups(connection: sqlite3.Connection) -> list[sqlite3.Row]:
             source_family,
             context,
             representative_tag,
+            parent_tag,
+            specificity_level,
             member_count,
             total_occurrences
         FROM canonical_tag_groups
@@ -203,6 +205,7 @@ def _clean_canonical_metadata(raw_json: str | None) -> dict:
         "micro_tags": clean_list("micro_tags"),
         "niche_anchors": clean_list("niche_anchors"),
         "identity_tags": clean_list("identity_tags"),
+        "setting_tags": clean_list("setting_tags"),
         "signature_tag": str(metadata.get("signature_tag", "")).strip(),
         "music_primary": str(metadata.get("music_primary", "")).strip(),
         "music_secondary": str(metadata.get("music_secondary", "")).strip(),
@@ -217,6 +220,27 @@ def _clean_canonical_metadata(raw_json: str | None) -> dict:
     if status:
         cleaned["status"] = status
     return cleaned
+
+
+def ensure_postgres_schema(cursor) -> None:
+    cursor.execute(
+        """
+        ALTER TABLE canonical_tag_groups
+        ADD COLUMN IF NOT EXISTS parent_tag TEXT NOT NULL DEFAULT ''
+        """
+    )
+    cursor.execute(
+        """
+        ALTER TABLE canonical_tag_groups
+        ADD COLUMN IF NOT EXISTS specificity_level INTEGER NOT NULL DEFAULT 1
+        """
+    )
+
+
+def reset_postgres_tables(cursor) -> None:
+    cursor.execute("DROP TABLE IF EXISTS canonical_tag_members")
+    cursor.execute("DROP TABLE IF EXISTS canonical_tag_groups")
+    cursor.execute("DROP TABLE IF EXISTS games")
 
 
 def main() -> int:
@@ -242,15 +266,13 @@ def main() -> int:
 
         with psycopg.connect(postgres_dsn()) as pg_connection:
             with pg_connection.cursor() as cursor:
+                reset_postgres_tables(cursor)
                 cursor.execute(schema_sql)
+                ensure_postgres_schema(cursor)
                 cursor.execute(
                     "INSERT INTO pipeline_runs (status) VALUES ('running') RETURNING id"
                 )
                 run_id = int(cursor.fetchone()[0])
-
-                cursor.execute("DELETE FROM canonical_tag_members")
-                cursor.execute("DELETE FROM canonical_tag_groups")
-                cursor.execute("DELETE FROM games")
 
                 group_id_map: dict[int, int] = {}
                 for group in tag_groups:
@@ -261,10 +283,12 @@ def main() -> int:
                             source_family,
                             context,
                             representative_tag,
+                            parent_tag,
+                            specificity_level,
                             member_count,
                             total_occurrences
                         )
-                        VALUES (%s, %s, %s, %s, %s, %s)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                         RETURNING id
                         """,
                         (
@@ -272,6 +296,8 @@ def main() -> int:
                             group["source_family"],
                             group["context"],
                             group["representative_tag"],
+                            group["parent_tag"],
+                            int(group["specificity_level"]),
                             int(group["member_count"]),
                             int(group["total_occurrences"]),
                         ),

@@ -14,6 +14,8 @@ CREATE TABLE IF NOT EXISTS canonical_tag_groups (
     source_family TEXT NOT NULL,
     context TEXT NOT NULL,
     representative_tag TEXT NOT NULL,
+    parent_tag TEXT NOT NULL DEFAULT '',
+    specificity_level INTEGER NOT NULL DEFAULT 1,
     member_count INTEGER NOT NULL,
     total_occurrences INTEGER NOT NULL
 );
@@ -68,4 +70,3 @@ CREATE INDEX IF NOT EXISTS games_name_trgm_idx
 
 CREATE INDEX IF NOT EXISTS games_search_name_idx
     ON games USING GIN (search_name);
-

@@ -57,10 +57,8 @@ def print_run_summary(summary: dict) -> None:
     print(
         f"Vector leftovers: {summary.get('vector_leftovers', 0)}"
     )
-    print(f"Metadata CSV: {summary['metadata_csv_path']}")
-    print(f"Vector CSV: {summary['vector_csv_path']}")
-    print(f"Metadata leftovers CSV: {summary['metadata_leftovers_csv_path']}")
-    print(f"Vector leftovers CSV: {summary['vector_leftovers_csv_path']}")
+    print(f"Total groups exported: {summary['total_groups']}")
+    print(f"Groups CSV: {summary['groups_csv_path']}")
     print(f"Summary: {summary['summary_path']}")
     print(f"Elapsed seconds: {summary.get('elapsed_seconds', 'n/a')}")
 

@@ -290,35 +290,6 @@ class SteamStoreAssetEnricher:
             connection.commit()
         return bool(result.rowcount)
 
-    def update_assets_batch(self, rows: Sequence[tuple[int, Dict[str, Optional[str]]]]) -> int:
-        payload = [
-            (
-                assets.get("logo_image"),
-                assets.get("library_hero_image"),
-                assets.get("library_capsule_image"),
-                appid,
-            )
-            for appid, assets in rows
-            if any(assets.values())
-        ]
-        if not payload:
-            return 0
-
-        with self.connect() as connection:
-            connection.executemany(
-                """
-                UPDATE games
-                SET logo_image = COALESCE(?, logo_image),
-                    library_hero_image = COALESCE(?, library_hero_image),
-                    library_capsule_image = COALESCE(?, library_capsule_image),
-                    updated_at = datetime('now')
-                WHERE appid = ?
-                """,
-                payload,
-            )
-            connection.commit()
-        return len(payload)
-
     def mark_state(self, appid: int, status: str, error_message: Optional[str] = None) -> None:
         with self.connect() as connection:
             if status in {"success", "no_assets"}:

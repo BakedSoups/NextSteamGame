@@ -6,7 +6,9 @@ import { ChevronDown, ChevronUp, Radar, Zap, Target, AudioLines } from "lucide-r
 import type { Game, RecommendedGame, Weights } from "@/lib/types"
 import { MATCH_LABELS } from "@/lib/score-labels"
 
-const VECTOR_CONTEXT_KEYS: Array<keyof RecommendedGame["contextScores"]> = [
+type VectorContextKey = "mechanics" | "narrative" | "vibe" | "structure_loop"
+
+const VECTOR_CONTEXT_KEYS: VectorContextKey[] = [
   "mechanics",
   "narrative",
   "vibe",
@@ -26,6 +28,13 @@ const MATCH_COLORS: Record<keyof Weights["match"], string> = {
   genre: "#86efac",
   appeal: "#fda4af",
   music: "#fcd34d",
+}
+
+const VECTOR_CONTEXT_COLORS: Record<VectorContextKey, string> = {
+  mechanics: "#7dd3fc",
+  narrative: "#c084fc",
+  vibe: "#2dd4bf",
+  structure_loop: "#f97316",
 }
 
 interface RecommendationsPanelProps {
@@ -90,68 +99,95 @@ function StructuralRadar({ game, weights }: { game: RecommendedGame; weights: We
     .join(" ")
 
   return (
-    <div className="mx-auto w-[168px]">
-      <svg viewBox="0 0 160 160" className="h-[168px] w-[168px] overflow-visible">
-        {[22, 38, 54, 70].map((radius) => (
-          <polygon
-            key={radius}
-            points={axes.map((_, index) => {
-              const point = polarPoint(index, axes.length, radius)
-              return `${point.x},${point.y}`
-            }).join(" ")}
-            fill="none"
-            stroke="rgba(255,255,255,0.14)"
-            strokeWidth="1"
-          />
-        ))}
-        {axes.map((_, index) => {
-          const point = polarPoint(index, axes.length, 76)
-          return (
-            <line
-              key={`axis-${index}`}
-              x1="80"
-              y1="80"
-              x2={point.x}
-              y2={point.y}
-              stroke="rgba(255,255,255,0.12)"
+    <div className="grid items-start gap-5 lg:grid-cols-[188px_minmax(0,1fr)]">
+      <div className="mx-auto w-[188px]">
+        <svg viewBox="0 0 160 160" className="h-[188px] w-[188px] overflow-visible">
+          {[22, 38, 54, 70].map((radius) => (
+            <polygon
+              key={radius}
+              points={axes.map((_, index) => {
+                const point = polarPoint(index, axes.length, radius)
+                return `${point.x},${point.y}`
+              }).join(" ")}
+              fill="none"
+              stroke="rgba(255,255,255,0.14)"
               strokeWidth="1"
             />
-          )
-        })}
-        <polygon
-          points={targetPolygon}
-          fill="rgba(249, 168, 212, 0.10)"
-          stroke="rgba(249, 168, 212, 0.85)"
-          strokeWidth="1.6"
-          strokeDasharray="4 4"
-        />
-        <polygon
-          points={matchedPolygon}
-          fill="rgba(125, 211, 252, 0.18)"
-          stroke="#7dd3fc"
-          strokeWidth="2.25"
-          style={{ filter: "drop-shadow(0 0 12px rgba(125, 211, 252, 0.35))" }}
-        />
-        {matchedValues.map((value, index) => {
-          const point = polarPoint(index, matchedValues.length, 14 + (value / 100) * 56)
-          return <circle key={`point-${index}`} cx={point.x} cy={point.y} r="3" fill="#7dd3fc" />
-        })}
-      </svg>
-      <div className="mb-2 flex items-center justify-center gap-4 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-        <div className="flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full border border-pink-300/80 bg-pink-300/20" />
-          <span>Requested</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full bg-sky-300" />
-          <span>Matched</span>
+          ))}
+          {axes.map((_, index) => {
+            const point = polarPoint(index, axes.length, 76)
+            return (
+              <line
+                key={`axis-${index}`}
+                x1="80"
+                y1="80"
+                x2={point.x}
+                y2={point.y}
+                stroke="rgba(255,255,255,0.12)"
+                strokeWidth="1"
+              />
+            )
+          })}
+          <polygon
+            points={targetPolygon}
+            fill="rgba(249, 168, 212, 0.10)"
+            stroke="rgba(249, 168, 212, 0.85)"
+            strokeWidth="1.6"
+            strokeDasharray="4 4"
+          />
+          <polygon
+            points={matchedPolygon}
+            fill="rgba(125, 211, 252, 0.18)"
+            stroke="#7dd3fc"
+            strokeWidth="2.25"
+            style={{ filter: "drop-shadow(0 0 12px rgba(125, 211, 252, 0.35))" }}
+          />
+          {matchedValues.map((value, index) => {
+            const point = polarPoint(index, matchedValues.length, 14 + (value / 100) * 56)
+            return <circle key={`point-${index}`} cx={point.x} cy={point.y} r="3" fill="#7dd3fc" />
+          })}
+        </svg>
+        <div className="mt-3 flex items-center justify-center gap-4 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+          <div className="flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-full border border-pink-300/80 bg-pink-300/20" />
+            <span>Requested</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-full bg-sky-300" />
+            <span>Matched</span>
+          </div>
         </div>
       </div>
-      <div className="mt-2 grid grid-cols-2 gap-2 text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+      <div className="space-y-3">
         {axes.map((axis) => (
-          <div key={axis} className="flex items-center justify-between rounded-full border border-white/8 bg-white/[0.03] px-2 py-1">
-            <span>{axis.replace(/_/g, " ")}</span>
-            <span className="text-foreground">{game.contextScores[axis].toFixed(1)}%</span>
+          <div key={axis} className="space-y-1.5">
+            <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.1em] text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <span
+                  className="h-2.5 w-2.5 rounded-full"
+                  style={{ backgroundColor: VECTOR_CONTEXT_COLORS[axis], boxShadow: `0 0 8px ${VECTOR_CONTEXT_COLORS[axis]}` }}
+                />
+                <span>{axis.replace(/_/g, " ")}</span>
+              </div>
+              <span className="font-semibold text-foreground">
+                req {weights.context[axis]}% / hit {game.contextScores[axis].toFixed(1)}%
+              </span>
+            </div>
+            <div className="relative h-2 overflow-hidden rounded-full bg-white/8">
+              <div
+                className="absolute inset-y-0 left-0 rounded-full border border-pink-300/60 bg-pink-300/20"
+                style={{ width: `${Math.min(weights.context[axis], 100)}%` }}
+              />
+              <div
+                className="absolute inset-y-0 left-0 rounded-full"
+                style={{
+                  width: `${Math.min(Math.max(game.contextScores[axis], 0), 100)}%`,
+                  backgroundColor: VECTOR_CONTEXT_COLORS[axis],
+                  boxShadow: `0 0 10px ${VECTOR_CONTEXT_COLORS[axis]}`,
+                  opacity: 0.95,
+                }}
+              />
+            </div>
           </div>
         ))}
       </div>
@@ -268,14 +304,6 @@ function RecommendationCard({ game, rank, weights, selectedGame }: Recommendatio
             </div>
           </div>
         )}
-        {selectedGame && (
-          <div className="mb-3">
-            <div className="mb-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-              Structural Overlap
-            </div>
-            <StructuralRadar game={game} weights={weights} />
-          </div>
-        )}
         <div className="flex gap-2">
           {[
             { key: "vector", value: scorePercentages.vector ?? game.scores.vector, weight: weights.match.vector },
@@ -340,105 +368,148 @@ function RecommendationCard({ game, rank, weights, selectedGame }: Recommendatio
             </div>
           </div>
 
-          <div>
-            <span className="terminal-label block mb-2 text-accent">Matched Tags</span>
-            <div className="space-y-3">
-              {showIdentityMatches && (
-                <div>
-                  <div className="mb-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Identity</div>
-                  <div className="flex flex-wrap gap-1">
-                    {matchedTags.identity.map((tag) => (
-                      <span key={`identity-${tag}`} className="tag-chip included">{tag}</span>
-                    ))}
-                  </div>
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
+            <div className="space-y-4">
+              <div>
+                <span className="terminal-label block mb-2 text-accent">4-Vector Match</span>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {VECTOR_CONTEXT_KEYS.map((key) => (
+                    <div
+                      key={key}
+                      className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-3"
+                      style={{ boxShadow: `inset 0 0 0 1px ${VECTOR_CONTEXT_COLORS[key]}22` }}
+                    >
+                      <div className="mb-2 flex items-center gap-2">
+                        <span
+                          className="h-2.5 w-2.5 rounded-full"
+                          style={{ backgroundColor: VECTOR_CONTEXT_COLORS[key], boxShadow: `0 0 10px ${VECTOR_CONTEXT_COLORS[key]}` }}
+                        />
+                        <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/92">
+                          {key.replace(/_/g, " ")}
+                        </span>
+                      </div>
+                      <div
+                        className="text-2xl font-semibold leading-none"
+                        style={{ color: VECTOR_CONTEXT_COLORS[key] }}
+                      >
+                        {game.contextScores[key].toFixed(1)}%
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              )}
-              {showSettingMatches && (
-                <div>
-                  <div className="mb-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Setting</div>
-                  <div className="flex flex-wrap gap-1">
-                    {matchedTags.setting.map((tag) => (
-                      <span key={`setting-${tag}`} className="tag-chip">{tag}</span>
-                    ))}
-                  </div>
+              </div>
+
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <AudioLines className="h-3 w-3 text-accent" />
+                  <span className="terminal-label text-accent">4-Vector Structural Overlap</span>
                 </div>
-              )}
-              {showStructureMatches && (
-                <div>
-                  <div className="mb-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Structure & Mechanics</div>
-                  <div className="flex flex-wrap gap-1">
-                    {[...matchedTags.structure_loop, ...matchedTags.mechanics].map((tag) => (
-                      <span key={`structure-${tag}`} className="tag-chip">{tag}</span>
-                    ))}
-                  </div>
+                <p className="mb-3 text-[11px] leading-5 text-muted-foreground">
+                  Pink is the structure you asked for. Blue is how this game overlaps across mechanics, narrative, vibe, and structure loop.
+                </p>
+                {selectedGame ? <StructuralRadar game={game} weights={weights} /> : null}
+              </div>
+
+              <div>
+                <span className="terminal-label block mb-2 text-accent">Tag Signal Strength</span>
+                <p className="mb-3 text-[11px] leading-5 text-muted-foreground">
+                  These show how strongly the recommendation matched your identity, setting, and music preferences.
+                </p>
+                <div className="space-y-1.5">
+                  {TAG_SIGNAL_KEYS.map((key) => (
+                    <ScoreBar key={key} label={key} value={game.contextScores[key]} max={30} color="accent" />
+                  ))}
                 </div>
-              )}
-              {showMusicMatches && (
-                <div>
-                  <div className="mb-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Music</div>
-                  <div className="flex flex-wrap gap-1">
-                    {matchedTags.music.map((tag) => (
-                      <span key={`music-${tag}`} className="tag-chip">{tag}</span>
-                    ))}
-                  </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <span className="terminal-label block mb-2 text-accent">Matched Tags</span>
+                <div className="space-y-3">
+                  {showIdentityMatches && (
+                    <div>
+                      <div className="mb-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Identity</div>
+                      <div className="flex flex-wrap gap-1">
+                        {matchedTags.identity.map((tag) => (
+                          <span key={`identity-${tag}`} className="tag-chip included">{tag}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {showSettingMatches && (
+                    <div>
+                      <div className="mb-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Setting</div>
+                      <div className="flex flex-wrap gap-1">
+                        {matchedTags.setting.map((tag) => (
+                          <span key={`setting-${tag}`} className="tag-chip">{tag}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {showStructureMatches && (
+                    <div>
+                      <div className="mb-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Structure & Mechanics</div>
+                      <div className="flex flex-wrap gap-1">
+                        {[...matchedTags.structure_loop, ...matchedTags.mechanics].map((tag) => (
+                          <span key={`structure-${tag}`} className="tag-chip">{tag}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {showMusicMatches && (
+                    <div>
+                      <div className="mb-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Music</div>
+                      <div className="flex flex-wrap gap-1">
+                        {matchedTags.music.map((tag) => (
+                          <span key={`music-${tag}`} className="tag-chip">{tag}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          </div>
+              </div>
 
-          {/* Structural Scan */}
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <AudioLines className="h-3 w-3 text-accent" />
-              <span className="terminal-label text-accent">Structural Scan</span>
-            </div>
-            <StructuralRadar game={game} weights={weights} />
-          </div>
+              {/* Genres */}
+              <div>
+                <span className="terminal-label block mb-2">Genre Classification</span>
+                <p className="mb-3 text-[11px] leading-5 text-muted-foreground">
+                  Genre overlap acts like a strength multiplier. Strong primary and subgenre alignment makes the recommendation more reliable, while weaker genre overlap means the result is being carried more by structure or niche tags.
+                </p>
+                <div className="flex flex-wrap gap-1">
+                  {game.genres.primary.map(g => (
+                    <span key={g} className="tag-chip included">{g}</span>
+                  ))}
+                  {game.genres.sub.map(g => (
+                    <span key={g} className="tag-chip">{g}</span>
+                  ))}
+                  {game.genres.sub_sub.slice(0, 3).map(g => (
+                    <span key={g} className="tag-chip">{g}</span>
+                  ))}
+                </div>
+              </div>
 
-          <div>
-            <span className="terminal-label block mb-2 text-accent">Tag Signal Match</span>
-            <div className="space-y-1.5">
-              {TAG_SIGNAL_KEYS.map((key) => (
-                <ScoreBar key={key} label={key} value={game.contextScores[key]} max={30} color="accent" />
-              ))}
-            </div>
-          </div>
+              {/* Full Tag Signals */}
+              <div>
+                <span className="terminal-label block mb-2">Identity & Setting</span>
+                <div className="flex flex-wrap gap-1">
+                  {game.tags.identity.slice(0, 4).map(tag => (
+                    <span key={`identity-${tag}`} className="tag-chip">{tag}</span>
+                  ))}
+                  {game.tags.setting.slice(0, 4).map(tag => (
+                    <span key={`setting-${tag}`} className="tag-chip">{tag}</span>
+                  ))}
+                </div>
+              </div>
 
-          {/* Genres */}
-          <div>
-            <span className="terminal-label block mb-2">Genre Classification</span>
-            <div className="flex flex-wrap gap-1">
-              {game.genres.primary.map(g => (
-                <span key={g} className="tag-chip included">{g}</span>
-              ))}
-              {game.genres.sub.map(g => (
-                <span key={g} className="tag-chip">{g}</span>
-              ))}
-              {game.genres.sub_sub.slice(0, 3).map(g => (
-                <span key={g} className="tag-chip">{g}</span>
-              ))}
-            </div>
-          </div>
-
-          {/* Full Tag Signals */}
-          <div>
-            <span className="terminal-label block mb-2">Identity & Setting</span>
-            <div className="flex flex-wrap gap-1">
-              {game.tags.identity.slice(0, 4).map(tag => (
-                <span key={`identity-${tag}`} className="tag-chip">{tag}</span>
-              ))}
-              {game.tags.setting.slice(0, 4).map(tag => (
-                <span key={`setting-${tag}`} className="tag-chip">{tag}</span>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <span className="terminal-label block mb-2">Music Tags</span>
-            <div className="flex flex-wrap gap-1">
-              {game.tags.music.map(tag => (
-                <span key={tag} className="tag-chip">{tag}</span>
-              ))}
+              <div>
+                <span className="terminal-label block mb-2">Music Tags</span>
+                <div className="flex flex-wrap gap-1">
+                  {game.tags.music.map(tag => (
+                    <span key={tag} className="tag-chip">{tag}</span>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </div>

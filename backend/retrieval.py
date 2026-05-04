@@ -46,11 +46,11 @@ class CandidateRetriever:
         parts.extend(str(tag) for tag in metadata.get("micro_tags", []) if tag)
         parts.extend(str(tag) for tag in metadata.get("niche_anchors", []) if tag)
         parts.extend(str(tag) for tag in metadata.get("identity_tags", []) if tag)
+        parts.extend(str(tag) for tag in metadata.get("setting_tags", []) if tag)
         if metadata.get("music_primary"):
             parts.append(str(metadata["music_primary"]))
         if metadata.get("music_secondary"):
             parts.append(str(metadata["music_secondary"]))
-        parts.extend(str(tag) for tag in metadata.get("soundtrack_tags", []) if tag)
 
         for context, tag_weights in vectors.items():
             for tag in tag_weights:

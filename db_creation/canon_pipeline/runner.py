@@ -9,13 +9,10 @@ from .defaults import (
     DEFAULT_ANALYSIS_DIR,
     DEFAULT_BATCH_SIZE,
     DEFAULT_NONCANON_DB_PATH,
-    METADATA_CSV_PATH,
-    METADATA_LEFTOVERS_CSV_PATH,
+    GROUPS_CSV_PATH,
     SUMMARY_PATH,
-    VECTORS_CSV_PATH,
-    VECTORS_LEFTOVERS_CSV_PATH,
 )
-from .exporters import write_groups_csv, write_leftovers_csv, write_summary
+from .exporters import write_groups_csv, write_summary
 from .io import collect_batch_counters, count_rows, empty_metadata_counters, empty_vector_counters, iter_row_batches, merge_counter_maps
 from .layer_2_surface_merge import collapse_exact_normalized
 from .layer_3_phrase_merge import merge_surface_variants
@@ -57,17 +54,15 @@ def run_canon_export(
 
     metadata_groups, metadata_leftovers = _build_groups(metadata_counters)
     vector_groups, vector_leftovers = _build_groups(vector_counters)
+    all_groups = sorted(
+        metadata_groups + vector_groups,
+        key=lambda group: (-group.member_count, -group.total_occurrences, group.context, group.representative_tag.lower()),
+    )
 
-    metadata_csv = analysis_output_dir / METADATA_CSV_PATH.name
-    vectors_csv = analysis_output_dir / VECTORS_CSV_PATH.name
-    metadata_leftovers_csv = analysis_output_dir / METADATA_LEFTOVERS_CSV_PATH.name
-    vectors_leftovers_csv = analysis_output_dir / VECTORS_LEFTOVERS_CSV_PATH.name
+    groups_csv = analysis_output_dir / GROUPS_CSV_PATH.name
     summary_path = analysis_output_dir / SUMMARY_PATH.name
 
-    write_groups_csv(metadata_csv, metadata_groups)
-    write_groups_csv(vectors_csv, vector_groups)
-    write_leftovers_csv(metadata_leftovers_csv, metadata_leftovers)
-    write_leftovers_csv(vectors_leftovers_csv, vector_leftovers)
+    write_groups_csv(groups_csv, all_groups)
     write_summary(
         summary_path,
         [
@@ -77,6 +72,7 @@ def run_canon_export(
             f"vector_groups: {len(vector_groups)}",
             f"metadata_leftovers: {len(metadata_leftovers)}",
             f"vector_leftovers: {len(vector_leftovers)}",
+            f"total_groups: {len(all_groups)}",
             f"elapsed_seconds: {round(time.time() - start, 2)}",
         ],
     )
@@ -92,10 +88,8 @@ def run_canon_export(
         "vector_groups": len(vector_groups),
         "metadata_leftovers": len(metadata_leftovers),
         "vector_leftovers": len(vector_leftovers),
-        "metadata_csv_path": str(metadata_csv),
-        "vector_csv_path": str(vectors_csv),
-        "metadata_leftovers_csv_path": str(metadata_leftovers_csv),
-        "vector_leftovers_csv_path": str(vectors_leftovers_csv),
+        "total_groups": len(all_groups),
+        "groups_csv_path": str(groups_csv),
         "summary_path": str(summary_path),
         "elapsed_seconds": round(time.time() - start, 2),
     }
@@ -105,9 +99,13 @@ def _build_groups(counter_map: dict[str, Counter]) -> tuple[list, list[LeftoverR
     groups = []
     leftovers: list[LeftoverRow] = []
     for context, counter in counter_map.items():
+        print(f"Canon grouping start: context={context} raw_tags={len(counter)}")
         collapsed, raw_members = collapse_exact_normalized(counter)
+        print(f"Canon layer 2 complete: context={context} groups={len(collapsed)}")
         collapsed, raw_members = merge_surface_variants(collapsed, raw_members)
+        print(f"Canon layer 3 complete: context={context} groups={len(collapsed)}")
         collapsed, raw_members = merge_family_variants(collapsed, raw_members)
+        print(f"Canon layer 4 complete: context={context} groups={len(collapsed)}")
         for normalized_tag, total_occurrences in sorted(collapsed.items()):
             raw_counts = raw_members.get(normalized_tag, Counter())
             groups.append(build_group(context, normalized_tag, total_occurrences, raw_counts))
@@ -120,4 +118,8 @@ def _build_groups(counter_map: dict[str, Counter]) -> tuple[list, list[LeftoverR
                         members=sorted(raw_counts) or [normalized_tag],
                     )
                 )
+        print(
+            f"Canon grouping complete: context={context} "
+            f"export_groups={len([group for group in groups if group.context == context])}"
+        )
     return groups, leftovers

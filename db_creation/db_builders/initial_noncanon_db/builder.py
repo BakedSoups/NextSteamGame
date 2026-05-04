@@ -25,6 +25,7 @@ from typing import Dict, List, Optional
 
 from noncanon_pipeline.pipeline import build_game_output, build_skipped_profile, load_insightful_words
 from noncanon_pipeline.llm.errors import CreditsExhaustedError, NoReviewsError
+from noncanon_pipeline.llm.game_semantics import get_semantics_retry_stats, reset_semantics_retry_stats
 from noncanon_pipeline.progress import advance_appid, complete_appid, fail_appid, log_banner, log_stage, update_status
 
 
@@ -346,6 +347,15 @@ class InitialNoncanonDbBuilder:
                         log_stage("skip", appid=result["appid"], detail=f"{result['game_name']} :: {result['error']}")
                         writer_summary["attempted_games"] += 1
                         writer_summary["completed_games"] += 1
+                        writer_summary["skip_count"] += 1
+                        writer_summary["no_review_count"] += 1
+                        status = str(result.get("status", "")).strip()
+                        if status == "no_reviews":
+                            writer_summary["no_reviews_count"] += 1
+                        elif status == "no_reviews_after_filtering":
+                            writer_summary["no_reviews_after_filtering_count"] += 1
+                        elif status == "no_insightful_reviews":
+                            writer_summary["no_insightful_reviews_count"] += 1
                         pending_profiles.append(
                             {
                                 "appid": int(result["appid"]),
@@ -363,6 +373,13 @@ class InitialNoncanonDbBuilder:
 
                     if result["kind"] == "success":
                         log_stage("queue", appid=appid, detail="ready for sqlite")
+                        profile_status = str(
+                            ((result.get("profile") or {}).get("metadata") or {}).get("status", "")
+                        ).strip()
+                        if profile_status:
+                            writer_summary["skip_count"] += 1
+                            if profile_status == "no_steam_review":
+                                writer_summary["no_steam_review_count"] += 1
                         pending_profiles.append(
                             {
                                 "appid": appid,
@@ -409,6 +426,12 @@ class InitialNoncanonDbBuilder:
             "attempted_games": 0,
             "completed_games": 0,
             "error_count": 0,
+            "skip_count": 0,
+            "no_review_count": 0,
+            "no_reviews_count": 0,
+            "no_reviews_after_filtering_count": 0,
+            "no_insightful_reviews_count": 0,
+            "no_steam_review_count": 0,
             "processed_results": 0,
             "status": "completed",
         }
@@ -441,6 +464,7 @@ class InitialNoncanonDbBuilder:
                 with runtime_lock:
                     active_workers = runtime_state["active_workers"]
                     sqlite_pending = runtime_state["sqlite_pending"]
+                retry_stats = get_semantics_retry_stats()
                 update_status(
                     "remaining="
                     f"{task_queue.qsize()} "
@@ -448,6 +472,12 @@ class InitialNoncanonDbBuilder:
                     f"writer_queue={result_queue.qsize()} "
                     f"sqlite_pending={sqlite_pending} "
                     f"stored={writer_summary['completed_games']} "
+                    f"skips={writer_summary['skip_count']} "
+                    f"no_reviews={writer_summary['no_reviews_count']} "
+                    f"filtered_out={writer_summary['no_reviews_after_filtering_count']} "
+                    f"no_insight={writer_summary['no_insightful_reviews_count']} "
+                    f"no_steam={writer_summary['no_steam_review_count']} "
+                    f"sem_retries={retry_stats.get('total', 0)} "
                     f"errors={writer_summary['error_count']}"
                 )
                 time.sleep(1.0)
@@ -471,6 +501,13 @@ class InitialNoncanonDbBuilder:
             "attempted_games": int(writer_summary["attempted_games"]),
             "completed_games": int(writer_summary["completed_games"]),
             "error_count": int(writer_summary["error_count"]),
+            "skip_count": int(writer_summary["skip_count"]),
+            "no_review_count": int(writer_summary["no_review_count"]),
+            "no_reviews_count": int(writer_summary["no_reviews_count"]),
+            "no_reviews_after_filtering_count": int(writer_summary["no_reviews_after_filtering_count"]),
+            "no_insightful_reviews_count": int(writer_summary["no_insightful_reviews_count"]),
+            "no_steam_review_count": int(writer_summary["no_steam_review_count"]),
+            "semantics_retry_count": int(get_semantics_retry_stats().get("total", 0)),
             "status": str(writer_summary["status"]),
         }
 
@@ -480,6 +517,7 @@ class InitialNoncanonDbBuilder:
         self.create_schema()
         log_stage("setup", detail="loading insightful words")
         insightful_words = load_insightful_words()
+        reset_semantics_retry_stats()
         log_stage("setup", detail="counting existing stored profiles")
         existing_profiles = self.count_existing_profiles()
 
@@ -519,5 +557,12 @@ class InitialNoncanonDbBuilder:
             "attempted_games": attempted_games,
             "completed_games": completed_games,
             "error_count": error_count,
+            "skip_count": int(summary["skip_count"]) if 'summary' in locals() else 0,
+            "no_review_count": int(summary["no_review_count"]) if 'summary' in locals() else 0,
+            "no_reviews_count": int(summary["no_reviews_count"]) if 'summary' in locals() else 0,
+            "no_reviews_after_filtering_count": int(summary["no_reviews_after_filtering_count"]) if 'summary' in locals() else 0,
+            "no_insightful_reviews_count": int(summary["no_insightful_reviews_count"]) if 'summary' in locals() else 0,
+            "no_steam_review_count": int(summary["no_steam_review_count"]) if 'summary' in locals() else 0,
+            "semantics_retry_count": int(summary["semantics_retry_count"]) if 'summary' in locals() else 0,
             "output_db_path": str(self.output_db_path),
         }
