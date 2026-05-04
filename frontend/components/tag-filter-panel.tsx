@@ -179,7 +179,7 @@ export function TagFilterPanel({ filters, tagOptions, onFiltersChange }: TagFilt
       <div className="border-t border-border/60 p-3 space-y-4">
         <div>
           <div className="mb-2 flex items-center justify-between">
-            <span className="text-xs font-medium text-foreground">Positive Review Floor</span>
+            <span className="text-xs font-medium text-foreground">Minimum Positive Reviews</span>
             <span className="data-value text-[10px]">{Math.round(filters.minReviewPercent ?? 0)}%</span>
           </div>
           <input
@@ -202,7 +202,7 @@ export function TagFilterPanel({ filters, tagOptions, onFiltersChange }: TagFilt
 
         <div>
           <div className="mb-2 flex items-center justify-between">
-            <span className="text-xs font-medium text-foreground">Review Relevance Floor</span>
+            <span className="text-xs font-medium text-foreground">Review Quality Floor</span>
             <span className="data-value text-[10px]">{Math.round(filters.minReviewRelevance ?? 0)}</span>
           </div>
           <input
@@ -219,7 +219,7 @@ export function TagFilterPanel({ filters, tagOptions, onFiltersChange }: TagFilt
             className="w-full"
           />
           <p className="mt-2 text-[10px] text-muted-foreground">
-            Hide games that do not meet the blended review relevance score based on positivity and review volume.
+            Hide games with weaker or low-volume review signals.
           </p>
         </div>
       </div>

@@ -1,0 +1,66 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: steam_rec
+      POSTGRES_USER: steam_rec
+      POSTGRES_PASSWORD: steam_rec
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U steam_rec -d steam_rec"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  postgres_loader:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      STEAM_REC_POSTGRES_DSN: postgresql://steam_rec:steam_rec@postgres:5432/steam_rec
+      DB_CREATION_DATA_DIR: /app/data
+    volumes:
+      - ./data:/app/data:ro
+    command: ["python", "db_creation/postgres_db.py"]
+    restart: "no"
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    depends_on:
+      postgres:
+        condition: service_healthy
+      postgres_loader:
+        condition: service_completed_successfully
+    environment:
+      STEAM_REC_POSTGRES_DSN: postgresql://steam_rec:steam_rec@postgres:5432/steam_rec
+      DB_CREATION_DATA_DIR: /app/data
+    volumes:
+      - ./data:/app/data:ro
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: http://localhost:8000
+    depends_on:
+      api:
+        condition: service_started
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

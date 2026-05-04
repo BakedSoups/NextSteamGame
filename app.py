@@ -52,6 +52,7 @@ if not postgres_dsn:
     raise RuntimeError("STEAM_REC_POSTGRES_DSN must be set. SQLite fallback has been removed.")
 
 store = PostgresGameStore(postgres_dsn)
+store.ensure_diagnostics_table()
 retriever = CandidateRetriever(
     chroma_dir=chroma_dir_path(),
     fallback_games=store.load_all_games(),
@@ -424,6 +425,59 @@ def get_recommendations(payload: dict[str, Any]) -> JSONResponse:
             "results": [_serialize_recommendation(item) for item in recommendations],
         }
     )
+
+
+@app.post("/api/diagnostics/no-review-steam-click")
+def record_no_review_steam_click(payload: dict[str, Any]) -> dict[str, str]:
+    appid_raw = payload.get("appid")
+    game_name = str(payload.get("gameName") or "").strip()
+    source = str(payload.get("source") or "").strip() or "unknown"
+
+    if not game_name:
+        raise HTTPException(status_code=400, detail="Missing gameName")
+
+    appid: int | None
+    try:
+        appid = int(appid_raw) if appid_raw is not None else None
+    except (TypeError, ValueError):
+        appid = None
+
+    store.record_ui_diagnostic(
+        event_type="checked_out_game_without_insightful_reviews",
+        appid=appid,
+        game_name=game_name,
+        details={
+            "source": source,
+        },
+    )
+    return {"status": "ok"}
+
+
+@app.post("/api/diagnostics/activity")
+def record_activity(payload: dict[str, Any]) -> dict[str, str]:
+    event_type = str(payload.get("eventType") or "").strip()
+    game_name = str(payload.get("gameName") or "").strip()
+    appid_raw = payload.get("appid")
+    details = payload.get("details")
+
+    if not event_type:
+        raise HTTPException(status_code=400, detail="Missing eventType")
+    if not game_name:
+        raise HTTPException(status_code=400, detail="Missing gameName")
+
+    appid: int | None
+    try:
+        appid = int(appid_raw) if appid_raw is not None else None
+    except (TypeError, ValueError):
+        appid = None
+
+    store.record_ui_diagnostic(
+        event_type=event_type,
+        appid=appid,
+        game_name=game_name,
+        details=details if isinstance(details, dict) else {},
+    )
+    return {"status": "ok"}
 
 
 def main() -> int:

@@ -108,11 +108,13 @@ function featuredTagGroups(game: Game | null): Array<{
     label: string
     tags: string[]
   }> = [
-    { context: "identity", label: "Identity Anchors", tags: game.tags.identity.slice(0, 5) },
-    { context: "setting", label: "World / Setting", tags: game.tags.setting.slice(0, 4) },
-    { context: "structure_loop", label: "Structure", tags: game.tags.structure_loop.slice(0, 4) },
-    { context: "mechanics", label: "Mechanics", tags: game.tags.mechanics.slice(0, 4) },
-    { context: "music", label: "Music", tags: game.tags.music.slice(0, 3) },
+    { context: "identity", label: "Identity Anchors", tags: game.tags.identity.slice(0, 6) },
+    { context: "setting", label: "World / Setting", tags: game.tags.setting.slice(0, 6) },
+    { context: "music", label: "Music", tags: game.tags.music.slice(0, 6) },
+    { context: "narrative", label: "Narrative", tags: game.tags.narrative.slice(0, 6) },
+    { context: "vibe", label: "Vibe", tags: game.tags.vibe.slice(0, 6) },
+    { context: "structure_loop", label: "Structure", tags: game.tags.structure_loop.slice(0, 6) },
+    { context: "mechanics", label: "Mechanics", tags: game.tags.mechanics.slice(0, 6) },
   ]
   return groups.filter((group) => group.tags.length > 0)
 }
@@ -220,6 +222,38 @@ async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   return response.json() as Promise<T>
+}
+
+function logUiActivity(
+  game: Game | null,
+  eventType: string,
+  details: Record<string, unknown> = {},
+) {
+  if (!game) {
+    return
+  }
+
+  const payload = JSON.stringify({
+    appid: game.id,
+    gameName: game.title,
+    eventType,
+    details,
+  })
+
+  if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
+    const blob = new Blob([payload], { type: "application/json" })
+    navigator.sendBeacon(`${API_BASE}/api/diagnostics/activity`, blob)
+    return
+  }
+
+  void fetch(`${API_BASE}/api/diagnostics/activity`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: payload,
+    keepalive: true,
+  }).catch(() => undefined)
 }
 
 export default function NextSteamGamePage() {
@@ -439,6 +473,9 @@ export default function NextSteamGamePage() {
   const handleSelectGame = async (game: Game) => {
     try {
       const fullGame = await fetchJson<Game>(`/api/games/${game.id}`)
+      logUiActivity(fullGame, "selected_game_from_search", {
+        source: "search",
+      })
       setSelectedGame(fullGame)
       setScreen("profile")
       setSearchError(null)
@@ -630,6 +667,8 @@ export default function NextSteamGamePage() {
         const baseWeights = buildWeightsFromGame(selectedGame)
         const originalValue = baseWeights.tags[context]?.[tag] ?? 0
         updateTagWeight(context, tag, originalValue)
+      } else {
+        updateTagWeight(context, tag, 0)
       }
       return
     }
@@ -637,21 +676,6 @@ export default function NextSteamGamePage() {
     const current = weights.tags[context]?.[tag] ?? 0
     const nextValue = Math.min(100, current + 18)
     updateTagWeight(context, tag, nextValue)
-
-    if (context === "music") {
-      applySimpleIntentBoost("music", "music", 8, 6)
-    } else {
-        const contextMap: Record<string, keyof Weights["context"]> = {
-          mechanics: "mechanics",
-          narrative: "narrative",
-          vibe: "vibe",
-          structure_loop: "structure_loop",
-          identity: "identity",
-          setting: "setting",
-          music: "music",
-        }
-      applySimpleIntentBoost(contextMap[context], "vector", 6, 4)
-    }
   }
 
   return (
@@ -786,7 +810,7 @@ export default function NextSteamGamePage() {
                     />
                   </div>
                   <div
-                    className="absolute inset-x-0 top-0 bg-[linear-gradient(180deg,rgba(9,14,20,0.02),rgba(9,14,20,0.10)_40%,rgba(9,14,20,0.26)_72%,rgba(9,14,20,0.66)_100%),linear-gradient(90deg,rgba(9,14,20,0.34)_0%,rgba(9,14,20,0.10)_36%,rgba(9,14,20,0.02)_68%,rgba(9,14,20,0.14)_100%)]"
+                    className="absolute inset-x-0 top-0 bg-[linear-gradient(180deg,rgba(9,14,20,0.08),rgba(9,14,20,0.22)_32%,rgba(9,14,20,0.46)_60%,rgba(9,14,20,0.90)_100%),linear-gradient(90deg,rgba(9,14,20,0.46)_0%,rgba(9,14,20,0.18)_36%,rgba(9,14,20,0.06)_68%,rgba(9,14,20,0.22)_100%)]"
                     style={{ height: backgroundHeroHeight }}
                   />
                   <div
@@ -871,27 +895,26 @@ export default function NextSteamGamePage() {
                       <p className="mt-5 max-w-3xl text-sm leading-7 text-slate-300 md:text-[15px]">
                         Choose what you like. Start with the traits that make this game click, then switch to advanced mode when you want full control over vectors, match weighting, and detailed profile shaping.
                       </p>
-                      <div className="mt-4 inline-flex items-center rounded-full border border-white/12 bg-sky-400/10 px-4 py-2 text-sm font-medium text-sky-100/95">
-                        Simple mode for taste chips. Advanced mode for full vectors.
-                      </div>
                     </div>
                   </div>
 
                   {selectedGameHasSemanticProfile ? (
-                    <ControlPanel
-                      selectedGame={selectedGame}
-                      weights={weights}
-                      highlightedContexts={simpleHighlightedContexts}
-                      featuredTags={simpleFeaturedTags}
-                      mode={controlMode}
-                      onMatchWeightChange={updateMatchWeight}
-                      onContextWeightChange={updateContextWeight}
-                      onAppealWeightChange={updateAppealWeight}
-                      onTagWeightChange={updateTagWeight}
-                      onSimpleIntentBoost={handleSimpleIntentBoost}
-                      selectedSimpleTags={selectedSimpleTags}
-                      onSimpleTagToggle={toggleSimpleTag}
-                    />
+                    <>
+                      <ControlPanel
+                        selectedGame={selectedGame}
+                        weights={weights}
+                        highlightedContexts={simpleHighlightedContexts}
+                        featuredTags={simpleFeaturedTags}
+                        mode={controlMode}
+                        onMatchWeightChange={updateMatchWeight}
+                        onContextWeightChange={updateContextWeight}
+                        onAppealWeightChange={updateAppealWeight}
+                        onTagWeightChange={updateTagWeight}
+                        onSimpleIntentBoost={handleSimpleIntentBoost}
+                        selectedSimpleTags={selectedSimpleTags}
+                        onSimpleTagToggle={toggleSimpleTag}
+                      />
+                    </>
                   ) : (
                     <div className="mt-24 rounded-[28px] border border-amber-300/25 bg-amber-300/10 px-6 py-6 shadow-[0_20px_44px_rgba(0,0,0,0.22)]">
                       <div className="grid gap-5 lg:grid-cols-[240px_minmax(0,1fr)] lg:items-start">
@@ -899,6 +922,13 @@ export default function NextSteamGamePage() {
                           href={selectedGameSteamUrl}
                           target="_blank"
                           rel="noreferrer"
+                          onClick={() =>
+                            logUiActivity(
+                              selectedGame,
+                              "opened_game_on_steam_without_insightful_reviews",
+                              { source: "profile" },
+                            )
+                          }
                           className="block overflow-hidden rounded-[22px] border border-white/10 bg-black/20 shadow-[0_18px_42px_rgba(0,0,0,0.24)] transition hover:-translate-y-1 hover:border-amber-200/35"
                         >
                           {profileCardImage ? (
@@ -961,17 +991,11 @@ export default function NextSteamGamePage() {
                 Back to Tuning
               </button>
               <SelectedGamePanel game={selectedGame} />
-              {controlMode === "advanced" ? (
-                <TagFilterPanel
-                  filters={tagFilters}
-                  tagOptions={tagOptions}
-                  onFiltersChange={setTagFilters}
-                />
-              ) : (
-                <div className="rounded-2xl border border-border bg-card/60 p-4 text-sm text-muted-foreground">
-                  Advanced mode unlocks include/exclude tag filters and review-quality thresholds.
-                </div>
-              )}
+              <TagFilterPanel
+                filters={tagFilters}
+                tagOptions={tagOptions}
+                onFiltersChange={setTagFilters}
+              />
             </div>
 
             <div className="space-y-4">
@@ -981,6 +1005,13 @@ export default function NextSteamGamePage() {
                     href={selectedGameSteamUrl}
                     target="_blank"
                     rel="noreferrer"
+                    onClick={() =>
+                      logUiActivity(
+                        selectedGame,
+                        "opened_game_on_steam_without_insightful_reviews",
+                        { source: "results" },
+                      )
+                    }
                     className="mx-auto mb-5 block w-full max-w-[260px] overflow-hidden rounded-[22px] border border-white/10 bg-black/20 shadow-[0_18px_42px_rgba(0,0,0,0.24)] transition hover:-translate-y-1 hover:border-amber-200/35"
                   >
                     {profileCardImage ? (
@@ -1023,7 +1054,18 @@ export default function NextSteamGamePage() {
                     </div>
                   )}
                   {!resultsLoading && (
-                    <RecommendationsPanel recommendations={recommendations} weights={weights} selectedGame={selectedGame} />
+                    <RecommendationsPanel
+                      recommendations={recommendations}
+                      weights={weights}
+                      selectedGame={selectedGame}
+                      onOpenSteam={(game) =>
+                        logUiActivity(game, "opened_recommendation_on_steam", {
+                          source: "results",
+                          selectedGameAppid: selectedGame?.id ?? null,
+                          selectedGameTitle: selectedGame?.title ?? null,
+                        })
+                      }
+                    />
                   )}
                 </>
               )}

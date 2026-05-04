@@ -1,0 +1,4 @@
+fastapi==0.135.3
+uvicorn[standard]==0.44.0
+psycopg[binary]==3.2.12
+chromadb==1.5.7

@@ -8,8 +8,8 @@ export const metadata: Metadata = {
   description: 'Search, inspect, and tune game recommendations with precision controls',
   generator: 'v0.app',
   icons: {
-    icon: '/steam-logo.png',
-    apple: '/steam-logo.png',
+    icon: '/controller-icon.png',
+    apple: '/controller-icon.png',
   },
 }
 

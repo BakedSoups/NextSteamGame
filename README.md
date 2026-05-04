@@ -269,6 +269,43 @@ Default local URLs:
 - backend: `http://127.0.0.1:8000`
 - frontend: `http://localhost:3000`
 
+## Docker
+
+The Docker stack runs:
+
+- `postgres`
+- a one-shot `postgres_loader` that loads your existing SQLite-built data into Postgres
+- the FastAPI backend
+- the Next frontend
+
+It expects your existing local data directory to already exist, especially:
+
+- `data/steam_metadata.db`
+- `data/steam_final_canon.db`
+- `data/chroma/`
+
+Bring the stack up:
+
+```bash
+docker compose up --build
+```
+
+Default Docker URLs:
+
+- backend: `http://localhost:8000`
+- frontend: `http://localhost:3000`
+
+Default Docker Postgres DSN inside the stack:
+
+```text
+postgresql://steam_rec:steam_rec@postgres:5432/steam_rec
+```
+
+Notes:
+
+- the loader service reruns on `docker compose up` and rebuilds the Postgres tables from your current SQLite outputs
+- the API container reads Chroma from the mounted `data/chroma`
+
 ## Useful One-Off Runs
 
 Run the non-canonical pipeline:

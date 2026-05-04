@@ -23,6 +23,22 @@ class PostgresGameStore:
     def _connect(self):
         return self._psycopg.connect(self.dsn, row_factory=self._dict_row)
 
+    def ensure_diagnostics_table(self) -> None:
+        sql = """
+            CREATE TABLE IF NOT EXISTS ui_diagnostics (
+                id BIGSERIAL PRIMARY KEY,
+                appid INTEGER,
+                game_name TEXT NOT NULL,
+                event_type TEXT NOT NULL,
+                details JSONB NOT NULL DEFAULT '{}'::jsonb,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+        """
+        with self._connect() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(sql)
+            connection.commit()
+
     @staticmethod
     def _normalize_search_text(text: str) -> str:
         lowered = text.lower()
@@ -279,6 +295,37 @@ class PostgresGameStore:
                 cursor.execute(sql)
                 rows = cursor.fetchall()
         return [self._row_to_game(row) for row in rows]
+
+    def record_ui_diagnostic(
+        self,
+        *,
+        event_type: str,
+        game_name: str,
+        appid: int | None = None,
+        details: dict[str, Any] | None = None,
+    ) -> None:
+        sql = """
+            INSERT INTO ui_diagnostics (
+                appid,
+                game_name,
+                event_type,
+                details
+            )
+            VALUES (%s, %s, %s, %s::jsonb)
+        """
+        payload = json.dumps(details or {})
+        with self._connect() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    sql,
+                    (
+                        appid,
+                        game_name,
+                        event_type,
+                        payload,
+                    ),
+                )
+            connection.commit()
 
 
 def postgres_dsn_from_env() -> str | None:
