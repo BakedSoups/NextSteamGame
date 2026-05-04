@@ -18,14 +18,22 @@ def print_batch_progress(update: dict) -> None:
 
 def run_final_build() -> dict:
     from final_pipeline import run_final_db_build
+    from add_screenshots import run_screenshot_sync
 
-    return run_final_db_build(
+    summary = run_final_db_build(
         noncanon_db_path=NONCANON_DB_PATH,
         output_db_path=OUTPUT_DB_PATH,
         canon_groups_csv_path=CANON_GROUPS_CSV_PATH,
         batch_size=BATCH_SIZE,
         progress=print_batch_progress,
     )
+    screenshot_summary = run_screenshot_sync(
+        metadata_db_path=NONCANON_DB_PATH.parent / "steam_metadata.db",
+        final_db_path=OUTPUT_DB_PATH,
+        print_summary=True,
+    )
+    summary["screenshot_rows"] = screenshot_summary["stored_rows"]
+    return summary
 
 
 def print_run_configuration() -> None:
@@ -39,6 +47,7 @@ def print_run_summary(summary: dict) -> None:
     print(f"Run {summary['run_id']} finished with status: {summary['status']}")
     print(f"Processed rows: {summary['processed_rows']}")
     print(f"Canon groups: {summary['canon_groups']}")
+    print(f"Screenshots: {summary.get('screenshot_rows', 0)}")
     print(f"Final DB: {summary['output_db_path']}")
 
 

@@ -70,3 +70,14 @@ CREATE INDEX IF NOT EXISTS games_name_trgm_idx
 
 CREATE INDEX IF NOT EXISTS games_search_name_idx
     ON games USING GIN (search_name);
+
+CREATE TABLE IF NOT EXISTS game_screenshots (
+    appid BIGINT NOT NULL REFERENCES games(appid) ON DELETE CASCADE,
+    screenshot_id INTEGER NOT NULL,
+    path_thumbnail TEXT NOT NULL DEFAULT '',
+    path_full TEXT NOT NULL DEFAULT '',
+    PRIMARY KEY (appid, screenshot_id)
+);
+
+CREATE INDEX IF NOT EXISTS game_screenshots_appid_idx
+    ON game_screenshots (appid);

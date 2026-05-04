@@ -17,6 +17,7 @@ export interface Game {
     libraryHero: string
     libraryCapsule: string
   }
+  screenshots?: string[]
   genres: {
     primary: string[]
     sub: string[]

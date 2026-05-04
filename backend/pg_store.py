@@ -23,6 +23,37 @@ class PostgresGameStore:
     def _connect(self):
         return self._psycopg.connect(self.dsn, row_factory=self._dict_row)
 
+    def _load_screenshots_for_appids(self, appids: list[int], limit_per_game: int = 3) -> dict[int, list[str]]:
+        if not appids:
+            return {}
+
+        sql = """
+            SELECT appid, path_full
+            FROM (
+                SELECT
+                    appid,
+                    path_full,
+                    ROW_NUMBER() OVER (PARTITION BY appid ORDER BY screenshot_id) AS row_num
+                FROM game_screenshots
+                WHERE appid = ANY(%s)
+            ) ranked
+            WHERE row_num <= %s
+            ORDER BY appid, row_num
+        """
+        screenshots: dict[int, list[str]] = {}
+        with self._connect() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(sql, (appids, limit_per_game))
+                rows = cursor.fetchall()
+
+        for row in rows:
+            appid = int(row["appid"])
+            path_full = str(row.get("path_full") or "").strip()
+            if not path_full:
+                continue
+            screenshots.setdefault(appid, []).append(path_full)
+        return screenshots
+
     def ensure_diagnostics_table(self) -> None:
         sql = """
             CREATE TABLE IF NOT EXISTS ui_diagnostics (
@@ -79,7 +110,7 @@ class PostgresGameStore:
                 tags.append(value)
         return tags
 
-    def _row_to_game(self, row: dict[str, Any]) -> dict[str, Any]:
+    def _row_to_game(self, row: dict[str, Any], screenshots: list[str] | None = None) -> dict[str, Any]:
         metadata = self._coerce_json(row.get("canonical_metadata"))
         music_tags = self._metadata_music_tags(metadata)
         return {
@@ -106,6 +137,7 @@ class PostgresGameStore:
             "logo_image": row.get("logo_image") or "",
             "library_hero_image": row.get("library_hero_image") or "",
             "library_capsule_image": row.get("library_capsule_image") or "",
+            "screenshots": list(screenshots or []),
             "developers": self._coerce_list(row.get("developers")),
             "publishers": self._coerce_list(row.get("publishers")),
             "release_date_text": row.get("release_date_text") or "",
@@ -258,7 +290,8 @@ class PostgresGameStore:
                 row = cursor.fetchone()
         if row is None:
             return None
-        return self._row_to_game(row)
+        screenshots_by_appid = self._load_screenshots_for_appids([appid])
+        return self._row_to_game(row, screenshots_by_appid.get(appid, []))
 
     def load_all_games(self) -> list[dict[str, Any]]:
         sql = """
@@ -294,7 +327,12 @@ class PostgresGameStore:
             with connection.cursor() as cursor:
                 cursor.execute(sql)
                 rows = cursor.fetchall()
-        return [self._row_to_game(row) for row in rows]
+        appids = [int(row["appid"]) for row in rows]
+        screenshots_by_appid = self._load_screenshots_for_appids(appids)
+        return [
+            self._row_to_game(row, screenshots_by_appid.get(int(row["appid"]), []))
+            for row in rows
+        ]
 
     def record_ui_diagnostic(
         self,

@@ -210,6 +210,7 @@ def _serialize_game(game: dict) -> dict[str, Any]:
         "libraryHero": str(game.get("library_hero_image", "")),
         "libraryCapsule": str(game.get("library_capsule_image", "")),
     }
+    screenshots = [str(url) for url in (game.get("screenshots") or []) if str(url).strip()][:3]
     return {
         "id": int(game["appid"]),
         "appId": str(game["appid"]),
@@ -220,6 +221,7 @@ def _serialize_game(game: dict) -> dict[str, Any]:
         "image": str(game.get("capsule_image", "")),
         "headerImage": str(game.get("header_image", "")),
         "assets": assets,
+        "screenshots": screenshots,
         "genreTree": genre_tree,
         "focusVectors": focus_vectors,
         "identity": identity,
@@ -256,6 +258,7 @@ def _serialize_recommendation(item: dict) -> dict[str, Any]:
         "libraryHero": str(item.get("library_hero_image", "")),
         "libraryCapsule": str(item.get("library_capsule_image", "")),
     }
+    screenshots = [str(url) for url in (item.get("screenshots") or []) if str(url).strip()][:3]
     return {
         "id": int(item["appid"]),
         "appId": str(item["appid"]),
@@ -266,6 +269,7 @@ def _serialize_recommendation(item: dict) -> dict[str, Any]:
         "image": str(item.get("capsule_image", "")),
         "headerImage": str(item.get("header_image", "")),
         "assets": assets,
+        "screenshots": screenshots,
         "genreTree": genre_tree,
         "focusVectors": focus_vectors,
         "identity": identity,

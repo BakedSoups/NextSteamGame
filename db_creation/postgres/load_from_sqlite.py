@@ -149,6 +149,17 @@ def load_tag_members(connection: sqlite3.Connection) -> dict[int, list[str]]:
     return members
 
 
+def load_screenshots(connection: sqlite3.Connection) -> list[sqlite3.Row]:
+    connection.row_factory = sqlite3.Row
+    return connection.execute(
+        """
+        SELECT appid, screenshot_id, path_thumbnail, path_full
+        FROM game_screenshots
+        ORDER BY appid, screenshot_id
+        """
+    ).fetchall()
+
+
 def _coerce_single_genre_value(raw: object) -> str:
     if isinstance(raw, str):
         return raw.strip()
@@ -247,13 +258,17 @@ def ensure_postgres_schema(cursor) -> None:
     )
 
 
-def reset_postgres_tables(cursor) -> None:
+def reset_postgres_tables(cursor, *, reset_all: bool = False) -> None:
+    cursor.execute("DROP TABLE IF EXISTS game_screenshots")
     cursor.execute("DROP TABLE IF EXISTS canonical_tag_members")
     cursor.execute("DROP TABLE IF EXISTS canonical_tag_groups")
     cursor.execute("DROP TABLE IF EXISTS games")
+    cursor.execute("DROP TABLE IF EXISTS pipeline_runs")
+    if reset_all:
+        cursor.execute("DROP TABLE IF EXISTS ui_diagnostics")
 
 
-def main() -> int:
+def main(*, reset_all: bool = False) -> int:
     try:
         import psycopg
         from psycopg.types.json import Jsonb
@@ -273,10 +288,11 @@ def main() -> int:
         canonical_rows = load_canonical_rows(final_sqlite)
         tag_groups = load_tag_groups(final_sqlite)
         tag_members = load_tag_members(final_sqlite)
+        screenshots = load_screenshots(final_sqlite)
 
         with psycopg.connect(postgres_dsn()) as pg_connection:
             with pg_connection.cursor() as cursor:
-                reset_postgres_tables(cursor)
+                reset_postgres_tables(cursor, reset_all=reset_all)
                 cursor.execute(schema_sql)
                 ensure_postgres_schema(cursor)
                 cursor.execute(
@@ -402,6 +418,27 @@ def main() -> int:
                     )
                     """,
                     game_payload,
+                )
+
+                cursor.executemany(
+                    """
+                    INSERT INTO game_screenshots (
+                        appid,
+                        screenshot_id,
+                        path_thumbnail,
+                        path_full
+                    )
+                    VALUES (%s, %s, %s, %s)
+                    """,
+                    [
+                        (
+                            int(row["appid"]),
+                            int(row["screenshot_id"]),
+                            str(row["path_thumbnail"] or ""),
+                            str(row["path_full"] or ""),
+                        )
+                        for row in screenshots
+                    ],
                 )
 
                 cursor.execute(

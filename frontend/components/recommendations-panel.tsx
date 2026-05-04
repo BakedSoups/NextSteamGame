@@ -430,6 +430,7 @@ function RecommendationCard({ game, rank, weights, selectedGame, highlights, onO
     { label: MATCH_LABELS.music, value: scorePercentages.music ?? game.scores.music, color: MATCH_COLORS.music },
   ]
   const steamReview = reviewSummary(game)
+  const screenshots = (game.screenshots ?? []).filter(Boolean).slice(0, 3)
   
   return (
     <div className="panel overflow-hidden hover:glow-box transition-all">
@@ -566,6 +567,34 @@ function RecommendationCard({ game, rank, weights, selectedGame, highlights, onO
           <p className="text-xs text-muted-foreground leading-relaxed">
             {game.description}
           </p>
+
+          {screenshots.length > 0 && (
+            <div className="hidden lg:block">
+              <div className="mb-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                Gameplay Screenshots
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                {screenshots.map((url, index) => (
+                  <a
+                    key={`${game.id}-shot-${index}`}
+                    href={url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="group overflow-hidden rounded-xl border border-white/10 bg-black/20"
+                  >
+                    <Image
+                      src={url}
+                      alt={`${game.title} screenshot ${index + 1}`}
+                      width={320}
+                      height={180}
+                      className="h-32 w-full object-cover transition-transform duration-200 group-hover:scale-[1.02]"
+                      unoptimized
+                    />
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Score Contributions */}
           <div>
