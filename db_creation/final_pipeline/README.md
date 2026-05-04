@@ -14,8 +14,7 @@ Primary code:
 
 - reads `data/steam_initial_noncanon.db`
 - reads:
-  - `db_creation/analysis/metadata_canon_full.csv`
-  - `db_creation/analysis/vectors_canon_full.csv`
+  - `db_creation/analysis/canon_groups_v5.csv`
 - applies those mappings game-by-game
 - writes `data/steam_final_canon.db`
 
@@ -28,5 +27,5 @@ venv/bin/python db_creation/final_db.py
 ## Notes
 
 - This stage does not regenerate mappings.
-- If you change the canon CSVs, rerun this stage to rebuild the final DB.
+- If you change `canon_groups_v5.csv`, rerun this stage to rebuild the final DB.
 - This stage is intentionally separate from the export step so mapping review and final DB build stay independent.

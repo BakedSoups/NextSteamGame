@@ -21,6 +21,7 @@ export function SelectedGamePanel({ game }: SelectedGamePanelProps) {
   const heroImage = game.assets.libraryHero || game.assets.background || game.headerImage || IMAGE_FALLBACK
   const capsuleImage = game.assets.libraryCapsule || game.assets.capsuleV5 || game.image || IMAGE_FALLBACK
   const primaryGenres = game.genres.primary.slice(0, 2)
+  const hasSemanticProfile = Object.values(game.tags).some((tags) => tags.length > 0)
   
   return (
     <div className="bg-card border border-border rounded-lg overflow-hidden">
@@ -42,6 +43,12 @@ export function SelectedGamePanel({ game }: SelectedGamePanelProps) {
             <p className="text-xs text-muted-foreground">
               {[...primaryGenres, game.category].filter(Boolean).join(" · ")}
             </p>
+          ) : null}
+
+          {!hasSemanticProfile ? (
+            <div className="rounded-2xl border border-amber-300/30 bg-amber-300/10 px-3 py-2 text-xs leading-5 text-amber-50/95">
+              This game didn&apos;t have enough insightful reviews. If you want to change that, give this lovely game a review.
+            </div>
           ) : null}
         </div>
       </div>

@@ -29,7 +29,6 @@ interface ControlPanelProps {
     tags: string[]
   }>
   mode: "simple" | "advanced"
-  onModeChange: (mode: "simple" | "advanced") => void
   onMatchWeightChange: (key: keyof Weights["match"], value: number) => void
   onContextWeightChange: (key: keyof Weights["context"], value: number) => void
   onAppealWeightChange: (key: keyof Weights["appeal"], value: number) => void
@@ -64,6 +63,23 @@ const SIMPLE_INTENTS: { key: SimpleIntent; label: string; hint: string }[] = [
   { key: "more_surprising", label: "More Surprising", hint: "Loosen genre and reward novelty" },
   { key: "more_story", label: "More Story", hint: "Raise narrative focus and story signals" },
   { key: "more_competitive", label: "More Competitive", hint: "Bias toward pace, challenge, and intensity" },
+]
+
+const SIMPLE_CORE_VECTOR_INTENTS: SimpleIntent[] = [
+  "mechanics",
+  "narrative",
+  "vibe",
+  "structure_loop",
+  "more_similar",
+  "more_story",
+  "more_competitive",
+]
+
+const SIMPLE_TAG_SIGNAL_INTENTS: SimpleIntent[] = [
+  "identity",
+  "setting",
+  "music",
+  "more_surprising",
 ]
 
 const CONTEXT_VISUALS: Record<
@@ -221,9 +237,10 @@ function polarPoint(index: number, total: number, radius: number) {
   }
 }
 
-function tagRadarRadius(value: number) {
-  const normalized = Math.max(0, Math.min(100, value)) / 100
-  return 4 + Math.pow(normalized, 1.65) * 72
+function tagRadarRadius(value: number, maxValue: number) {
+  const safeMax = Math.max(maxValue, 1)
+  const normalized = Math.max(0, value) / safeMax
+  return 10 + Math.pow(normalized, 1.12) * 68
 }
 
 function VectorRadarCard({
@@ -244,9 +261,10 @@ function VectorRadarCard({
   const axes = Array.from(new Set([...selectedTags, ...fallbackTags])).slice(0, 6)
   const axisLabels = axes.length > 0 ? axes : ["signal", "profile", "tone", "focus", "identity"]
   const values = axisLabels.map((axis) => Math.max(0, weights.tags[context][axis] ?? 0))
+  const maxValue = Math.max(...values, 1)
   const polygon = values
     .map((value, index) => {
-      const point = polarPoint(index, values.length, tagRadarRadius(value))
+      const point = polarPoint(index, values.length, tagRadarRadius(value, maxValue))
       return `${point.x},${point.y}`
     })
     .join(" ")
@@ -367,7 +385,7 @@ function VectorRadarCard({
               }}
             />
             {values.map((value, index) => {
-              const point = polarPoint(index, values.length, tagRadarRadius(value))
+              const point = polarPoint(index, values.length, tagRadarRadius(value, maxValue))
               return (
                 <circle
                   key={`point-${index}`}
@@ -405,7 +423,6 @@ export function ControlPanel({
   resultsCompact = false,
   featuredTags,
   mode,
-  onModeChange,
   onMatchWeightChange,
   onContextWeightChange,
   onAppealWeightChange,
@@ -414,6 +431,8 @@ export function ControlPanel({
   selectedSimpleTags,
   onSimpleTagToggle,
 }: ControlPanelProps) {
+  const coreVectorIntents = SIMPLE_INTENTS.filter((intent) => SIMPLE_CORE_VECTOR_INTENTS.includes(intent.key))
+  const tagSignalIntents = SIMPLE_INTENTS.filter((intent) => SIMPLE_TAG_SIGNAL_INTENTS.includes(intent.key))
   const selectedSimpleLabels = selectedSimpleTags.map((entry) => {
     const [, ...tagParts] = entry.split(":")
     return tagParts.join(":")
@@ -444,24 +463,9 @@ export function ControlPanel({
         <div className="flex items-center gap-2 mb-3">
           <Activity className="w-3.5 h-3.5 text-primary" />
           <span className="terminal-label text-primary">Current Search Profile</span>
-          <div className="ml-auto inline-flex rounded-full border border-border bg-secondary/40 p-0.5">
-            <button
-              onClick={() => onModeChange("simple")}
-              className={`rounded-full px-2.5 py-1 text-[10px] transition-colors ${
-                mode === "simple" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              Simple
-            </button>
-            <button
-              onClick={() => onModeChange("advanced")}
-              className={`rounded-full px-2.5 py-1 text-[10px] transition-colors ${
-                mode === "advanced" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              Advanced
-            </button>
-          </div>
+          <span className="ml-auto data-value text-[10px]">
+            {mode === "advanced" ? "Advanced" : "Simple"}
+          </span>
         </div>
         <div className="mb-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
           What You&apos;re Chasing
@@ -565,17 +569,42 @@ export function ControlPanel({
             <p className="text-[10px] text-muted-foreground">
               Use presets to nudge the current formula without opening the full tuning surface.
             </p>
-            <div className="grid grid-cols-2 gap-2">
-              {SIMPLE_INTENTS.map((intent) => (
-                <button
-                  key={intent.key}
-                  onClick={() => onSimpleIntentBoost(intent.key)}
-                  className="rounded-2xl border border-border bg-secondary/30 px-3 py-2 text-left transition-colors hover:border-primary/60 hover:bg-secondary/60"
-                >
-                  <div className="text-xs font-medium text-foreground">{intent.label}</div>
-                  <div className="mt-1 text-[10px] text-muted-foreground">{intent.hint}</div>
-                </button>
-              ))}
+            <div className="space-y-3">
+              <div>
+                <div className="mb-2 text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+                  Core Structure
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {coreVectorIntents.map((intent) => (
+                    <button
+                      key={intent.key}
+                      onClick={() => onSimpleIntentBoost(intent.key)}
+                      className="rounded-2xl border border-border bg-secondary/30 px-3 py-2 text-left transition-colors hover:border-primary/60 hover:bg-secondary/60"
+                    >
+                      <div className="text-xs font-medium text-foreground">{intent.label}</div>
+                      <div className="mt-1 text-[10px] text-muted-foreground">{intent.hint}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <div className="mb-2 text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+                  Identity / Setting / Music
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {tagSignalIntents.map((intent) => (
+                    <button
+                      key={intent.key}
+                      onClick={() => onSimpleIntentBoost(intent.key)}
+                      className="rounded-2xl border border-border bg-secondary/30 px-3 py-2 text-left transition-colors hover:border-primary/60 hover:bg-secondary/60"
+                    >
+                      <div className="text-xs font-medium text-foreground">{intent.label}</div>
+                      <div className="mt-1 text-[10px] text-muted-foreground">{intent.hint}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </CollapsibleSection>
@@ -653,17 +682,42 @@ export function ControlPanel({
                 <p className="text-[10px] text-muted-foreground">
                   Use broad presets if you want faster shaping before opening the full editor.
                 </p>
-                <div className="grid grid-cols-2 gap-2">
-                  {SIMPLE_INTENTS.map((intent) => (
-                    <button
-                      key={intent.key}
-                      onClick={() => onSimpleIntentBoost(intent.key)}
-                      className="rounded-2xl border border-border bg-secondary/30 px-3 py-2 text-left transition-colors hover:border-primary/60 hover:bg-secondary/60"
-                    >
-                      <div className="text-xs font-medium text-foreground">{intent.label}</div>
-                      <div className="mt-1 text-[10px] text-muted-foreground">{intent.hint}</div>
-                    </button>
-                  ))}
+                <div className="space-y-3">
+                  <div>
+                    <div className="mb-2 text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+                      Core Structure
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {coreVectorIntents.map((intent) => (
+                        <button
+                          key={intent.key}
+                          onClick={() => onSimpleIntentBoost(intent.key)}
+                          className="rounded-2xl border border-border bg-secondary/30 px-3 py-2 text-left transition-colors hover:border-primary/60 hover:bg-secondary/60"
+                        >
+                          <div className="text-xs font-medium text-foreground">{intent.label}</div>
+                          <div className="mt-1 text-[10px] text-muted-foreground">{intent.hint}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="mb-2 text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+                      Identity / Setting / Music
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {tagSignalIntents.map((intent) => (
+                        <button
+                          key={intent.key}
+                          onClick={() => onSimpleIntentBoost(intent.key)}
+                          className="rounded-2xl border border-border bg-secondary/30 px-3 py-2 text-left transition-colors hover:border-primary/60 hover:bg-secondary/60"
+                        >
+                          <div className="text-xs font-medium text-foreground">{intent.label}</div>
+                          <div className="mt-1 text-[10px] text-muted-foreground">{intent.hint}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
             </CollapsibleSection>

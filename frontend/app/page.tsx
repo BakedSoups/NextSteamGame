@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { ArrowLeft, ArrowRight } from "lucide-react"
+import { ArrowLeft, ArrowRight, MessageCircleMore, X } from "lucide-react"
 import steamLogo from "@/art_assets/Steam-Logo.png"
 import gameShelfBackground from "@/art_assets/game_collection_background.webp"
 import { SearchBar } from "@/components/search-bar"
@@ -53,10 +53,6 @@ type SimpleIntentKey =
   | "more_surprising"
   | "more_story"
   | "more_competitive"
-
-function uniqueSorted(values: string[]): string[] {
-  return Array.from(new Set(values.filter(Boolean))).sort((a, b) => a.localeCompare(b))
-}
 
 function frequentTags(games: Game[], select: (game: Game) => string[], minimumCount = 3): string[] {
   const counts = new Map<string, number>()
@@ -119,6 +115,14 @@ function featuredTagGroups(game: Game | null): Array<{
     { context: "music", label: "Music", tags: game.tags.music.slice(0, 3) },
   ]
   return groups.filter((group) => group.tags.length > 0)
+}
+
+function hasSemanticProfile(game: Game | null): boolean {
+  if (!game) {
+    return false
+  }
+
+  return Object.values(game.tags).some((tags) => tags.length > 0)
 }
 
 function buildWeightsFromGame(game: Game): Weights {
@@ -194,6 +198,14 @@ function reviewRelevanceScore(game: RecommendedGame): number | null {
   return positivity * 0.72 + confidence * 100 * 0.28
 }
 
+function steamStoreUrl(game: Game | null): string {
+  if (!game) {
+    return "https://store.steampowered.com/"
+  }
+
+  return `https://store.steampowered.com/app/${game.id}`
+}
+
 async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
     ...init,
@@ -213,6 +225,10 @@ async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
 export default function NextSteamGamePage() {
   const [screen, setScreen] = useState<Screen>("search")
   const [controlMode, setControlMode] = useState<"simple" | "advanced">("simple")
+  const [dismissedModeHints, setDismissedModeHints] = useState<{ simple: boolean; advanced: boolean }>({
+    simple: false,
+    advanced: false,
+  })
   const [selectedGame, setSelectedGame] = useState<Game | null>(null)
   const [selectedSimpleTags, setSelectedSimpleTags] = useState<string[]>([])
   const [simpleHighlightedContexts, setSimpleHighlightedContexts] = useState<TagContextKey[]>([])
@@ -265,6 +281,9 @@ export default function NextSteamGamePage() {
     selectedGame?.image ||
     selectedGame?.headerImage ||
     ""
+  const showModeHint = !dismissedModeHints[controlMode]
+  const selectedGameHasSemanticProfile = hasSemanticProfile(selectedGame)
+  const selectedGameSteamUrl = steamStoreUrl(selectedGame)
 
   useEffect(() => {
     const query = searchQuery.trim()
@@ -639,9 +658,7 @@ export default function NextSteamGamePage() {
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur-sm">
         <div className="mx-auto max-w-[1800px] px-6 py-4">
-          <div className="flex items-center gap-8">
-            <div className="flex-1" />
-
+          <div className="relative flex items-start justify-between gap-6">
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setScreen("search")}
@@ -655,7 +672,60 @@ export default function NextSteamGamePage() {
                   className="h-full w-full object-contain"
                 />
               </button>
+              <div className="inline-flex rounded-full border border-border bg-secondary/40 p-0.5 shadow-[0_10px_28px_rgba(0,0,0,0.18)]">
+                <button
+                  onClick={() => setControlMode("simple")}
+                  className={`rounded-full px-3 py-1.5 text-[11px] transition-colors ${
+                    controlMode === "simple" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Simple
+                </button>
+                <button
+                  onClick={() => {
+                    setControlMode("advanced")
+                    setDismissedModeHints((prev) => ({
+                      ...prev,
+                      advanced: false,
+                    }))
+                  }}
+                  className={`rounded-full px-3 py-1.5 text-[11px] transition-colors ${
+                    controlMode === "advanced" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Advanced
+                </button>
+              </div>
             </div>
+
+            {controlMode === "advanced" && showModeHint ? (
+              <div
+                className="pointer-events-auto absolute left-[92px] top-[58px] z-[70] w-[240px] rounded-[22px] border border-black/10 bg-white px-4 py-3 text-[11px] leading-5 text-slate-950 shadow-[0_18px_42px_rgba(0,0,0,0.28)]"
+              >
+                <div className="absolute -top-2 left-[118px] h-4 w-4 rotate-45 border-l border-t border-black/10 bg-white" />
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 rounded-full border border-black/10 bg-slate-100 p-1.5 text-slate-900">
+                    <MessageCircleMore className="h-3.5 w-3.5" />
+                  </div>
+                  <div className="flex-1">
+                    Advanced mode unlocks full vector tuning, match weighting, deeper profile shaping, and direct result filters. We recommend staying in simple mode for the first few runs.
+                  </div>
+                  <button
+                    onClick={() =>
+                      setDismissedModeHints((prev) => ({
+                        ...prev,
+                        [controlMode]: true,
+                      }))
+                    }
+                    className="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full text-current/70 transition hover:bg-white/10 hover:text-current"
+                    aria-label={`Dismiss ${controlMode} mode description`}
+                    title="Dismiss"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
       </header>
@@ -807,26 +877,69 @@ export default function NextSteamGamePage() {
                     </div>
                   </div>
 
-                  <ControlPanel
-                    selectedGame={selectedGame}
-                    weights={weights}
-                    highlightedContexts={simpleHighlightedContexts}
-                    featuredTags={simpleFeaturedTags}
-                    mode={controlMode}
-                    onModeChange={setControlMode}
-                    onMatchWeightChange={updateMatchWeight}
-                    onContextWeightChange={updateContextWeight}
-                    onAppealWeightChange={updateAppealWeight}
-                    onTagWeightChange={updateTagWeight}
-                    onSimpleIntentBoost={handleSimpleIntentBoost}
-                    selectedSimpleTags={selectedSimpleTags}
-                    onSimpleTagToggle={toggleSimpleTag}
-                  />
+                  {selectedGameHasSemanticProfile ? (
+                    <ControlPanel
+                      selectedGame={selectedGame}
+                      weights={weights}
+                      highlightedContexts={simpleHighlightedContexts}
+                      featuredTags={simpleFeaturedTags}
+                      mode={controlMode}
+                      onMatchWeightChange={updateMatchWeight}
+                      onContextWeightChange={updateContextWeight}
+                      onAppealWeightChange={updateAppealWeight}
+                      onTagWeightChange={updateTagWeight}
+                      onSimpleIntentBoost={handleSimpleIntentBoost}
+                      selectedSimpleTags={selectedSimpleTags}
+                      onSimpleTagToggle={toggleSimpleTag}
+                    />
+                  ) : (
+                    <div className="mt-24 rounded-[28px] border border-amber-300/25 bg-amber-300/10 px-6 py-6 shadow-[0_20px_44px_rgba(0,0,0,0.22)]">
+                      <div className="grid gap-5 lg:grid-cols-[240px_minmax(0,1fr)] lg:items-start">
+                        <a
+                          href={selectedGameSteamUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="block overflow-hidden rounded-[22px] border border-white/10 bg-black/20 shadow-[0_18px_42px_rgba(0,0,0,0.24)] transition hover:-translate-y-1 hover:border-amber-200/35"
+                        >
+                          {profileCardImage ? (
+                            <img
+                              src={profileCardImage}
+                              alt={selectedGame?.title || "Selected game"}
+                              className="h-[150px] w-full object-cover"
+                            />
+                          ) : (
+                            <div className="h-[150px] w-full bg-black/20" />
+                          )}
+                          <div className="border-t border-white/10 px-4 py-3 text-left">
+                            <div className="text-sm font-semibold text-white">
+                              {selectedGame?.title}
+                            </div>
+                            <div className="mt-1 text-xs text-amber-50/85">
+                              Open on Steam
+                            </div>
+                          </div>
+                        </a>
+                        <div className="text-left">
+                          <div className="text-lg font-semibold text-amber-50">
+                            This game didn&apos;t have enough insightful reviews.
+                          </div>
+                          <div className="mt-2 text-sm leading-7 text-amber-50/90">
+                            If you want to change that, give this lovely game a review.
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   <div className="flex justify-end pb-6">
                     <button
                       onClick={() => setScreen("results")}
-                      className="inline-flex items-center gap-2 rounded-full bg-[linear-gradient(180deg,#8fd7ff,#66c0f4)] px-6 py-3 text-sm font-semibold text-slate-950 shadow-[0_20px_40px_rgba(26,159,255,0.24)] transition hover:-translate-y-0.5 hover:bg-[linear-gradient(180deg,#a8e1ff,#79cbfb)] hover:text-slate-950"
+                      disabled={!selectedGameHasSemanticProfile}
+                      className={`inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-semibold shadow-[0_20px_40px_rgba(26,159,255,0.24)] transition ${
+                        selectedGameHasSemanticProfile
+                          ? "bg-[linear-gradient(180deg,#8fd7ff,#66c0f4)] text-slate-950 hover:-translate-y-0.5 hover:bg-[linear-gradient(180deg,#a8e1ff,#79cbfb)] hover:text-slate-950"
+                          : "cursor-not-allowed bg-white/10 text-white/55 shadow-none"
+                      }`}
                     >
                       See Results
                       <ArrowRight className="h-4 w-4" />
@@ -848,40 +961,96 @@ export default function NextSteamGamePage() {
                 Back to Tuning
               </button>
               <SelectedGamePanel game={selectedGame} />
-              <TagFilterPanel
-                filters={tagFilters}
-                tagOptions={tagOptions}
-                onFiltersChange={setTagFilters}
-              />
+              {controlMode === "advanced" ? (
+                <TagFilterPanel
+                  filters={tagFilters}
+                  tagOptions={tagOptions}
+                  onFiltersChange={setTagFilters}
+                />
+              ) : (
+                <div className="rounded-2xl border border-border bg-card/60 p-4 text-sm text-muted-foreground">
+                  Advanced mode unlocks include/exclude tag filters and review-quality thresholds.
+                </div>
+              )}
             </div>
 
             <div className="space-y-4">
-              {resultsError && <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">{resultsError}</div>}
-              {resultsLoading && (
-                <div className="rounded-xl border border-border bg-card/60 p-4 text-sm text-muted-foreground">
-                  Loading recommendations from the live backend...
+              {!selectedGameHasSemanticProfile ? (
+                <div className="rounded-[28px] border border-amber-300/25 bg-amber-300/10 p-8 text-center shadow-[0_18px_42px_rgba(0,0,0,0.18)]">
+                  <a
+                    href={selectedGameSteamUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mx-auto mb-5 block w-full max-w-[260px] overflow-hidden rounded-[22px] border border-white/10 bg-black/20 shadow-[0_18px_42px_rgba(0,0,0,0.24)] transition hover:-translate-y-1 hover:border-amber-200/35"
+                  >
+                    {profileCardImage ? (
+                      <img
+                        src={profileCardImage}
+                        alt={selectedGame?.title || "Selected game"}
+                        className="h-[150px] w-full object-cover"
+                      />
+                    ) : (
+                      <div className="h-[150px] w-full bg-black/20" />
+                    )}
+                    <div className="border-t border-white/10 px-4 py-3 text-left">
+                      <div className="text-sm font-semibold text-white">
+                        {selectedGame?.title}
+                      </div>
+                      <div className="mt-1 text-xs text-amber-50/85">
+                        Open on Steam
+                      </div>
+                    </div>
+                  </a>
+                  <div className="text-lg font-semibold text-amber-50">
+                    This game didn&apos;t have enough insightful reviews.
+                  </div>
+                  <div className="mt-3 text-sm leading-7 text-amber-50/90">
+                    If you want to change that, give this lovely game a review.
+                  </div>
                 </div>
+              ) : (
+                <>
+                  {resultsError && <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">{resultsError}</div>}
+                  {resultsLoading && (
+                    <div className="rounded-[24px] border border-border bg-card/70 p-8 text-center shadow-[0_18px_42px_rgba(0,0,0,0.18)]">
+                      <div className="mx-auto h-9 w-9 animate-spin rounded-full border-2 border-border border-t-primary" />
+                      <div className="mt-4 text-sm font-medium text-foreground">
+                        Rebuilding recommendation results...
+                      </div>
+                      <div className="mt-2 text-sm text-muted-foreground">
+                        Structural weighting, tag matches, and genre strength are being recomputed before the new list is shown.
+                      </div>
+                    </div>
+                  )}
+                  {!resultsLoading && (
+                    <RecommendationsPanel recommendations={recommendations} weights={weights} selectedGame={selectedGame} />
+                  )}
+                </>
               )}
-              <RecommendationsPanel recommendations={recommendations} weights={weights} selectedGame={selectedGame} />
             </div>
 
             <div className="xl:sticky xl:top-24 xl:h-fit xl:max-h-[calc(100vh-7rem)] xl:overflow-y-auto custom-scrollbar pl-2">
-              <ControlPanel
-                selectedGame={selectedGame}
-                weights={weights}
-                highlightedContexts={simpleHighlightedContexts}
-                resultsCompact={true}
-                featuredTags={simpleFeaturedTags}
-                mode={controlMode}
-                onModeChange={setControlMode}
-                onMatchWeightChange={updateMatchWeight}
-                onContextWeightChange={updateContextWeight}
-                onAppealWeightChange={updateAppealWeight}
-                onTagWeightChange={updateTagWeight}
-                onSimpleIntentBoost={handleSimpleIntentBoost}
-                selectedSimpleTags={selectedSimpleTags}
-                onSimpleTagToggle={toggleSimpleTag}
-              />
+              {selectedGameHasSemanticProfile ? (
+                <ControlPanel
+                  selectedGame={selectedGame}
+                  weights={weights}
+                  highlightedContexts={simpleHighlightedContexts}
+                  resultsCompact={true}
+                  featuredTags={simpleFeaturedTags}
+                  mode={controlMode}
+                  onMatchWeightChange={updateMatchWeight}
+                  onContextWeightChange={updateContextWeight}
+                  onAppealWeightChange={updateAppealWeight}
+                  onTagWeightChange={updateTagWeight}
+                  onSimpleIntentBoost={handleSimpleIntentBoost}
+                  selectedSimpleTags={selectedSimpleTags}
+                  onSimpleTagToggle={toggleSimpleTag}
+                />
+              ) : (
+                <div className="rounded-[28px] border border-white/10 bg-card/70 p-5 text-sm leading-7 text-muted-foreground">
+                  No semantic profile was built for this game, so advanced tuning and result analysis are unavailable until it has more insightful reviews.
+                </div>
+              )}
             </div>
           </div>
         )}

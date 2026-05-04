@@ -37,6 +37,10 @@ const VECTOR_CONTEXT_COLORS: Record<VectorContextKey, string> = {
   structure_loop: "#f97316",
 }
 
+const TAG_SIGNAL_REQUEST_COLOR = "rgba(248, 113, 113, 0.28)"
+const TAG_SIGNAL_REQUEST_BORDER = "rgba(248, 113, 113, 0.65)"
+const TAG_SIGNAL_HIT_COLOR = "#7dd3fc"
+
 interface RecommendationsPanelProps {
   recommendations: RecommendedGame[]
   weights: Weights
@@ -221,6 +225,7 @@ function RecommendationCard({ game, rank, weights, selectedGame }: Recommendatio
   const showSettingMatches = matchedTags.setting.length >= 3
   const showStructureMatches = (matchedTags.structure_loop.length + matchedTags.mechanics.length) >= 3
   const showMusicMatches = matchedTags.music.length >= 3
+  const hasVectorOverlap = VECTOR_CONTEXT_KEYS.some((key) => game.contextScores[key] > 0)
   const reasonChips = [
     ...(showIdentityMatches ? matchedTags.identity : []),
     ...(showSettingMatches ? matchedTags.setting : []),
@@ -371,53 +376,69 @@ function RecommendationCard({ game, rank, weights, selectedGame }: Recommendatio
           <div className="grid gap-4 xl:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
             <div className="space-y-4">
               <div>
-                <span className="terminal-label block mb-2 text-accent">4-Vector Match</span>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {VECTOR_CONTEXT_KEYS.map((key) => (
-                    <div
-                      key={key}
-                      className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-3"
-                      style={{ boxShadow: `inset 0 0 0 1px ${VECTOR_CONTEXT_COLORS[key]}22` }}
-                    >
-                      <div className="mb-2 flex items-center gap-2">
-                        <span
-                          className="h-2.5 w-2.5 rounded-full"
-                          style={{ backgroundColor: VECTOR_CONTEXT_COLORS[key], boxShadow: `0 0 10px ${VECTOR_CONTEXT_COLORS[key]}` }}
-                        />
-                        <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/92">
-                          {key.replace(/_/g, " ")}
-                        </span>
-                      </div>
-                      <div
-                        className="text-2xl font-semibold leading-none"
-                        style={{ color: VECTOR_CONTEXT_COLORS[key] }}
-                      >
-                        {game.contextScores[key].toFixed(1)}%
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div>
                 <div className="flex items-center gap-2 mb-2">
                   <AudioLines className="h-3 w-3 text-accent" />
                   <span className="terminal-label text-accent">4-Vector Structural Overlap</span>
                 </div>
-                <p className="mb-3 text-[11px] leading-5 text-muted-foreground">
-                  Pink is the structure you asked for. Blue is how this game overlaps across mechanics, narrative, vibe, and structure loop.
-                </p>
-                {selectedGame ? <StructuralRadar game={game} weights={weights} /> : null}
+                {hasVectorOverlap ? (
+                  <>
+                    <p className="mb-3 text-[11px] leading-5 text-muted-foreground">
+                      Pink is the structure you asked for. Blue is how this game overlaps across mechanics, narrative, vibe, and structure loop.
+                    </p>
+                    {selectedGame ? <StructuralRadar game={game} weights={weights} /> : null}
+                  </>
+                ) : (
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4 text-[11px] leading-5 text-muted-foreground">
+                    No meaningful 4-vector overlap was found here.
+                    This result is being carried by genre similarity, appeal alignment, or matched identity / setting / music tags instead of core structural similarity.
+                  </div>
+                )}
               </div>
 
               <div>
                 <span className="terminal-label block mb-2 text-accent">Tag Signal Strength</span>
                 <p className="mb-3 text-[11px] leading-5 text-muted-foreground">
-                  These show how strongly the recommendation matched your identity, setting, and music preferences.
+                  Red shows how much signal you asked for. Blue shows how much this game actually matched for identity, setting, and music.
                 </p>
-                <div className="space-y-1.5">
+                <div className="mb-3 flex items-center gap-4 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                  <div className="flex items-center gap-1.5">
+                    <span className="h-2.5 w-2.5 rounded-full border" style={{ borderColor: TAG_SIGNAL_REQUEST_BORDER, backgroundColor: TAG_SIGNAL_REQUEST_COLOR }} />
+                    <span>Requested</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: TAG_SIGNAL_HIT_COLOR, boxShadow: `0 0 8px ${TAG_SIGNAL_HIT_COLOR}` }} />
+                    <span>Matched</span>
+                  </div>
+                </div>
+                <div className="space-y-3">
                   {TAG_SIGNAL_KEYS.map((key) => (
-                    <ScoreBar key={key} label={key} value={game.contextScores[key]} max={30} color="accent" />
+                    <div key={key} className="space-y-1.5">
+                      <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.1em] text-muted-foreground">
+                        <span>{key.replace(/_/g, " ")}</span>
+                        <span className="font-semibold text-foreground">
+                          req {weights.context[key]}% / hit {game.contextScores[key].toFixed(1)}%
+                        </span>
+                      </div>
+                      <div className="relative h-2 overflow-hidden rounded-full bg-white/8">
+                        <div
+                          className="absolute inset-y-0 left-0 rounded-full border"
+                          style={{
+                            width: `${Math.min(weights.context[key], 100)}%`,
+                            borderColor: TAG_SIGNAL_REQUEST_BORDER,
+                            backgroundColor: TAG_SIGNAL_REQUEST_COLOR,
+                          }}
+                        />
+                        <div
+                          className="absolute inset-y-0 left-0 rounded-full"
+                          style={{
+                            width: `${Math.min(Math.max(game.contextScores[key], 0), 100)}%`,
+                            backgroundColor: TAG_SIGNAL_HIT_COLOR,
+                            boxShadow: `0 0 10px ${TAG_SIGNAL_HIT_COLOR}`,
+                            opacity: 0.95,
+                          }}
+                        />
+                      </div>
+                    </div>
                   ))}
                 </div>
               </div>
