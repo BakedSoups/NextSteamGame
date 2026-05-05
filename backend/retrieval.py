@@ -1,15 +1,14 @@
 from __future__ import annotations
 
 import json
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
 
 class CandidateRetriever:
-    def __init__(self, *, chroma_dir: Path, fallback_games: list[dict], store: Any | None = None) -> None:
+    def __init__(self, *, chroma_dir: Path, store: Any | None = None) -> None:
         self.chroma_dir = chroma_dir
-        self.fallback_games = fallback_games
-        self._fallback_by_appid = {int(game["appid"]): game for game in fallback_games}
         self.store = store
         self._collection = self._load_collection()
 
@@ -54,6 +53,47 @@ class CandidateRetriever:
             raise RuntimeError(
                 f"Failed to load Chroma collection 'steam_final_canon' from {self.chroma_dir}"
             ) from exc
+
+    def _query_chroma_candidate_ids(
+        self,
+        game: dict,
+        *,
+        chroma_limit: int,
+        context_percentages: dict[str, float | int] | None = None,
+        tag_boosts: dict[str, dict[str, float]] | None = None,
+        soundtrack_boosts: dict[str, float] | None = None,
+    ) -> list[int]:
+        if self._collection is None:
+            return []
+
+        try:
+            result = self._collection.query(
+                query_texts=[
+                    self._build_query_text(
+                        game,
+                        context_percentages=context_percentages,
+                        tag_boosts=tag_boosts,
+                        soundtrack_boosts=soundtrack_boosts,
+                    )
+                ],
+                n_results=chroma_limit,
+            )
+        except Exception as exc:
+            appid = game.get("appid", "unknown")
+            name = str(game.get("name", "")).strip() or "unknown"
+            raise RuntimeError(
+                f"Chroma candidate retrieval failed for appid={appid} name={name!r}"
+            ) from exc
+
+        chroma_ids: list[int] = []
+        ids = result.get("ids", [[]])[0]
+        for raw_id in ids:
+            try:
+                appid = int(raw_id)
+            except (TypeError, ValueError):
+                continue
+            chroma_ids.append(appid)
+        return chroma_ids
 
     @staticmethod
     def _build_query_text(
@@ -144,64 +184,50 @@ class CandidateRetriever:
         self,
         game: dict,
         *,
-        chroma_limit: int = 450,
-        prescreen_limit: int = 2200,
-        merged_limit: int = 1600,
+        chroma_limit: int = 300,
+        prescreen_limit: int = 450,
+        merged_limit: int = 300,
         context_percentages: dict[str, float | int] | None = None,
         tag_boosts: dict[str, dict[str, float]] | None = None,
         soundtrack_boosts: dict[str, float] | None = None,
     ) -> list[dict]:
         prescreen_ids: list[int] = []
-        if self.store is not None:
-            prescreen_ids = self.store.prescreen_candidate_appids(
-                game,
-                context_percentages=context_percentages,
-                tag_boosts=tag_boosts,
-                soundtrack_boosts=soundtrack_boosts,
-                limit=prescreen_limit,
-            )
-
         chroma_ids: list[int] = []
-        if self._collection is None:
-            merged_ids = prescreen_ids
-        else:
-            try:
-                result = self._collection.query(
-                    query_texts=[
-                    self._build_query_text(
-                        game,
-                        context_percentages=context_percentages,
-                        tag_boosts=tag_boosts,
-                        soundtrack_boosts=soundtrack_boosts,
-                    )
-                ],
-                n_results=chroma_limit,
-            )
-            except Exception as exc:
-                appid = game.get("appid", "unknown")
-                name = str(game.get("name", "")).strip() or "unknown"
-                raise RuntimeError(
-                    f"Chroma candidate retrieval failed for appid={appid} name={name!r}"
-                ) from exc
 
-            ids = result.get("ids", [[]])[0]
-            for raw_id in ids:
-                try:
-                    appid = int(raw_id)
-                except (TypeError, ValueError):
-                    continue
-                chroma_ids.append(appid)
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            prescreen_future = None
+            chroma_future = None
 
-            merged_ids = self._merge_candidate_ids(prescreen_ids, chroma_ids, limit=merged_limit)
+            if self.store is not None:
+                prescreen_future = executor.submit(
+                    self.store.prescreen_candidate_appids,
+                    game,
+                    context_percentages=context_percentages,
+                    tag_boosts=tag_boosts,
+                    soundtrack_boosts=soundtrack_boosts,
+                    limit=prescreen_limit,
+                )
 
-        candidates = []
-        for appid in merged_ids:
-            try:
-                appid = int(appid)
-            except (TypeError, ValueError):
-                continue
-            game_payload = self._fallback_by_appid.get(appid)
-            if game_payload is not None:
-                candidates.append(game_payload)
+            if self._collection is not None:
+                chroma_future = executor.submit(
+                    self._query_chroma_candidate_ids,
+                    game,
+                    chroma_limit=chroma_limit,
+                    context_percentages=context_percentages,
+                    tag_boosts=tag_boosts,
+                    soundtrack_boosts=soundtrack_boosts,
+                )
 
-        return candidates or self.fallback_games
+            if prescreen_future is not None:
+                prescreen_ids = prescreen_future.result()
+            if chroma_future is not None:
+                chroma_ids = chroma_future.result()
+
+        merged_ids = self._merge_candidate_ids(prescreen_ids, chroma_ids, limit=merged_limit)
+
+        if self.store is not None and merged_ids:
+            candidates = self.store.load_games_by_appids(merged_ids)
+            if candidates:
+                return candidates
+
+        return []

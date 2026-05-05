@@ -14,7 +14,7 @@ fi
 DOMAIN="${DOMAIN:-nextsteamgame.com}"
 EMAIL="${EMAIL:-overbakedrice@gmail.com}"
 APP_DIR="${APP_DIR:-$(cd "${SCRIPT_DIR}/../.." && pwd)}"
-SERVER_NAME="${SERVER_NAME:-nextsteamgame}"
+SERVER_NAME="${SERVER_NAME:-steamrec2}"
 INSTALL_BASE="${INSTALL_BASE:-1}"
 RUN_CERTBOT="${RUN_CERTBOT:-1}"
 NGINX_CONF_PATH="/etc/nginx/sites-available/${SERVER_NAME}.conf"

@@ -457,9 +457,9 @@ function RecommendationCard({ game, rank, weights, selectedGame, highlights, onO
         className="block border-b border-transparent transition-colors hover:bg-secondary/20"
         aria-label={`Open ${game.title} on Steam`}
       >
-      <div className="flex flex-col gap-4 p-4 sm:flex-row">
+      <div className="flex flex-col gap-3 p-3 sm:flex-row sm:gap-4 sm:p-4">
         <div className="relative flex-shrink-0">
-          <div className="h-32 w-full rounded-xl overflow-hidden bg-muted border border-border sm:h-24 sm:w-48">
+          <div className="h-36 w-full rounded-xl overflow-hidden border border-border bg-muted sm:h-24 sm:w-48">
             <Image
               src={cardImage}
               alt={game.title}
@@ -530,28 +530,52 @@ function RecommendationCard({ game, rank, weights, selectedGame, highlights, onO
 
       <div className="px-3 pb-2">
         {screenshots.length > 0 && (
-          <div className="mb-3 hidden lg:block">
-            <div className="grid grid-cols-3 gap-3">
-              {screenshots.map((url, index) => (
-                <a
-                  key={`${game.id}-card-shot-${index}`}
-                  href={url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="group overflow-hidden rounded-xl border border-white/10 bg-black/20"
-                >
-                  <Image
-                    src={url}
-                    alt={`${game.title} screenshot ${index + 1}`}
-                    width={320}
-                    height={180}
-                    className="h-28 w-full object-cover transition-transform duration-200 group-hover:scale-[1.02]"
-                    unoptimized
-                  />
-                </a>
-              ))}
+          <>
+            <div className="mb-3 lg:hidden">
+              <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                {screenshots.map((url, index) => (
+                  <a
+                    key={`${game.id}-card-shot-mobile-${index}`}
+                    href={url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="group min-w-[168px] overflow-hidden rounded-xl border border-white/10 bg-black/20"
+                  >
+                    <Image
+                      src={url}
+                      alt={`${game.title} screenshot ${index + 1}`}
+                      width={320}
+                      height={180}
+                      className="h-24 w-[168px] object-cover transition-transform duration-200 group-hover:scale-[1.02]"
+                      unoptimized
+                    />
+                  </a>
+                ))}
+              </div>
             </div>
-          </div>
+            <div className="mb-3 hidden lg:block">
+              <div className="grid grid-cols-3 gap-3">
+                {screenshots.map((url, index) => (
+                  <a
+                    key={`${game.id}-card-shot-${index}`}
+                    href={url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="group overflow-hidden rounded-xl border border-white/10 bg-black/20"
+                  >
+                    <Image
+                      src={url}
+                      alt={`${game.title} screenshot ${index + 1}`}
+                      width={320}
+                      height={180}
+                      className="h-28 w-full object-cover transition-transform duration-200 group-hover:scale-[1.02]"
+                      unoptimized
+                    />
+                  </a>
+                ))}
+              </div>
+            </div>
+          </>
         )}
 
         {(reasonChips.length > 0 || offerChips.length > 0) && (
@@ -571,7 +595,7 @@ function RecommendationCard({ game, rank, weights, selectedGame, highlights, onO
               {offerChips.map((tag) => (
                 <span
                   key={tag}
-                  className="rounded-full border border-white/12 bg-white/[0.06] px-3 py-1.5 text-[11px] font-medium text-slate-100/92"
+                  className="rounded-full border border-white/12 bg-white/[0.06] px-2.5 py-1 text-[10px] font-medium text-slate-100/92 sm:px-3 sm:py-1.5 sm:text-[11px]"
                 >
                   {tag}
                 </span>

@@ -8,7 +8,11 @@ import re
 import sqlite3
 from pathlib import Path
 
-from paths import final_canon_db_path, metadata_db_path
+from db_creation.paths import final_canon_db_path, metadata_db_path
+
+
+def log(message: str) -> None:
+    print(message, flush=True)
 
 
 def normalize_search_text(text: str) -> str:
@@ -115,6 +119,39 @@ def load_canonical_rows(connection: sqlite3.Connection) -> list[sqlite3.Row]:
     ).fetchall()
 
 
+def count_canonical_rows(connection: sqlite3.Connection) -> int:
+    connection.row_factory = sqlite3.Row
+    row = connection.execute(
+        "SELECT COUNT(*) AS row_count FROM canonical_game_semantics"
+    ).fetchone()
+    return int(row["row_count"]) if row else 0
+
+
+def iter_canonical_rows(
+    connection: sqlite3.Connection, *, batch_size: int = 500
+) -> list[sqlite3.Row]:
+    connection.row_factory = sqlite3.Row
+    cursor = connection.execute(
+        """
+        SELECT
+            appid,
+            name,
+            canonical_vectors_json,
+            canonical_metadata_json,
+            source_review_samples_json,
+            source_vectors_json,
+            source_metadata_json
+        FROM canonical_game_semantics
+        ORDER BY appid
+        """
+    )
+    while True:
+        rows = cursor.fetchmany(batch_size)
+        if not rows:
+            break
+        yield rows
+
+
 def load_tag_groups(connection: sqlite3.Connection) -> list[sqlite3.Row]:
     connection.row_factory = sqlite3.Row
     return connection.execute(
@@ -158,6 +195,32 @@ def load_screenshots(connection: sqlite3.Connection) -> list[sqlite3.Row]:
         ORDER BY appid, screenshot_id
         """
     ).fetchall()
+
+
+def count_screenshots(connection: sqlite3.Connection) -> int:
+    connection.row_factory = sqlite3.Row
+    row = connection.execute(
+        "SELECT COUNT(*) AS row_count FROM game_screenshots"
+    ).fetchone()
+    return int(row["row_count"]) if row else 0
+
+
+def iter_screenshots(
+    connection: sqlite3.Connection, *, batch_size: int = 5000
+) -> list[sqlite3.Row]:
+    connection.row_factory = sqlite3.Row
+    cursor = connection.execute(
+        """
+        SELECT appid, screenshot_id, path_thumbnail, path_full
+        FROM game_screenshots
+        ORDER BY appid, screenshot_id
+        """
+    )
+    while True:
+        rows = cursor.fetchmany(batch_size)
+        if not rows:
+            break
+        yield rows
 
 
 def _coerce_single_genre_value(raw: object) -> str:
@@ -268,6 +331,63 @@ def reset_postgres_tables(cursor, *, reset_all: bool = False) -> None:
         cursor.execute("DROP TABLE IF EXISTS ui_diagnostics")
 
 
+def insert_game_batch(cursor, game_payload: list[tuple]) -> None:
+    cursor.executemany(
+        """
+        INSERT INTO games (
+            appid,
+            name,
+            normalized_name,
+            canonical_vectors,
+            canonical_metadata,
+            source_review_samples,
+            source_vectors,
+            source_metadata,
+            metacritic_score,
+            recommendations_total,
+            steamspy_owner_estimate,
+            steamspy_ccu,
+            positive,
+            negative,
+            estimated_review_count,
+            release_date_parsed,
+            short_description,
+            header_image,
+            capsule_image,
+            capsule_imagev5,
+            background_image,
+            background_image_raw,
+            logo_image,
+            library_hero_image,
+            library_capsule_image,
+            developers,
+            publishers,
+            release_date_text
+        )
+        VALUES (
+            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+        )
+        """,
+        game_payload,
+    )
+
+
+def insert_screenshot_batch(cursor, screenshot_payload: list[tuple]) -> None:
+    cursor.executemany(
+        """
+        INSERT INTO game_screenshots (
+            appid,
+            screenshot_id,
+            path_thumbnail,
+            path_full
+        )
+        VALUES (%s, %s, %s, %s)
+        """,
+        screenshot_payload,
+    )
+
+
 def main(*, reset_all: bool = False) -> int:
     try:
         import psycopg
@@ -277,6 +397,11 @@ def main(*, reset_all: bool = False) -> int:
             "Postgres support requires psycopg. Install dependencies from requirements.txt."
         ) from exc
 
+    log("Starting SQLite -> Postgres import")
+    log(f"Metadata DB: {metadata_db_path()}")
+    log(f"Final canon DB: {final_canon_db_path()}")
+    log(f"Postgres target: {postgres_dsn()}")
+
     with schema_path().open("r", encoding="utf-8") as handle:
         schema_sql = handle.read()
 
@@ -284,23 +409,46 @@ def main(*, reset_all: bool = False) -> int:
     final_sqlite = open_sqlite_readonly(final_canon_db_path())
 
     try:
+        log("Reading preview rows from metadata SQLite")
         preview_rows = load_preview_rows(metadata_sqlite)
-        canonical_rows = load_canonical_rows(final_sqlite)
-        tag_groups = load_tag_groups(final_sqlite)
-        tag_members = load_tag_members(final_sqlite)
-        screenshots = load_screenshots(final_sqlite)
+        log(f"Loaded preview rows: {len(preview_rows)}")
 
+        log("Counting canonical rows from final SQLite")
+        canonical_row_count = count_canonical_rows(final_sqlite)
+        log(f"Loaded canonical rows: {canonical_row_count}")
+
+        log("Reading canonical tag groups from final SQLite")
+        tag_groups = load_tag_groups(final_sqlite)
+        log(f"Loaded tag groups: {len(tag_groups)}")
+
+        log("Reading canonical tag members from final SQLite")
+        tag_members = load_tag_members(final_sqlite)
+        log(
+            "Loaded tag members: "
+            f"{sum(len(members) for members in tag_members.values())}"
+        )
+
+        log("Counting screenshots from final SQLite")
+        screenshot_count = count_screenshots(final_sqlite)
+        log(f"Loaded screenshots: {screenshot_count}")
+
+        log("Connecting to Postgres")
         with psycopg.connect(postgres_dsn()) as pg_connection:
             with pg_connection.cursor() as cursor:
+                log("Resetting Postgres tables")
                 reset_postgres_tables(cursor, reset_all=reset_all)
+                log("Applying schema")
                 cursor.execute(schema_sql)
                 ensure_postgres_schema(cursor)
+                log("Creating pipeline run record")
                 cursor.execute(
                     "INSERT INTO pipeline_runs (status) VALUES ('running') RETURNING id"
                 )
                 run_id = int(cursor.fetchone()[0])
+                log(f"Pipeline run id: {run_id}")
 
                 group_id_map: dict[int, int] = {}
+                log("Inserting canonical tag groups")
                 for group in tag_groups:
                     cursor.execute(
                         """
@@ -329,7 +477,9 @@ def main(*, reset_all: bool = False) -> int:
                         ),
                     )
                     group_id_map[int(group["id"])] = int(cursor.fetchone()[0])
+                log(f"Inserted canonical tag groups: {len(group_id_map)}")
 
+                log("Inserting canonical tag members")
                 for old_group_id, members in tag_members.items():
                     new_group_id = group_id_map.get(old_group_id)
                     if new_group_id is None:
@@ -341,116 +491,87 @@ def main(*, reset_all: bool = False) -> int:
                         """,
                         [(new_group_id, member) for member in members],
                     )
-
-                game_payload = []
-                for row in canonical_rows:
-                    preview = preview_rows.get(int(row["appid"]), {})
-                    canonical_vectors = _clean_canonical_vectors(row["canonical_vectors_json"])
-                    canonical_metadata = _clean_canonical_metadata(row["canonical_metadata_json"])
-                    game_payload.append(
-                        (
-                            int(row["appid"]),
-                            row["name"],
-                            normalize_search_text(row["name"] or ""),
-                            Jsonb(canonical_vectors),
-                            Jsonb(canonical_metadata),
-                            Jsonb(json.loads(row["source_review_samples_json"] or "{}")),
-                            Jsonb(json.loads(row["source_vectors_json"] or "{}")),
-                            Jsonb(json.loads(row["source_metadata_json"] or "{}")),
-                            preview.get("metacritic_score"),
-                            preview.get("recommendations_total"),
-                            preview.get("steamspy_owner_estimate"),
-                            preview.get("steamspy_ccu"),
-                            preview.get("positive"),
-                            preview.get("negative"),
-                            preview.get("estimated_review_count"),
-                            preview.get("release_date_parsed"),
-                            (preview.get("short_description") or "").strip(),
-                            preview.get("header_image") or "",
-                            preview.get("capsule_image") or "",
-                            preview.get("capsule_imagev5") or "",
-                            preview.get("background_image") or "",
-                            preview.get("background_image_raw") or "",
-                            preview.get("logo_image") or "",
-                            preview.get("library_hero_image") or "",
-                            preview.get("library_capsule_image") or "",
-                            Jsonb(json.loads(preview.get("developers_json") or "[]")),
-                            Jsonb(json.loads(preview.get("publishers_json") or "[]")),
-                            preview.get("release_date_text") or "",
-                        )
-                    )
-
-                cursor.executemany(
-                    """
-                    INSERT INTO games (
-                        appid,
-                        name,
-                        normalized_name,
-                        canonical_vectors,
-                        canonical_metadata,
-                        source_review_samples,
-                        source_vectors,
-                        source_metadata,
-                        metacritic_score,
-                        recommendations_total,
-                        steamspy_owner_estimate,
-                        steamspy_ccu,
-                        positive,
-                        negative,
-                        estimated_review_count,
-                        release_date_parsed,
-                        short_description,
-                        header_image,
-                        capsule_image,
-                        capsule_imagev5,
-                        background_image,
-                        background_image_raw,
-                        logo_image,
-                        library_hero_image,
-                        library_capsule_image,
-                        developers,
-                        publishers,
-                        release_date_text
-                    )
-                    VALUES (
-                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
-                    )
-                    """,
-                    game_payload,
+                log(
+                    "Inserted canonical tag members: "
+                    f"{sum(len(members) for members in tag_members.values())}"
                 )
 
-                cursor.executemany(
-                    """
-                    INSERT INTO game_screenshots (
-                        appid,
-                        screenshot_id,
-                        path_thumbnail,
-                        path_full
-                    )
-                    VALUES (%s, %s, %s, %s)
-                    """,
-                    [
+                log("Preparing and inserting games in batches")
+                inserted_games = 0
+                for canonical_batch in iter_canonical_rows(final_sqlite):
+                    game_payload = []
+                    for row in canonical_batch:
+                        preview = preview_rows.get(int(row["appid"]), {})
+                        canonical_vectors = _clean_canonical_vectors(row["canonical_vectors_json"])
+                        canonical_metadata = _clean_canonical_metadata(row["canonical_metadata_json"])
+                        game_payload.append(
+                            (
+                                int(row["appid"]),
+                                row["name"],
+                                normalize_search_text(row["name"] or ""),
+                                Jsonb(canonical_vectors),
+                                Jsonb(canonical_metadata),
+                                Jsonb(json.loads(row["source_review_samples_json"] or "{}")),
+                                Jsonb(json.loads(row["source_vectors_json"] or "{}")),
+                                Jsonb(json.loads(row["source_metadata_json"] or "{}")),
+                                preview.get("metacritic_score"),
+                                preview.get("recommendations_total"),
+                                preview.get("steamspy_owner_estimate"),
+                                preview.get("steamspy_ccu"),
+                                preview.get("positive"),
+                                preview.get("negative"),
+                                preview.get("estimated_review_count"),
+                                preview.get("release_date_parsed"),
+                                (preview.get("short_description") or "").strip(),
+                                preview.get("header_image") or "",
+                                preview.get("capsule_image") or "",
+                                preview.get("capsule_imagev5") or "",
+                                preview.get("background_image") or "",
+                                preview.get("background_image_raw") or "",
+                                preview.get("logo_image") or "",
+                                preview.get("library_hero_image") or "",
+                                preview.get("library_capsule_image") or "",
+                                Jsonb(json.loads(preview.get("developers_json") or "[]")),
+                                Jsonb(json.loads(preview.get("publishers_json") or "[]")),
+                                preview.get("release_date_text") or "",
+                            )
+                        )
+                    insert_game_batch(cursor, game_payload)
+                    inserted_games += len(game_payload)
+                    log(f"Inserted games: {inserted_games}/{canonical_row_count}")
+
+                log("Preparing and inserting screenshots in batches")
+                inserted_screenshots = 0
+                for screenshot_batch in iter_screenshots(final_sqlite):
+                    screenshot_payload = [
                         (
                             int(row["appid"]),
                             int(row["screenshot_id"]),
                             str(row["path_thumbnail"] or ""),
                             str(row["path_full"] or ""),
                         )
-                        for row in screenshots
-                    ],
-                )
+                        for row in screenshot_batch
+                    ]
+                    insert_screenshot_batch(cursor, screenshot_payload)
+                    inserted_screenshots += len(screenshot_payload)
+                    log(
+                        "Inserted screenshots: "
+                        f"{inserted_screenshots}/{screenshot_count}"
+                    )
 
+                log("Marking pipeline run complete")
                 cursor.execute(
                     """
                     UPDATE pipeline_runs
                     SET finished_at = NOW(), status = 'completed', processed_rows = %s
                     WHERE id = %s
                     """,
-                    (len(game_payload), run_id),
+                    (canonical_row_count, run_id),
                 )
             pg_connection.commit()
+            log("Postgres import committed")
     except Exception:
+        log("Import failed; attempting to mark pipeline run as failed")
         with psycopg.connect(postgres_dsn()) as pg_connection:
             with pg_connection.cursor() as cursor:
                 cursor.execute("SELECT to_regclass('public.pipeline_runs')")
@@ -470,7 +591,9 @@ def main(*, reset_all: bool = False) -> int:
     finally:
         metadata_sqlite.close()
         final_sqlite.close()
+        log("SQLite connections closed")
 
+    log("SQLite -> Postgres import complete")
     return 0
 
 

@@ -12,12 +12,33 @@ if [[ -f "${ENV_FILE}" ]]; then
 fi
 
 REMOTE_HOST="${REMOTE_HOST:-root@134.209.35.2}"
-REMOTE_DIR="${REMOTE_DIR:-/root/Steam_Reccomender}"
+REMOTE_DIR="${REMOTE_DIR:-/root/steamrec2}"
 LOCAL_DIR="${LOCAL_DIR:-$(cd "${SCRIPT_DIR}/../.." && pwd)}"
 SSH_KEY="${SSH_KEY:-$HOME/.ssh/id_ed25519}"
+SEND_EVERYTHING="${SEND_EVERYTHING:-0}"
 
-rsync -az --delete \
-  -e "ssh -i ${SSH_KEY}" \
-  "${LOCAL_DIR}/" "${REMOTE_HOST}:${REMOTE_DIR}/"
+RSYNC_ARGS=(
+  -az
+  --delete
+  --info=progress2
+  -e "ssh -i ${SSH_KEY}"
+)
+
+if [[ "${SEND_EVERYTHING}" != "1" ]]; then
+  RSYNC_ARGS+=(
+    --exclude ".git/"
+    --exclude "venv/"
+    --exclude ".venv/"
+    --exclude "frontend/node_modules/"
+    --exclude "frontend/.next/"
+    --exclude "__pycache__/"
+    --exclude ".mypy_cache/"
+    --exclude ".pytest_cache/"
+    --exclude ".env"
+    --exclude "scripts/server_deploy/.env"
+  )
+fi
+
+rsync "${RSYNC_ARGS[@]}" "${LOCAL_DIR}/" "${REMOTE_HOST}:${REMOTE_DIR}/"
 
 echo "Rsync complete: ${LOCAL_DIR} -> ${REMOTE_HOST}:${REMOTE_DIR}"

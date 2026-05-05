@@ -29,7 +29,7 @@ services:
       DB_CREATION_DATA_DIR: /app/data
     volumes:
       - ./data:/app/data:ro
-    command: ["python", "db_creation/postgres_db.py"]
+    command: ["python", "-m", "db_creation.postgres.load_from_sqlite"]
     restart: "no"
 
   api:

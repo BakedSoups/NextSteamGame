@@ -55,7 +55,6 @@ store = PostgresGameStore(postgres_dsn)
 store.ensure_diagnostics_table()
 retriever = CandidateRetriever(
     chroma_dir=chroma_dir_path(),
-    fallback_games=store.load_all_games(),
     store=store,
 )
 
@@ -412,9 +411,9 @@ def get_recommendations(payload: dict[str, Any]) -> JSONResponse:
 
     candidate_games = retriever.retrieve_candidates(
         game,
-        chroma_limit=450,
-        prescreen_limit=2200,
-        merged_limit=1600,
+        chroma_limit=300,
+        prescreen_limit=450,
+        merged_limit=300,
         context_percentages=context_percentages,
         tag_boosts=tag_weights,
         soundtrack_boosts=soundtrack_weights,

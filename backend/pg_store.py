@@ -434,6 +434,63 @@ class PostgresGameStore:
         screenshots_by_appid = self._load_screenshots_for_appids([appid])
         return self._row_to_game(row, screenshots_by_appid.get(appid, []))
 
+    def load_games_by_appids(self, appids: list[int]) -> list[dict[str, Any]]:
+        normalized_appids: list[int] = []
+        seen: set[int] = set()
+        for raw_appid in appids:
+            try:
+                appid = int(raw_appid)
+            except (TypeError, ValueError):
+                continue
+            if appid in seen:
+                continue
+            seen.add(appid)
+            normalized_appids.append(appid)
+
+        if not normalized_appids:
+            return []
+
+        sql = """
+            SELECT
+                appid,
+                name,
+                canonical_vectors,
+                canonical_metadata,
+                metacritic_score,
+                recommendations_total,
+                steamspy_owner_estimate,
+                steamspy_ccu,
+                positive,
+                negative,
+                estimated_review_count,
+                release_date_parsed,
+                short_description,
+                header_image,
+                capsule_image,
+                capsule_imagev5,
+                background_image,
+                background_image_raw,
+                logo_image,
+                library_hero_image,
+                library_capsule_image,
+                developers,
+                publishers,
+                release_date_text
+            FROM games
+            WHERE appid = ANY(%s)
+        """
+        with self._connect() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(sql, (normalized_appids,))
+                rows = cursor.fetchall()
+
+        screenshots_by_appid = self._load_screenshots_for_appids(normalized_appids)
+        row_by_appid = {
+            int(row["appid"]): self._row_to_game(row, screenshots_by_appid.get(int(row["appid"]), []))
+            for row in rows
+        }
+        return [row_by_appid[appid] for appid in normalized_appids if appid in row_by_appid]
+
     def load_all_games(self) -> list[dict[str, Any]]:
         sql = """
             SELECT
