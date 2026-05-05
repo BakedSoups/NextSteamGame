@@ -274,7 +274,6 @@ Default local URLs:
 The Docker stack runs:
 
 - `postgres`
-- a one-shot `postgres_loader` that loads your existing SQLite-built data into Postgres
 - the FastAPI backend
 - the Next frontend
 
@@ -284,7 +283,7 @@ It expects your existing local data directory to already exist, especially:
 - `data/steam_final_canon.db`
 - `data/chroma/`
 
-Bring the stack up:
+Bring the app stack up:
 
 ```bash
 docker compose up --build
@@ -301,10 +300,29 @@ Default Docker Postgres DSN inside the stack:
 postgresql://steam_rec:steam_rec@postgres:5432/steam_rec
 ```
 
+Default host-side Postgres DSN for running `python db_creation/postgres_db.py` against the Docker database:
+
+```text
+postgresql://steam_rec:steam_rec@127.0.0.1:5433/steam_rec
+```
+
 Notes:
 
-- the loader service reruns on `docker compose up` and rebuilds the Postgres tables from your current SQLite outputs
+- `docker compose up` does not rerun the Postgres loader
+- the loader is a manual one-shot so normal app startup stays fast
 - the API container reads Chroma from the mounted `data/chroma`
+
+Manual Postgres reload from the current SQLite outputs:
+
+```bash
+python db_creation/postgres_db.py
+```
+
+Or fully inside the Docker network:
+
+```bash
+docker compose --profile loader run --rm postgres_loader
+```
 
 ## Droplet Deployment
 

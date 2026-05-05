@@ -110,6 +110,147 @@ class PostgresGameStore:
                 tags.append(value)
         return tags
 
+    @staticmethod
+    def _identity_signal_weights(metadata: dict[str, Any]) -> dict[str, float]:
+        weighted: dict[str, float] = {}
+        signature_tag = str(metadata.get("signature_tag", "")).strip()
+        if signature_tag:
+            weighted[signature_tag] = max(weighted.get(signature_tag, 0.0), 8.5)
+        for tag in metadata.get("niche_anchors", []) or []:
+            text = str(tag).strip()
+            if text:
+                weighted[text] = max(weighted.get(text, 0.0), 5.8)
+        for tag in metadata.get("identity_tags", []) or []:
+            text = str(tag).strip()
+            if text:
+                weighted[text] = max(weighted.get(text, 0.0), 3.0)
+        for tag in metadata.get("micro_tags", []) or []:
+            text = str(tag).strip()
+            if text:
+                weighted[text] = max(weighted.get(text, 0.0), 1.4)
+        return weighted
+
+    @staticmethod
+    def _setting_signal_weights(metadata: dict[str, Any]) -> dict[str, float]:
+        weighted: dict[str, float] = {}
+        for tag in metadata.get("setting_tags", []) or []:
+            text = str(tag).strip()
+            if text:
+                weighted[text] = max(weighted.get(text, 0.0), 2.8)
+        return weighted
+
+    def prescreen_candidate_appids(
+        self,
+        base_game: dict[str, Any],
+        *,
+        context_percentages: dict[str, float | int] | None = None,
+        tag_boosts: dict[str, dict[str, float]] | None = None,
+        soundtrack_boosts: dict[str, float] | None = None,
+        limit: int = 2500,
+    ) -> list[int]:
+        metadata = base_game.get("metadata") or {}
+        genre_tree = metadata.get("genre_tree", {}) or {}
+        tag_boosts = tag_boosts or {}
+        soundtrack_boosts = soundtrack_boosts or {}
+
+        signature_tags = [str(metadata.get("signature_tag", "")).strip()] if str(metadata.get("signature_tag", "")).strip() else []
+        niche_anchor_tags = [str(tag).strip() for tag in metadata.get("niche_anchors", []) or [] if str(tag).strip()]
+        identity_detail_tags = [
+            str(tag).strip()
+            for tag in [
+                *(metadata.get("identity_tags", []) or []),
+                *(metadata.get("micro_tags", []) or []),
+            ]
+            if str(tag).strip()
+        ]
+        setting_tags = [str(tag).strip() for tag in metadata.get("setting_tags", []) or [] if str(tag).strip()]
+        music_tags = [
+            str(tag).strip()
+            for tag in [
+                metadata.get("music_primary", ""),
+                metadata.get("music_secondary", ""),
+                *soundtrack_boosts.keys(),
+            ]
+            if str(tag).strip()
+        ]
+        primary_genres = [str(tag).strip() for tag in (genre_tree.get("primary") or [])] if isinstance(genre_tree.get("primary"), list) else ([str(genre_tree.get("primary")).strip()] if str(genre_tree.get("primary", "")).strip() else [])
+        sub_genres = [str(tag).strip() for tag in (genre_tree.get("sub") or [])] if isinstance(genre_tree.get("sub"), list) else ([str(genre_tree.get("sub")).strip()] if str(genre_tree.get("sub", "")).strip() else [])
+        sub_sub_genres = [str(tag).strip() for tag in (genre_tree.get("sub_sub") or [])] if isinstance(genre_tree.get("sub_sub"), list) else ([str(genre_tree.get("sub_sub")).strip()] if str(genre_tree.get("sub_sub", "")).strip() else [])
+
+        boosted_identity_tags = [str(tag).strip() for tag in tag_boosts.get("identity", {}).keys() if str(tag).strip()]
+        boosted_setting_tags = [str(tag).strip() for tag in tag_boosts.get("setting", {}).keys() if str(tag).strip()]
+
+        sql = """
+            SELECT appid
+            FROM games
+            WHERE appid <> %s
+            ORDER BY (
+                CASE WHEN canonical_metadata ->> 'signature_tag' = ANY(%s) THEN 18 ELSE 0 END +
+                CASE WHEN COALESCE(canonical_metadata -> 'niche_anchors', '[]'::jsonb) ?| %s THEN 12 ELSE 0 END +
+                CASE WHEN COALESCE(canonical_metadata -> 'identity_tags', '[]'::jsonb) ?| %s THEN 7 ELSE 0 END +
+                CASE WHEN COALESCE(canonical_metadata -> 'micro_tags', '[]'::jsonb) ?| %s THEN 3 ELSE 0 END +
+                CASE WHEN COALESCE(canonical_metadata -> 'identity_tags', '[]'::jsonb) ?| %s THEN 5 ELSE 0 END +
+                CASE WHEN COALESCE(canonical_metadata -> 'niche_anchors', '[]'::jsonb) ?| %s THEN 7 ELSE 0 END +
+                CASE WHEN COALESCE(canonical_metadata -> 'setting_tags', '[]'::jsonb) ?| %s THEN 8 ELSE 0 END +
+                CASE WHEN COALESCE(canonical_metadata -> 'setting_tags', '[]'::jsonb) ?| %s THEN 5 ELSE 0 END +
+                CASE WHEN canonical_metadata ->> 'music_primary' = ANY(%s) THEN 7 ELSE 0 END +
+                CASE WHEN canonical_metadata ->> 'music_secondary' = ANY(%s) THEN 5 ELSE 0 END +
+                CASE
+                    WHEN jsonb_typeof(canonical_metadata -> 'genre_tree' -> 'primary') = 'array'
+                         AND COALESCE(canonical_metadata -> 'genre_tree' -> 'primary', '[]'::jsonb) ?| %s
+                    THEN 10
+                    WHEN canonical_metadata -> 'genre_tree' ->> 'primary' = ANY(%s)
+                    THEN 10
+                    ELSE 0
+                END +
+                CASE
+                    WHEN jsonb_typeof(canonical_metadata -> 'genre_tree' -> 'sub') = 'array'
+                         AND COALESCE(canonical_metadata -> 'genre_tree' -> 'sub', '[]'::jsonb) ?| %s
+                    THEN 7
+                    WHEN canonical_metadata -> 'genre_tree' ->> 'sub' = ANY(%s)
+                    THEN 7
+                    ELSE 0
+                END +
+                CASE
+                    WHEN jsonb_typeof(canonical_metadata -> 'genre_tree' -> 'sub_sub') = 'array'
+                         AND COALESCE(canonical_metadata -> 'genre_tree' -> 'sub_sub', '[]'::jsonb) ?| %s
+                    THEN 4
+                    WHEN canonical_metadata -> 'genre_tree' ->> 'sub_sub' = ANY(%s)
+                    THEN 4
+                    ELSE 0
+                END
+            ) DESC,
+            recommendations_total DESC NULLS LAST,
+            appid
+            LIMIT %s
+        """
+        params: list[Any] = [
+            int(base_game["appid"]),
+            signature_tags or [""],
+            niche_anchor_tags or [""],
+            identity_detail_tags or [""],
+            identity_detail_tags or [""],
+            boosted_identity_tags or [""],
+            boosted_identity_tags or [""],
+            setting_tags or [""],
+            boosted_setting_tags or [""],
+            music_tags or [""],
+            music_tags or [""],
+            primary_genres or [""],
+            primary_genres or [""],
+            sub_genres or [""],
+            sub_genres or [""],
+            sub_sub_genres or [""],
+            sub_sub_genres or [""],
+            limit,
+        ]
+
+        with self._connect() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(sql, params)
+                rows = cursor.fetchall()
+        return [int(row["appid"]) for row in rows if row.get("appid") is not None]
+
     def _row_to_game(self, row: dict[str, Any], screenshots: list[str] | None = None) -> dict[str, Any]:
         metadata = self._coerce_json(row.get("canonical_metadata"))
         music_tags = self._metadata_music_tags(metadata)

@@ -5,14 +5,14 @@ from typing import Iterable
 
 
 VECTOR_CONTEXT_MULTIPLIERS = {
-    "mechanics": 1.35,
-    "narrative": 0.20,
-    "vibe": 0.35,
-    "structure_loop": 1.20,
+    "mechanics": 1.22,
+    "narrative": 0.46,
+    "vibe": 0.62,
+    "structure_loop": 1.12,
 }
-IDENTITY_CONTEXT_MULTIPLIER = 0.55
-SETTING_CONTEXT_MULTIPLIER = 0.32
-SOUNDTRACK_CONTEXT_MULTIPLIER = 0.41
+IDENTITY_CONTEXT_MULTIPLIER = 1.12
+SETTING_CONTEXT_MULTIPLIER = 0.76
+SOUNDTRACK_CONTEXT_MULTIPLIER = 0.82
 
 VECTOR_CONTEXT_ORDER = tuple(VECTOR_CONTEXT_MULTIPLIERS.keys())
 CONTENT_CONTEXT_ORDER = VECTOR_CONTEXT_ORDER + ("identity", "setting", "music")
@@ -44,10 +44,10 @@ GENRE_BRANCH_WEIGHTS = {
     "sub_sub": 0.95,
 }
 
-VECTOR_SCORE_WEIGHT = 0.55
-GENRE_SCORE_WEIGHT = 0.30
-APPEAL_SCORE_WEIGHT = 0.15
-SOUNDTRACK_SCORE_WEIGHT = 0.10
+VECTOR_SCORE_WEIGHT = 0.54
+GENRE_SCORE_WEIGHT = 0.18
+APPEAL_SCORE_WEIGHT = 0.14
+SOUNDTRACK_SCORE_WEIGHT = 0.14
 COMPONENT_ORDER = ("vector", "genre", "appeal", "music")
 
 
@@ -167,11 +167,11 @@ def _identity_source_weights(metadata: dict) -> dict[str, float]:
     weighted: dict[str, float] = {}
     signature_tag = str(metadata.get("signature_tag", "")).strip()
     if signature_tag:
-        weighted[signature_tag] = max(weighted.get(signature_tag, 0.0), 1.40)
+        weighted[signature_tag] = max(weighted.get(signature_tag, 0.0), 2.15)
     for tag in metadata.get("niche_anchors", []) or []:
         text = str(tag).strip()
         if text:
-            weighted[text] = max(weighted.get(text, 0.0), 1.15)
+            weighted[text] = max(weighted.get(text, 0.0), 1.55)
     for tag in metadata.get("identity_tags", []) or []:
         text = str(tag).strip()
         if text:
@@ -188,7 +188,7 @@ def _setting_source_weights(metadata: dict) -> dict[str, float]:
     for tag in metadata.get("setting_tags", []) or []:
         text = str(tag).strip()
         if text:
-            weighted[text] = max(weighted.get(text, 0.0), 1.0)
+            weighted[text] = max(weighted.get(text, 0.0), 1.08)
     return weighted
 
 
@@ -244,9 +244,10 @@ def _build_music_preferences(
     extra_boosts: dict[str, float] | None = None,
     soundtrack_multiplier: float = 1.0,
 ) -> dict[str, float]:
-    boosts = extra_boosts or {}
     default_tags = _metadata_music_tags(metadata)
-    source_weights = boosts or {tag: 1.0 for tag in default_tags}
+    source_weights = {tag: 1.0 for tag in default_tags}
+    for tag, weight in (extra_boosts or {}).items():
+        source_weights[str(tag)] = max(source_weights.get(str(tag), 0.0), float(weight) + 0.45)
     if not source_weights:
         return {}
     normalized = _normalize_weights(source_weights)
@@ -261,7 +262,33 @@ def _build_identity_preferences(
     extra_boosts: dict[str, float] | None = None,
     identity_multiplier: float = 1.0,
 ) -> dict[str, float]:
-    source_weights = extra_boosts or _identity_source_weights(metadata)
+    source_weights = _identity_source_weights(metadata)
+    signature_tag = str(metadata.get("signature_tag", "")).strip()
+    niche_anchors = {str(tag).strip() for tag in metadata.get("niche_anchors", []) or [] if str(tag).strip()}
+    identity_details = {
+        str(tag).strip()
+        for tag in [
+            *(metadata.get("identity_tags", []) or []),
+            *(metadata.get("micro_tags", []) or []),
+        ]
+        if str(tag).strip()
+    }
+
+    for tag, weight in (extra_boosts or {}).items():
+        text = str(tag).strip()
+        if not text:
+            continue
+        boost = float(weight)
+        if text == signature_tag:
+            boost += 1.15
+        elif text in niche_anchors:
+            boost += 0.78
+        elif text in identity_details:
+            boost += 0.42
+        else:
+            boost += 0.28
+        source_weights[text] = max(source_weights.get(text, 0.0), boost)
+
     if not source_weights:
         return {}
     normalized = _normalize_weights(source_weights)
@@ -276,7 +303,12 @@ def _build_setting_preferences(
     extra_boosts: dict[str, float] | None = None,
     setting_multiplier: float = 1.0,
 ) -> dict[str, float]:
-    source_weights = extra_boosts or _setting_source_weights(metadata)
+    source_weights = _setting_source_weights(metadata)
+    for tag, weight in (extra_boosts or {}).items():
+        text = str(tag).strip()
+        if not text:
+            continue
+        source_weights[text] = max(source_weights.get(text, 0.0), float(weight) + 0.38)
     if not source_weights:
         return {}
     normalized = _normalize_weights(source_weights)
@@ -339,10 +371,29 @@ def _music_match_score(candidate_metadata: dict, preferences: dict[str, float]) 
 def _identity_match_score(candidate_metadata: dict, preferences: dict[str, float]) -> float:
     if not preferences:
         return 0.0
-    candidate_tags = set(_identity_source_weights(candidate_metadata))
+    candidate_weighted_tags = _identity_source_weights(candidate_metadata)
     total_weight = sum(preferences.values()) or 1.0
-    matched_weight = sum(weight for tag, weight in preferences.items() if tag in candidate_tags)
-    return matched_weight / total_weight
+    matched_weight = sum(
+        weight * min(candidate_weighted_tags.get(tag, 0.0), 1.6)
+        for tag, weight in preferences.items()
+        if tag in candidate_weighted_tags
+    )
+
+    score = matched_weight / total_weight
+    signature_tag = str(candidate_metadata.get("signature_tag", "")).strip()
+    niche_anchors = {str(tag).strip() for tag in candidate_metadata.get("niche_anchors", []) or [] if str(tag).strip()}
+    micro_tags = {str(tag).strip() for tag in candidate_metadata.get("micro_tags", []) or [] if str(tag).strip()}
+
+    if signature_tag and signature_tag in preferences:
+        score += 0.22
+    anchor_match_count = sum(1 for tag in niche_anchors if tag in preferences)
+    if anchor_match_count > 0:
+        score += min(anchor_match_count * 0.06, 0.18)
+    micro_match_count = sum(1 for tag in micro_tags if tag in preferences)
+    if micro_match_count > 0:
+        score += min(micro_match_count * 0.02, 0.06)
+
+    return min(score, 1.0)
 
 
 def _setting_match_score(candidate_metadata: dict, preferences: dict[str, float]) -> float:
@@ -367,21 +418,21 @@ def _apply_penalties(total_score: float, base_metadata: dict, candidate_metadata
     sub_sub_overlap = len(base_sub_sub & sub_sub_tags)
 
     if base_primary and primary_overlap == 0:
-        total_score *= 0.82
+        total_score *= 0.90
     if base_sub and sub_overlap == 0:
-        total_score *= 0.88
+        total_score *= 0.93
     if base_sub_sub and sub_sub_overlap == 0:
-        total_score *= 0.91
+        total_score *= 0.96
 
     if base_primary:
         contradictory_primary = primary_tags - base_primary
         if len(contradictory_primary) >= 3 and primary_overlap == 0:
-            total_score *= 0.88
+            total_score *= 0.92
 
     if base_sub:
         contradictory_sub = sub_tags - base_sub
         if len(contradictory_sub) >= 3 and sub_overlap == 0:
-            total_score *= 0.90
+            total_score *= 0.94
 
     base_anchor_primary = set(_top_branch_tags(base_metadata, "primary", 2))
     base_anchor_sub = set(_top_branch_tags(base_metadata, "sub", 3))
@@ -532,7 +583,14 @@ def recommend_games(
         if setting_preferences:
             active_vector_contexts.append("setting")
         if active_vector_contexts:
-            vector_score = sum(vector_breakdown.get(context, 0.0) for context in active_vector_contexts) / len(active_vector_contexts)
+            weighted_context_total = sum(
+                max(context_multipliers.get(context, 1.0), 0.0)
+                for context in active_vector_contexts
+            ) or 1.0
+            vector_score = sum(
+                vector_breakdown.get(context, 0.0) * max(context_multipliers.get(context, 1.0), 0.0)
+                for context in active_vector_contexts
+            ) / weighted_context_total
         else:
             vector_score = 0.0
         genre_score = _genre_match_score(game["metadata"], genre_preferences)
@@ -611,6 +669,13 @@ def recommend_games(
                 "metadata": game["metadata"],
                 "header_image": game.get("header_image", ""),
                 "capsule_image": game.get("capsule_image", ""),
+                "capsule_imagev5": game.get("capsule_imagev5", ""),
+                "background_image": game.get("background_image", ""),
+                "background_image_raw": game.get("background_image_raw", ""),
+                "logo_image": game.get("logo_image", ""),
+                "library_hero_image": game.get("library_hero_image", ""),
+                "library_capsule_image": game.get("library_capsule_image", ""),
+                "screenshots": list(game.get("screenshots", []) or []),
                 "short_description": game.get("short_description", ""),
                 "signature_tag": game.get("signature_tag", ""),
                 "signals": game.get("signals", {}),

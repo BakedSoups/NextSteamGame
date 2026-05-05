@@ -42,17 +42,12 @@ const DEFAULT_APPEAL_WEIGHTS: Weights["appeal"] = {
 type Screen = "search" | "profile" | "results"
 type TagContextKey = keyof Weights["tags"]
 type SimpleIntentKey =
-  | "mechanics"
-  | "narrative"
-  | "vibe"
-  | "structure_loop"
-  | "identity"
-  | "setting"
-  | "music"
   | "more_similar"
-  | "more_surprising"
+  | "more_different"
+  | "better_gameplay"
   | "more_story"
-  | "more_competitive"
+  | "stronger_atmosphere"
+  | "more_distinctive"
 
 function frequentTags(games: Game[], select: (game: Game) => string[], minimumCount = 3): string[] {
   const counts = new Map<string, number>()
@@ -103,12 +98,20 @@ function featuredTagGroups(game: Game | null): Array<{
     return []
   }
 
+  const signatureTags = game.identity?.signatureTag ? [game.identity.signatureTag] : []
+  const nicheAnchorTags = game.identity?.nicheAnchors.slice(0, 6) ?? []
+  const identityDetailTags = Array.from(
+    new Set([...(game.identity?.identityTags ?? []), ...(game.identity?.microTags ?? [])]),
+  ).slice(0, 6)
+
   const groups: Array<{
     context: keyof Weights["tags"]
     label: string
     tags: string[]
   }> = [
-    { context: "identity", label: "Identity Anchors", tags: game.tags.identity.slice(0, 6) },
+    { context: "identity", label: "Signature Hook", tags: signatureTags },
+    { context: "identity", label: "Identity Anchors", tags: nicheAnchorTags },
+    { context: "identity", label: "Identity Details", tags: identityDetailTags },
     { context: "setting", label: "World / Setting", tags: game.tags.setting.slice(0, 6) },
     { context: "music", label: "Music", tags: game.tags.music.slice(0, 6) },
     { context: "narrative", label: "Narrative", tags: game.tags.narrative.slice(0, 6) },
@@ -155,28 +158,18 @@ function buildWeightsFromGame(game: Game): Weights {
 
 function simpleIntentHighlights(intent: SimpleIntentKey): TagContextKey[] {
   switch (intent) {
-    case "mechanics":
-      return ["mechanics"]
-    case "narrative":
-      return ["narrative"]
-    case "vibe":
-      return ["vibe"]
-    case "structure_loop":
-      return ["structure_loop"]
-    case "identity":
-      return ["identity"]
-    case "setting":
-      return ["setting"]
-    case "music":
-      return ["music"]
     case "more_similar":
       return ["mechanics", "structure_loop"]
-    case "more_surprising":
+    case "more_different":
       return ["identity", "setting", "music"]
+    case "better_gameplay":
+      return ["mechanics", "structure_loop"]
     case "more_story":
       return ["narrative"]
-    case "more_competitive":
-      return ["mechanics"]
+    case "stronger_atmosphere":
+      return ["vibe", "music"]
+    case "more_distinctive":
+      return ["identity", "setting"]
   }
 }
 
@@ -537,88 +530,94 @@ export default function NextSteamGamePage() {
     }))
   }
 
+  const rebalancePercentMap = <T extends string>(
+    current: Record<T, number>,
+    boosts: Partial<Record<T, number>>,
+  ): Record<T, number> => {
+    const keys = Object.keys(current) as T[]
+    const boosted = { ...current }
+
+    for (const key of keys) {
+      boosted[key] = Math.max(0, boosted[key] + (boosts[key] ?? 0))
+    }
+
+    const total = (Object.values(boosted) as number[]).reduce((sum, value) => sum + value, 0)
+    if (total <= 0) {
+      return current
+    }
+
+    const normalized = {} as Record<T, number>
+    for (const key of keys) {
+      normalized[key] = Math.max(0, Math.round((boosted[key] / total) * 100))
+    }
+
+    const normalizedTotal = (Object.values(normalized) as number[]).reduce((sum, value) => sum + value, 0)
+    if (normalizedTotal !== 100 && keys.length > 0) {
+      const largestKey = keys.reduce((a, b) => (normalized[a] > normalized[b] ? a : b))
+      normalized[largestKey] += 100 - normalizedTotal
+    }
+
+    return normalized
+  }
+
   const applySimpleIntentBoost = (
-    contextKey: keyof Weights["context"] | null,
-    matchKey: keyof Weights["match"] | null,
-    contextDelta = 12,
-    matchDelta = 14,
+    contextBoosts: Partial<Record<keyof Weights["context"], number>>,
+    matchBoosts: Partial<Record<keyof Weights["match"], number>>,
     appealUpdates: Partial<Weights["appeal"]> = {},
   ) => {
     setWeights((prev) => {
-      const next = {
+      return {
         ...prev,
-        match: { ...prev.match },
-        context: { ...prev.context },
+        match: rebalancePercentMap(prev.match, matchBoosts),
+        context: rebalancePercentMap(prev.context, contextBoosts),
         appeal: { ...prev.appeal, ...appealUpdates },
       }
-
-      if (contextKey) {
-        const others = Object.keys(next.context).filter((key) => key !== contextKey) as (keyof Weights["context"])[]
-        const target = Math.min(100, next.context[contextKey] + contextDelta)
-        const remaining = 100 - target
-        const otherTotal = others.reduce((sum, key) => sum + next.context[key], 0)
-        next.context[contextKey] = target
-        if (otherTotal > 0) {
-          for (const key of others) {
-            next.context[key] = Math.max(0, Math.round((prev.context[key] / otherTotal) * remaining))
-          }
-        }
-        const total = Object.values(next.context).reduce((sum, value) => sum + value, 0)
-        if (total !== 100 && others.length > 0) {
-          const largestKey = others.reduce((a, b) => (next.context[a] > next.context[b] ? a : b))
-          next.context[largestKey] += 100 - total
-        }
-      }
-
-      if (matchKey) {
-        const others = Object.keys(next.match).filter((key) => key !== matchKey) as (keyof Weights["match"])[]
-        const target = Math.min(100, next.match[matchKey] + matchDelta)
-        const remaining = 100 - target
-        const otherTotal = others.reduce((sum, key) => sum + next.match[key], 0)
-        next.match[matchKey] = target
-        if (otherTotal > 0) {
-          for (const key of others) {
-            next.match[key] = Math.max(0, Math.round((prev.match[key] / otherTotal) * remaining))
-          }
-        }
-        const total = Object.values(next.match).reduce((sum, value) => sum + value, 0)
-        if (total !== 100 && others.length > 0) {
-          const largestKey = others.reduce((a, b) => (next.match[a] > next.match[b] ? a : b))
-          next.match[largestKey] += 100 - total
-        }
-      }
-
-      return next
     })
   }
 
   const handleSimpleIntentBoost = (intent: SimpleIntentKey) => {
     setSimpleHighlightedContexts(simpleIntentHighlights(intent))
     switch (intent) {
-      case "mechanics":
-      case "narrative":
-      case "vibe":
-      case "structure_loop":
-      case "identity":
-      case "setting":
-      case "music":
-        applySimpleIntentBoost(intent, "vector")
-        return
       case "more_similar":
-        applySimpleIntentBoost("mechanics", "vector", 10, 10)
+        applySimpleIntentBoost(
+          { mechanics: 8, structure_loop: 16, identity: -4, setting: -4, music: -3 },
+          { vector: 18, genre: -6, appeal: -6, music: -6 },
+        )
         return
-      case "more_surprising":
-        applySimpleIntentBoost("identity", "music", 10, 8, { creativity: 70 })
+      case "more_different":
+        applySimpleIntentBoost(
+          { identity: 12, setting: 10, music: 8, mechanics: -6, structure_loop: -8 },
+          { music: 12, appeal: 8, vector: -10, genre: -10 },
+          { creativity: 82 },
+        )
+        return
+      case "better_gameplay":
+        applySimpleIntentBoost(
+          { mechanics: 18, structure_loop: 14, identity: -4, setting: -4 },
+          { vector: 16, genre: -8, appeal: -4, music: -4 },
+          { challenge: 68, complexity: 66, pace: 58 },
+        )
         return
       case "more_story":
-        applySimpleIntentBoost("narrative", "appeal", 14, 8, { narrative_focus: 80 })
+        applySimpleIntentBoost(
+          { narrative: 20, vibe: 6, mechanics: -6, structure_loop: -6 },
+          { appeal: 14, vector: 6, genre: -10, music: -10 },
+          { narrative_focus: 84, creativity: 62 },
+        )
         return
-      case "more_competitive":
-        applySimpleIntentBoost("mechanics", "genre", 10, 8, {
-          challenge: 78,
-          pace: 75,
-          social_energy: 68,
-        })
+      case "stronger_atmosphere":
+        applySimpleIntentBoost(
+          { vibe: 18, music: 10, setting: 6, mechanics: -6, structure_loop: -6 },
+          { appeal: 12, music: 10, vector: -8, genre: -8 },
+          { creativity: 74, pace: 40, narrative_focus: 58 },
+        )
+        return
+      case "more_distinctive":
+        applySimpleIntentBoost(
+          { identity: 18, setting: 12, music: 8, structure_loop: -6, mechanics: -6 },
+          { music: 10, appeal: 10, vector: -8, genre: -12 },
+          { creativity: 86, complexity: 58 },
+        )
         return
     }
   }

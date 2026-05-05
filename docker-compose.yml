@@ -6,6 +6,8 @@ services:
       POSTGRES_DB: steam_rec
       POSTGRES_USER: steam_rec
       POSTGRES_PASSWORD: steam_rec
+    ports:
+      - "127.0.0.1:5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -15,6 +17,7 @@ services:
       retries: 20
 
   postgres_loader:
+    profiles: ["loader"]
     build:
       context: .
       dockerfile: Dockerfile.api
@@ -36,8 +39,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      postgres_loader:
-        condition: service_completed_successfully
     environment:
       STEAM_REC_POSTGRES_DSN: postgresql://steam_rec:steam_rec@postgres:5432/steam_rec
       DB_CREATION_DATA_DIR: /app/data

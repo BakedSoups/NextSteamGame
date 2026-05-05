@@ -56,6 +56,7 @@ store.ensure_diagnostics_table()
 retriever = CandidateRetriever(
     chroma_dir=chroma_dir_path(),
     fallback_games=store.load_all_games(),
+    store=store,
 )
 
 app = FastAPI(title="Steam Recommendation API", version="0.1.0")
@@ -409,7 +410,15 @@ def get_recommendations(payload: dict[str, Any]) -> JSONResponse:
         for branch in ("primary", "sub", "sub_sub")
     }
 
-    candidate_games = retriever.retrieve_candidates(game, limit=400)
+    candidate_games = retriever.retrieve_candidates(
+        game,
+        chroma_limit=450,
+        prescreen_limit=2200,
+        merged_limit=1600,
+        context_percentages=context_percentages,
+        tag_boosts=tag_weights,
+        soundtrack_boosts=soundtrack_weights,
+    )
     recommendations = recommend_games(
         game,
         candidate_games,

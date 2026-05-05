@@ -106,6 +106,19 @@ function reviewSummary(game: RecommendedGame) {
   }
 }
 
+function structuredIdentityTags(game: RecommendedGame) {
+  const signature = game.identity?.signatureTag ? [game.identity.signatureTag] : []
+  const anchors = game.identity?.nicheAnchors ?? []
+  const details = Array.from(
+    new Set([...(game.identity?.identityTags ?? []), ...(game.identity?.microTags ?? [])]),
+  )
+  return {
+    signature,
+    anchors,
+    details,
+  }
+}
+
 function SteamReviewBar({ positivePercent, reviewCount }: { positivePercent: number | null; reviewCount: number }) {
   const fill = positivePercent ?? 0
 
@@ -431,6 +444,7 @@ function RecommendationCard({ game, rank, weights, selectedGame, highlights, onO
   ]
   const steamReview = reviewSummary(game)
   const screenshots = (game.screenshots ?? []).filter(Boolean).slice(0, 3)
+  const identityParts = structuredIdentityTags(game)
   
   return (
     <div className="panel overflow-hidden hover:glow-box transition-all">
@@ -445,12 +459,12 @@ function RecommendationCard({ game, rank, weights, selectedGame, highlights, onO
       >
       <div className="flex flex-col gap-4 p-4 sm:flex-row">
         <div className="relative flex-shrink-0">
-          <div className="h-32 w-full rounded-xl overflow-hidden bg-muted border border-border sm:h-20 sm:w-40">
+          <div className="h-32 w-full rounded-xl overflow-hidden bg-muted border border-border sm:h-24 sm:w-48">
             <Image
               src={cardImage}
               alt={game.title}
-              width={160}
-              height={128}
+              width={192}
+              height={144}
               className="object-cover w-full h-full"
               unoptimized
             />
@@ -515,6 +529,31 @@ function RecommendationCard({ game, rank, weights, selectedGame, highlights, onO
       </a>
 
       <div className="px-3 pb-2">
+        {screenshots.length > 0 && (
+          <div className="mb-3 hidden lg:block">
+            <div className="grid grid-cols-3 gap-3">
+              {screenshots.map((url, index) => (
+                <a
+                  key={`${game.id}-card-shot-${index}`}
+                  href={url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="group overflow-hidden rounded-xl border border-white/10 bg-black/20"
+                >
+                  <Image
+                    src={url}
+                    alt={`${game.title} screenshot ${index + 1}`}
+                    width={320}
+                    height={180}
+                    className="h-28 w-full object-cover transition-transform duration-200 group-hover:scale-[1.02]"
+                    unoptimized
+                  />
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
+
         {(reasonChips.length > 0 || offerChips.length > 0) && (
           <div className="mb-3">
             <div className="mb-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
@@ -567,35 +606,6 @@ function RecommendationCard({ game, rank, weights, selectedGame, highlights, onO
           <p className="text-xs text-muted-foreground leading-relaxed">
             {game.description}
           </p>
-
-          {screenshots.length > 0 && (
-            <div className="hidden lg:block">
-              <div className="mb-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-                Gameplay Screenshots
-              </div>
-              <div className="grid grid-cols-3 gap-3">
-                {screenshots.map((url, index) => (
-                  <a
-                    key={`${game.id}-shot-${index}`}
-                    href={url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="group overflow-hidden rounded-xl border border-white/10 bg-black/20"
-                  >
-                    <Image
-                      src={url}
-                      alt={`${game.title} screenshot ${index + 1}`}
-                      width={320}
-                      height={180}
-                      className="h-32 w-full object-cover transition-transform duration-200 group-hover:scale-[1.02]"
-                      unoptimized
-                    />
-                  </a>
-                ))}
-              </div>
-            </div>
-          )}
-
           {/* Score Contributions */}
           <div>
             <div className="flex items-center gap-2 mb-2">
@@ -753,14 +763,48 @@ function RecommendationCard({ game, rank, weights, selectedGame, highlights, onO
 
               {/* Full Tag Signals */}
               <div>
-                <span className="terminal-label block mb-2">Theme & World</span>
-                <div className="flex flex-wrap gap-1">
-                  {game.tags.identity.slice(0, 4).map(tag => (
-                    <span key={`identity-${tag}`} className="tag-chip">{tag}</span>
-                  ))}
-                  {game.tags.setting.slice(0, 4).map(tag => (
-                    <span key={`setting-${tag}`} className="tag-chip">{tag}</span>
-                  ))}
+                <span className="terminal-label block mb-2">Signature & World</span>
+                <div className="space-y-3">
+                  {identityParts.signature.length > 0 && (
+                    <div>
+                      <div className="mb-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Signature Hook</div>
+                      <div className="flex flex-wrap gap-1">
+                        {identityParts.signature.map((tag) => (
+                          <span key={`signature-${tag}`} className="tag-chip included">{tag}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {identityParts.anchors.length > 0 && (
+                    <div>
+                      <div className="mb-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Identity Anchors</div>
+                      <div className="flex flex-wrap gap-1">
+                        {identityParts.anchors.slice(0, 4).map((tag) => (
+                          <span key={`anchor-${tag}`} className="tag-chip">{tag}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {identityParts.details.length > 0 && (
+                    <div>
+                      <div className="mb-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Identity Details</div>
+                      <div className="flex flex-wrap gap-1">
+                        {identityParts.details.slice(0, 4).map((tag) => (
+                          <span key={`identity-detail-${tag}`} className="tag-chip">{tag}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {game.tags.setting.length > 0 && (
+                    <div>
+                      <div className="mb-1 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">World / Setting</div>
+                      <div className="flex flex-wrap gap-1">
+                        {game.tags.setting.slice(0, 4).map((tag) => (
+                          <span key={`setting-${tag}`} className="tag-chip">{tag}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 

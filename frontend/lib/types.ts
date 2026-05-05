@@ -18,6 +18,15 @@ export interface Game {
     libraryCapsule: string
   }
   screenshots?: string[]
+  identity?: {
+    signatureTag: string
+    nicheAnchors: string[]
+    identityTags: string[]
+    microTags: string[]
+    settingTags: string[]
+    musicPrimary: string
+    musicSecondary: string
+  }
   genres: {
     primary: string[]
     sub: string[]

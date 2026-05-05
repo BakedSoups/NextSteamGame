@@ -39,47 +39,32 @@ interface ControlPanelProps {
 }
 
 type SimpleIntent =
-  | "mechanics"
-  | "narrative"
-  | "vibe"
-  | "structure_loop"
-  | "identity"
-  | "setting"
-  | "music"
   | "more_similar"
-  | "more_surprising"
+  | "more_different"
+  | "better_gameplay"
   | "more_story"
-  | "more_competitive"
+  | "stronger_atmosphere"
+  | "more_distinctive"
 
 const SIMPLE_INTENTS: { key: SimpleIntent; label: string; hint: string }[] = [
-  { key: "mechanics", label: "Mechanics", hint: "Lean harder into systems and verbs" },
-  { key: "narrative", label: "Narrative", hint: "Push story and character presence" },
-  { key: "vibe", label: "Vibe", hint: "Favor mood, tone, and atmosphere" },
-  { key: "structure_loop", label: "Structure", hint: "Emphasize the core repeatable loop" },
-  { key: "identity", label: "Identity", hint: "Bias toward signature traits and niche anchors" },
-  { key: "setting", label: "Setting", hint: "Bias toward world, era, and environment" },
-  { key: "music", label: "Music", hint: "Give soundtrack and sonic identity more pull" },
-  { key: "more_similar", label: "More Similar", hint: "Tighten the match around close neighbors" },
-  { key: "more_surprising", label: "More Surprising", hint: "Loosen genre and reward novelty" },
-  { key: "more_story", label: "More Story", hint: "Raise narrative focus and story signals" },
-  { key: "more_competitive", label: "More Competitive", hint: "Bias toward pace, challenge, and intensity" },
+  { key: "more_similar", label: "More Like This", hint: "Stay closer to the base game's structure and feel" },
+  { key: "more_different", label: "More Different", hint: "Loosen the match and allow more novelty" },
+  { key: "better_gameplay", label: "Emphasize Gameplay", hint: "Shift the match toward systems, structure, and play feel" },
+  { key: "more_story", label: "Focus on Story", hint: "Shift the match toward story, character presence, and narrative pull" },
+  { key: "stronger_atmosphere", label: "Emphasize Atmosphere", hint: "Shift the match toward mood, tone, and overall feel" },
+  { key: "more_distinctive", label: "Focus on Identity", hint: "Shift the match toward signature traits and standout identity" },
 ]
 
 const SIMPLE_CORE_VECTOR_INTENTS: SimpleIntent[] = [
-  "mechanics",
-  "narrative",
-  "vibe",
-  "structure_loop",
   "more_similar",
+  "better_gameplay",
   "more_story",
-  "more_competitive",
+  "stronger_atmosphere",
 ]
 
 const SIMPLE_TAG_SIGNAL_INTENTS: SimpleIntent[] = [
-  "identity",
-  "setting",
-  "music",
-  "more_surprising",
+  "more_different",
+  "more_distinctive",
 ]
 
 const CONTEXT_VISUALS: Record<
@@ -673,7 +658,7 @@ export function ControlPanel({
         >
           <div className="space-y-4">
             <p className="text-[11px] leading-5 text-slate-100/88">
-              Use presets to nudge the current formula without opening the full tuning surface.
+              Use a few broad presets to push the match in clearly different directions.
             </p>
             <div className="space-y-3">
               <div>
@@ -695,9 +680,9 @@ export function ControlPanel({
               </div>
 
               <div>
-                <div className="mb-2 text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
-                  Theme / World / Music
-                </div>
+                  <div className="mb-2 text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+                    Broader Direction
+                  </div>
                 <div className="grid grid-cols-2 gap-2">
                   {tagSignalIntents.map((intent) => (
                     <button
@@ -801,7 +786,7 @@ export function ControlPanel({
               <div className="border-t border-border/50 p-3">
               <div className="space-y-4">
                 <p className="text-[12px] leading-6 text-slate-100/90">
-                  Use these buttons to reshape the left-side gameplay cards. This changes the base match before you get more specific with individual tags.
+                  Use a few broad presets to push the match in clearly different directions before you get more specific with tags.
                 </p>
                 <div className="space-y-3">
                   <div>
@@ -824,7 +809,7 @@ export function ControlPanel({
 
                   <div>
                     <div className="mb-2 text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
-                      Theme / World / Music
+                      Broader Direction
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       {tagSignalIntents.map((intent) => (
