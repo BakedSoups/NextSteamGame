@@ -10,7 +10,8 @@ from .canon_group_v2 import main as run_v2
 from .canon_group_v3 import main as run_v3
 from .canon_group_v4 import main as run_v4
 from .canon_group_v5 import main as run_v5
-from paths import analysis_dir
+from .canon_group_v6 import main as run_v6
+from db_creation.paths import analysis_dir
 
 
 ANALYSIS_DIR = analysis_dir()
@@ -28,6 +29,7 @@ def _print_outputs() -> None:
         ANALYSIS_DIR / "canon_groups_v3.csv",
         ANALYSIS_DIR / "canon_groups_v4.csv",
         ANALYSIS_DIR / "canon_groups_v5.csv",
+        ANALYSIS_DIR / "canon_groups_v6.csv",
     ]
     print()
     print("Canon pipeline outputs:")
@@ -36,7 +38,7 @@ def _print_outputs() -> None:
 
 
 def main() -> int:
-    total_steps = 5
+    total_steps = 6
 
     _print_step(1, total_steps, "v1 canon export")
     v1_summary = run_canonical_export()
@@ -53,6 +55,9 @@ def main() -> int:
 
     _print_step(5, total_steps, "v5 semantic rescue on small v4 groups")
     run_v5()
+
+    _print_step(6, total_steps, "v6 hierarchy diagnostics scaffold")
+    run_v6()
 
     _print_outputs()
     return 0

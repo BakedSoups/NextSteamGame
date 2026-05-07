@@ -16,6 +16,8 @@ COPY requirements.docker.txt ./requirements.docker.txt
 RUN pip install --upgrade pip && \
     pip install -r requirements.docker.txt
 
+RUN python -c "from chromadb.utils.embedding_functions.onnx_mini_lm_l6_v2 import ONNXMiniLM_L6_V2; ONNXMiniLM_L6_V2()._download_model_if_not_exists()"
+
 COPY app.py ./app.py
 COPY backend ./backend
 COPY db_creation ./db_creation

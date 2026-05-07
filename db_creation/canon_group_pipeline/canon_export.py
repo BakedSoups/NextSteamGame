@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from paths import analysis_dir, initial_noncanon_db_path
+from db_creation.paths import analysis_dir, initial_noncanon_db_path
 
 NONCANON_DB_PATH = initial_noncanon_db_path()
 ANALYSIS_DIR = analysis_dir()
@@ -23,7 +23,7 @@ def print_batch_progress(update: dict) -> None:
 
 
 def run_canonical_export() -> dict:
-    from canon_pipeline.runner import run_canon_export
+    from db_creation.canon_pipeline.runner import run_canon_export
 
     return run_canon_export(
         noncanon_db_path=NONCANON_DB_PATH,

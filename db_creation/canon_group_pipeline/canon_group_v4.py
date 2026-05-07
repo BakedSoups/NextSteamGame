@@ -6,10 +6,11 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 
-from canon_pipeline.layer_1_normalization import normalize_tag, tokenize
+from db_creation.canon_pipeline.layer_1_normalization import normalize_tag, tokenize
+from .diagnostics import write_stage_diagnostics
 
 
-ANALYSIS_DIR = Path(__file__).resolve().parent / "analysis"
+ANALYSIS_DIR = Path(__file__).resolve().parents[1] / "analysis"
 V3_INPUT_CSV = ANALYSIS_DIR / "canon_groups_v3.csv"
 OUTPUT_CSV = ANALYSIS_DIR / "canon_groups_v4.csv"
 SUMMARY_TXT = ANALYSIS_DIR / "canon_groups_v4_summary.txt"
@@ -320,7 +321,7 @@ def _write_summary(summary_path: Path, input_rows: list[GroupRow], output_rows: 
     target_input = sum(1 for row in input_rows if row.context == TARGET_CONTEXT)
     target_output = sum(1 for row in output_rows if row.context == TARGET_CONTEXT)
     new_merges = sum(max(0, row.member_count - 1) for row in output_rows if row.context == TARGET_CONTEXT)
-    summary_lines = [
+    metrics = [
         f"input_csv: {V3_INPUT_CSV}",
         f"rows_read: {len(input_rows)}",
         f"{TARGET_CONTEXT}_input_rows: {target_input}",
@@ -330,7 +331,7 @@ def _write_summary(summary_path: Path, input_rows: list[GroupRow], output_rows: 
         f"rejected_groups: {rejected}",
         f"new_merges: {new_merges}",
     ]
-    summary_path.write_text("\n".join(summary_lines) + "\n", encoding="utf-8")
+    write_stage_diagnostics(summary_path, metrics=metrics)
 
 
 def main() -> None:

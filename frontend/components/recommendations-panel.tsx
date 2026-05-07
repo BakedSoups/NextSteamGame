@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { memo, useState } from "react"
 import Image from "next/image"
 import { ChevronDown, ChevronUp, Radar, Target, AudioLines } from "lucide-react"
 import type { Game, RecommendedGame, Weights } from "@/lib/types"
@@ -398,10 +398,9 @@ interface RecommendationCardProps {
   onOpenSteam?: (game: RecommendedGame) => void
 }
 
-function RecommendationCard({ game, rank, weights, selectedGame, highlights, onOpenSteam }: RecommendationCardProps) {
+const RecommendationCard = memo(function RecommendationCard({ game, rank, weights, selectedGame, highlights, onOpenSteam }: RecommendationCardProps) {
   const [isExpanded, setIsExpanded] = useState(false)
-  const cardImage = game.assets.libraryCapsule || game.assets.capsuleV5 || game.image || IMAGE_FALLBACK
-  const logoImage = game.assets.logo
+  const cardImage = game.headerImage || game.assets.header || game.assets.libraryCapsule || game.assets.capsuleV5 || game.image || IMAGE_FALLBACK
   const scorePercentages = game.scorePercentages ?? {}
   const steamStoreUrl = `https://store.steampowered.com/app/${game.appId}`
   const matchedTags = game.matchedTags ?? {
@@ -465,22 +464,11 @@ function RecommendationCard({ game, rank, weights, selectedGame, highlights, onO
               alt={game.title}
               width={192}
               height={144}
-              className="object-cover w-full h-full"
+              className="object-contain w-full h-full scale-[0.92]"
+              loading="lazy"
+              sizes="(max-width: 640px) 100vw, 192px"
               unoptimized
             />
-            {logoImage ? (
-              <div className="absolute inset-x-0 bottom-0 bg-[linear-gradient(180deg,rgba(7,10,15,0)_0%,rgba(7,10,15,0.82)_100%)] px-2 py-2">
-                <div className="relative h-5 w-24 max-w-full">
-                  <Image
-                    src={logoImage}
-                    alt={`${game.title} logo`}
-                    fill
-                    className="object-contain object-left"
-                    unoptimized
-                  />
-                </div>
-              </div>
-            ) : null}
           </div>
         </div>
 
@@ -547,6 +535,8 @@ function RecommendationCard({ game, rank, weights, selectedGame, highlights, onO
                       width={320}
                       height={180}
                       className="h-24 w-[168px] object-cover transition-transform duration-200 group-hover:scale-[1.02]"
+                      loading="lazy"
+                      sizes="168px"
                       unoptimized
                     />
                   </a>
@@ -569,6 +559,8 @@ function RecommendationCard({ game, rank, weights, selectedGame, highlights, onO
                       width={320}
                       height={180}
                       className="h-28 w-full object-cover transition-transform duration-200 group-hover:scale-[1.02]"
+                      loading="lazy"
+                      sizes="(max-width: 1280px) 33vw, 320px"
                       unoptimized
                     />
                   </a>
@@ -846,9 +838,11 @@ function RecommendationCard({ game, rank, weights, selectedGame, highlights, onO
       )}
     </div>
   )
-}
+})
 
 export function RecommendationsPanel({ recommendations, weights, selectedGame, onOpenSteam }: RecommendationsPanelProps) {
+  const [visibleCount, setVisibleCount] = useState(8)
+  const visibleRecommendations = recommendations.slice(0, visibleCount)
   const topOverallId = recommendations[0]?.id ?? null
   const topStructureId =
     recommendations.reduce<RecommendedGame | null>((best, game) => {
@@ -923,7 +917,7 @@ export function RecommendationsPanel({ recommendations, weights, selectedGame, o
 
       {/* Cards */}
       <div className="space-y-2">
-        {recommendations.map((game, index) => (
+        {visibleRecommendations.map((game, index) => (
           (() => {
             const highlights: string[] = []
             if (game.id === topOverallId) highlights.push("overall most similar")
@@ -943,6 +937,17 @@ export function RecommendationsPanel({ recommendations, weights, selectedGame, o
           })()
         ))}
       </div>
+
+      {visibleCount < recommendations.length && (
+        <div className="flex justify-center pt-2">
+          <button
+            onClick={() => setVisibleCount((current) => Math.min(current + 8, recommendations.length))}
+            className="rounded-full border border-border bg-secondary/40 px-4 py-2 text-sm text-foreground transition-colors hover:bg-secondary/70"
+          >
+            Show More Results
+          </button>
+        </div>
+      )}
 
       {recommendations.length === 0 && (
         <div className="panel p-8 text-center">

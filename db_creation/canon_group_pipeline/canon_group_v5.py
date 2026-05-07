@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import random
 import sys
 from collections import Counter, defaultdict
 from dataclasses import dataclass
@@ -9,10 +10,11 @@ from pathlib import Path
 import numpy as np
 from sentence_transformers import SentenceTransformer
 
-from canon_pipeline.layer_1_normalization import normalize_tag, tokenize
+from db_creation.canon_pipeline.layer_1_normalization import normalize_tag, tokenize
+from .diagnostics import build_random_sample_section, write_stage_diagnostics
 
 
-ANALYSIS_DIR = Path(__file__).resolve().parent / "analysis"
+ANALYSIS_DIR = Path(__file__).resolve().parents[1] / "analysis"
 V4_INPUT_CSV = ANALYSIS_DIR / "canon_groups_v4.csv"
 OUTPUT_CSV = ANALYSIS_DIR / "canon_groups_v5.csv"
 SUMMARY_TXT = ANALYSIS_DIR / "canon_groups_v5_summary.txt"
@@ -22,10 +24,21 @@ ENCODE_BATCH_SIZE = 64
 SIMILARITY_THRESHOLD = 0.79
 GENERIC_TOKEN_MAX_DF = 200
 MAX_BUCKET_SIZE = 120
-MAX_RESULT_GROUP_SIZE = 8
-ELIGIBLE_MAX_MEMBER_COUNT = 3
+MAX_RESULT_GROUP_SIZE = 64
 MIN_AVG_JACCARD = 0.22
 MIN_DOMINANT_COVERAGE = 0.6
+MIN_TOKEN_DF = 2
+MIN_TOKEN_LENGTH = 2
+CONTEXT_MIN_TOKEN_DF = {
+    "narrative": 3,
+    "setting_tags": 3,
+    "signature_tag": 4,
+}
+CONTEXT_MAX_BUCKETS = {
+    "narrative": 1800,
+    "setting_tags": 1400,
+    "signature_tag": 1800,
+}
 
 TOKEN_SYNONYMS = {
     "games": "game",
@@ -162,7 +175,12 @@ def _concrete_tokens(tag: str) -> tuple[str, ...]:
     return tuple(
         token
         for token in _normalize_semantic_tokens(tag)
-        if token not in WRAPPER_TOKENS and token not in GENERIC_TOKENS
+        if (
+            token not in WRAPPER_TOKENS
+            and token not in GENERIC_TOKENS
+            and len(token) >= MIN_TOKEN_LENGTH
+            and not token.isdigit()
+        )
     )
 
 
@@ -243,29 +261,58 @@ def _build_semantic_group(context: str, rows: list[GroupRow]) -> GroupRow:
 
 
 def _candidate_groups_for_context(context: str, rows: list[GroupRow], model: SentenceTransformer) -> tuple[list[GroupRow], set[int], dict[str, int]]:
-    eligible_indexes = [index for index, row in enumerate(rows) if row.member_count <= ELIGIBLE_MAX_MEMBER_COUNT]
+    eligible_indexes = [index for index, row in enumerate(rows) if row.canon_tag]
     if not eligible_indexes:
         return [], set(), {"eligible_rows": 0, "eligible_buckets": 0, "merged_groups": 0}
 
     row_token_sets = {index: set(_row_concrete_tokens(rows[index])) for index in eligible_indexes}
     token_df = Counter(token for tokens in row_token_sets.values() for token in tokens)
     buckets: dict[str, list[int]] = defaultdict(list)
+    min_token_df = CONTEXT_MIN_TOKEN_DF.get(context, MIN_TOKEN_DF)
     for index, token_set in row_token_sets.items():
         for token in token_set:
-            if token_df[token] < 2 or token_df[token] > GENERIC_TOKEN_MAX_DF:
+            if token_df[token] < min_token_df or token_df[token] > GENERIC_TOKEN_MAX_DF:
                 continue
             buckets[token].append(index)
 
-    eligible_buckets = {
-        token: indexes
+    eligible_bucket_items = [
+        (token, indexes)
         for token, indexes in buckets.items()
         if 2 <= len(indexes) <= MAX_BUCKET_SIZE
-    }
+    ]
+    eligible_bucket_items.sort(
+        key=lambda item: (
+            -len(item[1]),
+            -token_df[item[0]],
+            item[0],
+        )
+    )
+    max_buckets = CONTEXT_MAX_BUCKETS.get(context)
+    truncated_bucket_count = 0
+    if max_buckets is not None and len(eligible_bucket_items) > max_buckets:
+        truncated_bucket_count = len(eligible_bucket_items) - max_buckets
+        eligible_bucket_items = eligible_bucket_items[:max_buckets]
+    eligible_buckets = dict(eligible_bucket_items)
 
     print(
         f"V5 context start: context={context} eligible_rows={len(eligible_indexes)} "
         f"eligible_buckets={len(eligible_buckets)}"
     )
+    print(f"V5 encoding context: context={context} eligible_rows={len(eligible_indexes)}")
+
+    context_texts = [_semantic_text(rows[index]) for index in eligible_indexes]
+    context_embeddings = np.asarray(
+        model.encode(
+            context_texts,
+            batch_size=ENCODE_BATCH_SIZE,
+            normalize_embeddings=True,
+            show_progress_bar=False,
+        )
+    )
+    embedding_by_index = {
+        index: context_embeddings[position]
+        for position, index in enumerate(eligible_indexes)
+    }
 
     union_find = UnionFind(eligible_indexes)
     for bucket_index, (token, indexes) in enumerate(sorted(eligible_buckets.items()), start=1):
@@ -274,14 +321,8 @@ def _candidate_groups_for_context(context: str, rows: list[GroupRow], model: Sen
                 f"V5 progress: context={context} bucket={bucket_index}/{len(eligible_buckets)} "
                 f"token={token} bucket_size={len(indexes)}"
             )
-        texts = [_semantic_text(rows[index]) for index in indexes]
-        embeddings = model.encode(
-            texts,
-            batch_size=ENCODE_BATCH_SIZE,
-            normalize_embeddings=True,
-            show_progress_bar=False,
-        )
-        similarities = np.matmul(np.asarray(embeddings), np.asarray(embeddings).T)
+        bucket_embeddings = np.asarray([embedding_by_index[index] for index in indexes])
+        similarities = np.matmul(bucket_embeddings, bucket_embeddings.T)
 
         for left_position, left_index in enumerate(indexes):
             for right_position in range(left_position + 1, len(indexes)):
@@ -319,6 +360,7 @@ def _candidate_groups_for_context(context: str, rows: list[GroupRow], model: Sen
         "eligible_rows": len(eligible_indexes),
         "eligible_buckets": len(eligible_buckets),
         "merged_groups": len(merged_rows),
+        "truncated_buckets": truncated_bucket_count,
     }
     return merged_rows, consumed_indexes, stats
 
@@ -355,21 +397,38 @@ def _write_rows(csv_path: Path, rows: list[GroupRow]) -> None:
 
 
 def _write_summary(summary_path: Path, input_rows: list[GroupRow], output_rows: list[GroupRow], context_stats: dict[str, dict[str, int]], consumed_count: int) -> None:
-    new_merges = sum(max(0, row.member_count - 1) for row in output_rows if row.pattern_type == "v5_semantic")
-    summary_lines = [
+    v5_rows = [row for row in output_rows if row.pattern_type == "v5_semantic"]
+    new_merges = sum(max(0, row.member_count - 1) for row in v5_rows)
+    metrics = [
         f"input_csv: {V4_INPUT_CSV}",
         f"rows_read: {len(input_rows)}",
         f"rows_written: {len(output_rows)}",
         f"consumed_source_rows: {consumed_count}",
-        f"v5_semantic_groups: {sum(1 for row in output_rows if row.pattern_type == 'v5_semantic')}",
+        f"v5_semantic_groups: {len(v5_rows)}",
         f"new_merges: {new_merges}",
         f"contexts_analyzed: {len(context_stats)}",
     ]
-    for context, stats in sorted(context_stats.items()):
-        summary_lines.append(
-            f"context={context} eligible_rows={stats['eligible_rows']} eligible_buckets={stats['eligible_buckets']} merged_groups={stats['merged_groups']}"
-        )
-    summary_path.write_text("\n".join(summary_lines) + "\n", encoding="utf-8")
+    context_lines = [
+        "context_stats:",
+        *[
+            f"context={context} eligible_rows={stats['eligible_rows']} eligible_buckets={stats['eligible_buckets']} "
+            f"truncated_buckets={stats.get('truncated_buckets', 0)} merged_groups={stats['merged_groups']}"
+            for context, stats in sorted(context_stats.items())
+        ],
+    ]
+    sample_section = build_random_sample_section(
+        title="sample_groups",
+        rows=v5_rows,
+        formatter=lambda row, index: [
+            f"{index}. context={row.context} canon_tag={row.canon_tag} "
+            f"member_count={row.member_count} total_occurrences={row.total_occurrences} "
+            f"anchor_tokens={' | '.join(row.anchor_tokens) if row.anchor_tokens else '-'}",
+            f"   members={' | '.join(row.member_tags)}",
+        ],
+        sample_size=20,
+        seed=0,
+    )
+    write_stage_diagnostics(summary_path, metrics=metrics, sections=[context_lines, sample_section])
 
 
 def main() -> None:

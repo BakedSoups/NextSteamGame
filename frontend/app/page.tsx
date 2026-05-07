@@ -21,13 +21,13 @@ const DEFAULT_MATCH_WEIGHTS: Weights["match"] = {
 }
 
 const DEFAULT_CONTEXT_WEIGHTS: Weights["context"] = {
-  mechanics: 33,
-  narrative: 5,
-  vibe: 9,
-  structure_loop: 29,
-  identity: 9,
-  setting: 5,
-  music: 10,
+  mechanics: 20,
+  narrative: 8,
+  vibe: 10,
+  structure_loop: 18,
+  identity: 18,
+  setting: 13,
+  music: 13,
 }
 
 const DEFAULT_APPEAL_WEIGHTS: Weights["appeal"] = {
@@ -136,17 +136,15 @@ function buildWeightsFromGame(game: Game): Weights {
     match: { ...DEFAULT_MATCH_WEIGHTS, ...(liveWeights.match ?? {}) },
     context: { ...DEFAULT_CONTEXT_WEIGHTS, ...(liveWeights.context ?? {}) },
     appeal: { ...DEFAULT_APPEAL_WEIGHTS, ...(liveWeights.appeal ?? {}) },
-    tags: liveWeights.tags
-      ? {
-          mechanics: liveWeights.tags.mechanics ?? {},
-          narrative: liveWeights.tags.narrative ?? {},
-          vibe: liveWeights.tags.vibe ?? {},
-          structure_loop: liveWeights.tags.structure_loop ?? {},
-          identity: liveWeights.tags.identity ?? {},
-          setting: liveWeights.tags.setting ?? {},
-          music: liveWeights.tags.music ?? {},
-        }
-      : buildTagWeights(game),
+    tags: {
+      mechanics: liveWeights.tags?.mechanics ?? {},
+      narrative: liveWeights.tags?.narrative ?? {},
+      vibe: liveWeights.tags?.vibe ?? {},
+      structure_loop: liveWeights.tags?.structure_loop ?? {},
+      identity: liveWeights.tags?.identity ?? {},
+      setting: liveWeights.tags?.setting ?? {},
+      music: liveWeights.tags?.music ?? {},
+    },
     genres: {
       primary: [...game.genres.primary],
       sub: [...game.genres.sub],
@@ -301,7 +299,6 @@ export default function NextSteamGamePage() {
   const thumbnailZoom = 1
   const thumbnailPosition = "center center"
   const thumbnailRadius = 2
-  const profileLogoImage = selectedGame?.assets.logo || ""
   const profileCardImage =
     selectedGame?.assets.libraryCapsule ||
     selectedGame?.assets.capsuleV5 ||
@@ -311,6 +308,7 @@ export default function NextSteamGamePage() {
   const showModeHint = !dismissedModeHints[controlMode]
   const selectedGameHasSemanticProfile = hasSemanticProfile(selectedGame)
   const selectedGameSteamUrl = steamStoreUrl(selectedGame)
+  const selectedGameScreenshots = selectedGame?.screenshots?.slice(0, 3) ?? []
 
   useEffect(() => {
     const query = searchQuery.trim()
@@ -366,7 +364,7 @@ export default function NextSteamGamePage() {
           body: JSON.stringify({
             appid: selectedGame.id,
             weights,
-            limit: 24,
+            limit: 16,
           }),
         })
         if (!cancelled) {
@@ -841,18 +839,6 @@ export default function NextSteamGamePage() {
                         Back to Search
                       </button>
                     </div>
-
-                    {profileLogoImage ? (
-                      <div className="relative h-16 w-full max-w-[340px] self-start md:h-20">
-                        <img
-                          src={profileLogoImage}
-                          alt={`${selectedGame?.title || "Selected game"} logo`}
-                          className="h-full w-full object-contain object-left md:object-right drop-shadow-[0_10px_18px_rgba(0,0,0,0.28)]"
-                        />
-                      </div>
-                    ) : (
-                      <div className="h-16 w-full max-w-[340px] md:h-20" />
-                    )}
                   </div>
 
                   <div
@@ -930,6 +916,49 @@ export default function NextSteamGamePage() {
                       <p className="mt-5 max-w-3xl text-sm leading-7 text-slate-300 md:text-[15px]">
                         Choose what you like. Start with the traits that make this game click, then switch to advanced mode when you want full control over vectors, match weighting, and detailed profile shaping.
                       </p>
+
+                      {selectedGameScreenshots.length > 0 ? (
+                        <>
+                          <div className="mt-6 md:hidden">
+                            <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                              {selectedGameScreenshots.map((url, index) => (
+                                <a
+                                  key={`selected-shot-mobile-${index}`}
+                                  href={url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="group min-w-[168px] overflow-hidden rounded-xl border border-white/10 bg-black/20"
+                                >
+                                  <img
+                                    src={url}
+                                    alt={`${selectedGame?.title || "Selected game"} screenshot ${index + 1}`}
+                                    className="h-24 w-[168px] object-cover transition-transform duration-200 group-hover:scale-[1.02]"
+                                  />
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="mt-6 hidden md:block">
+                            <div className="grid max-w-3xl grid-cols-3 gap-3">
+                              {selectedGameScreenshots.map((url, index) => (
+                                <a
+                                  key={`selected-shot-${index}`}
+                                  href={url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="group overflow-hidden rounded-xl border border-white/10 bg-black/20"
+                                >
+                                  <img
+                                    src={url}
+                                    alt={`${selectedGame?.title || "Selected game"} screenshot ${index + 1}`}
+                                    className="h-28 w-full object-cover transition-transform duration-200 group-hover:scale-[1.02]"
+                                  />
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        </>
+                      ) : null}
                     </div>
                   </div>
 

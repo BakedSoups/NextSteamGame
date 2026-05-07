@@ -1,8 +1,30 @@
-from .canon_export import main as run_v1_main
-from .canon_group_v2 import main as run_v2_main
-from .canon_group_v3 import main as run_v3_main
-from .canon_group_v4 import main as run_v4_main
-from .canon_group_v5 import main as run_v5_main
+from __future__ import annotations
+
+from importlib import import_module
+
+
+def run_v1_main():
+    return import_module("db_creation.canon_group_pipeline.canon_export").main()
+
+
+def run_v2_main():
+    return import_module("db_creation.canon_group_pipeline.canon_group_v2").main()
+
+
+def run_v3_main():
+    return import_module("db_creation.canon_group_pipeline.canon_group_v3").main()
+
+
+def run_v4_main():
+    return import_module("db_creation.canon_group_pipeline.canon_group_v4").main()
+
+
+def run_v5_main():
+    return import_module("db_creation.canon_group_pipeline.canon_group_v5").main()
+
+
+def run_v6_main():
+    return import_module("db_creation.canon_group_pipeline.canon_group_v6").main()
 
 __all__ = [
     "run_v1_main",
@@ -10,4 +32,5 @@ __all__ = [
     "run_v3_main",
     "run_v4_main",
     "run_v5_main",
+    "run_v6_main",
 ]

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from paths import analysis_dir, initial_noncanon_db_path
+from db_creation.paths import analysis_dir, initial_noncanon_db_path
 
 
 DEFAULT_NONCANON_DB_PATH = initial_noncanon_db_path()

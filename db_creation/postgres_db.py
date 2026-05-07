@@ -1,10 +1,16 @@
 #!/usr/bin/env python3
 
+from __future__ import annotations
+
 import sys
+from pathlib import Path
 from urllib.parse import urlsplit
 
-from paths import final_canon_db_path, metadata_db_path
-from postgres.load_from_sqlite import postgres_dsn
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from db_creation.paths import final_canon_db_path, metadata_db_path
+from db_creation.postgres.load_from_sqlite import postgres_dsn
 
 
 METADATA_DB_PATH = metadata_db_path()
@@ -49,13 +55,13 @@ def confirm_postgres_reset() -> bool:
 
 
 def run_final_build() -> dict:
-    from final_db import run_final_build as build_final_db
+    from db_creation.final_db import run_final_build as build_final_db
 
     return build_final_db()
 
 
 def run_postgres_load(*, reset_all: bool) -> int:
-    from postgres.load_from_sqlite import main as load_main
+    from db_creation.postgres.load_from_sqlite import main as load_main
 
     return load_main(reset_all=reset_all)
 

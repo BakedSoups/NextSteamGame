@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import re
+from contextlib import nullcontext
 from typing import Any
 
 
@@ -23,7 +24,13 @@ class PostgresGameStore:
     def _connect(self):
         return self._psycopg.connect(self.dsn, row_factory=self._dict_row)
 
-    def _load_screenshots_for_appids(self, appids: list[int], limit_per_game: int = 3) -> dict[int, list[str]]:
+    def _load_screenshots_for_appids(
+        self,
+        appids: list[int],
+        limit_per_game: int = 3,
+        *,
+        connection: Any | None = None,
+    ) -> dict[int, list[str]]:
         if not appids:
             return {}
 
@@ -41,8 +48,9 @@ class PostgresGameStore:
             ORDER BY appid, row_num
         """
         screenshots: dict[int, list[str]] = {}
-        with self._connect() as connection:
-            with connection.cursor() as cursor:
+        connection_manager = nullcontext(connection) if connection is not None else self._connect()
+        with connection_manager as active_connection:
+            with active_connection.cursor() as cursor:
                 cursor.execute(sql, (appids, limit_per_game))
                 rows = cursor.fetchall()
 
@@ -68,6 +76,26 @@ class PostgresGameStore:
         with self._connect() as connection:
             with connection.cursor() as cursor:
                 cursor.execute(sql)
+            connection.commit()
+
+    def ensure_recommendation_indexes(self) -> None:
+        statements = [
+            "CREATE INDEX IF NOT EXISTS games_recommendations_total_idx ON games (recommendations_total DESC NULLS LAST)",
+            "CREATE INDEX IF NOT EXISTS games_signature_tag_idx ON games ((canonical_metadata ->> 'signature_tag'))",
+            "CREATE INDEX IF NOT EXISTS games_music_primary_idx ON games ((canonical_metadata ->> 'music_primary'))",
+            "CREATE INDEX IF NOT EXISTS games_music_secondary_idx ON games ((canonical_metadata ->> 'music_secondary'))",
+            "CREATE INDEX IF NOT EXISTS games_niche_anchors_gin_idx ON games USING GIN ((COALESCE(canonical_metadata -> 'niche_anchors', '[]'::jsonb)))",
+            "CREATE INDEX IF NOT EXISTS games_identity_tags_gin_idx ON games USING GIN ((COALESCE(canonical_metadata -> 'identity_tags', '[]'::jsonb)))",
+            "CREATE INDEX IF NOT EXISTS games_micro_tags_gin_idx ON games USING GIN ((COALESCE(canonical_metadata -> 'micro_tags', '[]'::jsonb)))",
+            "CREATE INDEX IF NOT EXISTS games_setting_tags_gin_idx ON games USING GIN ((COALESCE(canonical_metadata -> 'setting_tags', '[]'::jsonb)))",
+            "CREATE INDEX IF NOT EXISTS games_genre_primary_gin_idx ON games USING GIN ((COALESCE(canonical_metadata -> 'genre_tree' -> 'primary', '[]'::jsonb)))",
+            "CREATE INDEX IF NOT EXISTS games_genre_sub_gin_idx ON games USING GIN ((COALESCE(canonical_metadata -> 'genre_tree' -> 'sub', '[]'::jsonb)))",
+            "CREATE INDEX IF NOT EXISTS games_genre_sub_sub_gin_idx ON games USING GIN ((COALESCE(canonical_metadata -> 'genre_tree' -> 'sub_sub', '[]'::jsonb)))",
+        ]
+        with self._connect() as connection:
+            with connection.cursor() as cursor:
+                for statement in statements:
+                    cursor.execute(statement)
             connection.commit()
 
     @staticmethod
@@ -180,10 +208,74 @@ class PostgresGameStore:
         boosted_identity_tags = [str(tag).strip() for tag in tag_boosts.get("identity", {}).keys() if str(tag).strip()]
         boosted_setting_tags = [str(tag).strip() for tag in tag_boosts.get("setting", {}).keys() if str(tag).strip()]
 
-        sql = """
+        where_clauses: list[str] = []
+        where_params: list[Any] = []
+
+        if signature_tags:
+            where_clauses.append("canonical_metadata ->> 'signature_tag' = ANY(%s)")
+            where_params.append(signature_tags)
+        if niche_anchor_tags:
+            where_clauses.append("COALESCE(canonical_metadata -> 'niche_anchors', '[]'::jsonb) ?| %s")
+            where_params.append(niche_anchor_tags)
+        if identity_detail_tags:
+            where_clauses.append("COALESCE(canonical_metadata -> 'identity_tags', '[]'::jsonb) ?| %s")
+            where_params.append(identity_detail_tags)
+            where_clauses.append("COALESCE(canonical_metadata -> 'micro_tags', '[]'::jsonb) ?| %s")
+            where_params.append(identity_detail_tags)
+        if boosted_identity_tags:
+            where_clauses.append("COALESCE(canonical_metadata -> 'identity_tags', '[]'::jsonb) ?| %s")
+            where_params.append(boosted_identity_tags)
+            where_clauses.append("COALESCE(canonical_metadata -> 'niche_anchors', '[]'::jsonb) ?| %s")
+            where_params.append(boosted_identity_tags)
+        if setting_tags:
+            where_clauses.append("COALESCE(canonical_metadata -> 'setting_tags', '[]'::jsonb) ?| %s")
+            where_params.append(setting_tags)
+        if boosted_setting_tags:
+            where_clauses.append("COALESCE(canonical_metadata -> 'setting_tags', '[]'::jsonb) ?| %s")
+            where_params.append(boosted_setting_tags)
+        if music_tags:
+            where_clauses.append("canonical_metadata ->> 'music_primary' = ANY(%s)")
+            where_params.append(music_tags)
+            where_clauses.append("canonical_metadata ->> 'music_secondary' = ANY(%s)")
+            where_params.append(music_tags)
+        if primary_genres:
+            where_clauses.append(
+                """(
+                    (jsonb_typeof(canonical_metadata -> 'genre_tree' -> 'primary') = 'array'
+                     AND COALESCE(canonical_metadata -> 'genre_tree' -> 'primary', '[]'::jsonb) ?| %s)
+                    OR canonical_metadata -> 'genre_tree' ->> 'primary' = ANY(%s)
+                )"""
+            )
+            where_params.extend([primary_genres, primary_genres])
+        if sub_genres:
+            where_clauses.append(
+                """(
+                    (jsonb_typeof(canonical_metadata -> 'genre_tree' -> 'sub') = 'array'
+                     AND COALESCE(canonical_metadata -> 'genre_tree' -> 'sub', '[]'::jsonb) ?| %s)
+                    OR canonical_metadata -> 'genre_tree' ->> 'sub' = ANY(%s)
+                )"""
+            )
+            where_params.extend([sub_genres, sub_genres])
+        if sub_sub_genres:
+            where_clauses.append(
+                """(
+                    (jsonb_typeof(canonical_metadata -> 'genre_tree' -> 'sub_sub') = 'array'
+                     AND COALESCE(canonical_metadata -> 'genre_tree' -> 'sub_sub', '[]'::jsonb) ?| %s)
+                    OR canonical_metadata -> 'genre_tree' ->> 'sub_sub' = ANY(%s)
+                )"""
+            )
+            where_params.extend([sub_sub_genres, sub_sub_genres])
+
+        where_sql = "appid <> %s"
+        params: list[Any] = [int(base_game["appid"])]
+        if where_clauses:
+            where_sql += " AND (" + " OR ".join(where_clauses) + ")"
+            params.extend(where_params)
+
+        sql = f"""
             SELECT appid
             FROM games
-            WHERE appid <> %s
+            WHERE {where_sql}
             ORDER BY (
                 CASE WHEN canonical_metadata ->> 'signature_tag' = ANY(%s) THEN 18 ELSE 0 END +
                 CASE WHEN COALESCE(canonical_metadata -> 'niche_anchors', '[]'::jsonb) ?| %s THEN 12 ELSE 0 END +
@@ -224,8 +316,7 @@ class PostgresGameStore:
             appid
             LIMIT %s
         """
-        params: list[Any] = [
-            int(base_game["appid"]),
+        params.extend([
             signature_tags or [""],
             niche_anchor_tags or [""],
             identity_detail_tags or [""],
@@ -243,7 +334,7 @@ class PostgresGameStore:
             sub_sub_genres or [""],
             sub_sub_genres or [""],
             limit,
-        ]
+        ])
 
         with self._connect() as connection:
             with connection.cursor() as cursor:
@@ -429,10 +520,10 @@ class PostgresGameStore:
             with connection.cursor() as cursor:
                 cursor.execute(sql, (appid,))
                 row = cursor.fetchone()
-        if row is None:
-            return None
-        screenshots_by_appid = self._load_screenshots_for_appids([appid])
-        return self._row_to_game(row, screenshots_by_appid.get(appid, []))
+            if row is None:
+                return None
+            screenshots_by_appid = self._load_screenshots_for_appids([appid], connection=connection)
+            return self._row_to_game(row, screenshots_by_appid.get(appid, []))
 
     def load_games_by_appids(self, appids: list[int]) -> list[dict[str, Any]]:
         normalized_appids: list[int] = []
@@ -483,8 +574,7 @@ class PostgresGameStore:
             with connection.cursor() as cursor:
                 cursor.execute(sql, (normalized_appids,))
                 rows = cursor.fetchall()
-
-        screenshots_by_appid = self._load_screenshots_for_appids(normalized_appids)
+            screenshots_by_appid = self._load_screenshots_for_appids(normalized_appids, connection=connection)
         row_by_appid = {
             int(row["appid"]): self._row_to_game(row, screenshots_by_appid.get(int(row["appid"]), []))
             for row in rows
@@ -525,12 +615,12 @@ class PostgresGameStore:
             with connection.cursor() as cursor:
                 cursor.execute(sql)
                 rows = cursor.fetchall()
-        appids = [int(row["appid"]) for row in rows]
-        screenshots_by_appid = self._load_screenshots_for_appids(appids)
-        return [
-            self._row_to_game(row, screenshots_by_appid.get(int(row["appid"]), []))
-            for row in rows
-        ]
+            appids = [int(row["appid"]) for row in rows]
+            screenshots_by_appid = self._load_screenshots_for_appids(appids, connection=connection)
+            return [
+                self._row_to_game(row, screenshots_by_appid.get(int(row["appid"]), []))
+                for row in rows
+            ]
 
     def record_ui_diagnostic(
         self,

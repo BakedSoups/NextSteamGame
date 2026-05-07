@@ -53,6 +53,7 @@ if not postgres_dsn:
 
 store = PostgresGameStore(postgres_dsn)
 store.ensure_diagnostics_table()
+store.ensure_recommendation_indexes()
 retriever = CandidateRetriever(
     chroma_dir=chroma_dir_path(),
     store=store,
@@ -366,12 +367,9 @@ def defaults() -> dict[str, Any]:
 @app.get("/api/search")
 def search_games(q: str = Query("", alias="q"), limit: int = Query(8, ge=1, le=25)) -> dict[str, Any]:
     results = store.search_games(q, limit=limit)
-    serialized_results: list[dict[str, Any]] = []
-    for item in results:
-        game = store.get_game(item["appid"])
-        if game is None:
-            continue
-        serialized_results.append(_serialize_game(game))
+    appids = [int(item["appid"]) for item in results if item.get("appid") is not None]
+    games = store.load_games_by_appids(appids)
+    serialized_results = [_serialize_game(game) for game in games]
     return {"query": q, "results": serialized_results}
 
 

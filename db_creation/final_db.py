@@ -1,14 +1,22 @@
 #!/usr/bin/env python3
 
-import sqlite3
+from __future__ import annotations
 
-from paths import analysis_dir, final_canon_db_path, initial_noncanon_db_path, metadata_db_path
+import argparse
+import sqlite3
+import sys
+from pathlib import Path
+
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from db_creation.paths import analysis_dir, final_canon_db_path, initial_noncanon_db_path, metadata_db_path
 
 NONCANON_DB_PATH = initial_noncanon_db_path()
 OUTPUT_DB_PATH = final_canon_db_path()
 METADATA_DB_PATH = metadata_db_path()
 ANALYSIS_DIR = analysis_dir()
-CANON_GROUPS_CSV_PATH = ANALYSIS_DIR / "canon_groups_v5.csv"
+CANON_GROUPS_CSV_PATH = ANALYSIS_DIR / "canon_groups_v6.csv"
 BATCH_SIZE = 500
 
 
@@ -108,8 +116,18 @@ def _sync_screenshots_into_final_db(*, metadata_db_path, final_db_path) -> int:
     return stored_count
 
 
-def run_final_build() -> dict:
-    from final_pipeline import run_final_db_build
+def run_canon_group_pipeline() -> int:
+    from db_creation.canon_group_pipeline.canon_full_pipeline import main as run_canon_group_main
+
+    return run_canon_group_main()
+
+
+def run_final_build(*, build_canon_groups: bool = True) -> dict:
+    from db_creation.final_pipeline import run_final_db_build
+
+    if build_canon_groups:
+        print("Running canon group pipeline before final DB build")
+        run_canon_group_pipeline()
 
     summary = run_final_db_build(
         noncanon_db_path=NONCANON_DB_PATH,
@@ -130,7 +148,20 @@ def print_run_configuration() -> None:
     print(f"Building final canonical DB from {NONCANON_DB_PATH}")
     print(f"Output DB: {OUTPUT_DB_PATH}")
     print(f"Canon groups CSV: {CANON_GROUPS_CSV_PATH}")
+    print("Canon group pipeline: v1 -> v6 will run before DB build")
     print(f"Batch size: {BATCH_SIZE}")
+
+
+def print_canon_outputs() -> None:
+    print()
+    print("Canon pipeline outputs ready for inspection:")
+    print(f"  {ANALYSIS_DIR / 'canon_groups.csv'}")
+    print(f"  {ANALYSIS_DIR / 'canon_groups_v2.csv'}")
+    print(f"  {ANALYSIS_DIR / 'canon_groups_v3.csv'}")
+    print(f"  {ANALYSIS_DIR / 'canon_groups_v4.csv'}")
+    print(f"  {ANALYSIS_DIR / 'canon_groups_v5.csv'}")
+    print(f"  {ANALYSIS_DIR / 'canon_groups_v6.csv'}")
+    print(f"  {ANALYSIS_DIR / 'canon_groups_v6_summary.txt'}")
 
 
 def print_run_summary(summary: dict) -> None:
@@ -141,9 +172,38 @@ def print_run_summary(summary: dict) -> None:
     print(f"Final DB: {summary['output_db_path']}")
 
 
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Run the canon group pipeline and optionally build the final canonical DB."
+    )
+    parser.add_argument(
+        "--canon-only",
+        action="store_true",
+        help="Run canon export/grouping through v6 and stop before building the final DB.",
+    )
+    parser.add_argument(
+        "--skip-canon",
+        action="store_true",
+        help="Skip the canon pipeline and build the final DB from the existing canon CSV.",
+    )
+    return parser.parse_args()
+
+
 def main() -> int:
+    args = parse_args()
+    if args.canon_only and args.skip_canon:
+        raise SystemExit("--canon-only and --skip-canon cannot be used together")
+
     print_run_configuration()
-    summary = run_final_build()
+    if not args.skip_canon:
+        run_canon_group_pipeline()
+        print_canon_outputs()
+        if args.canon_only:
+            print()
+            print("Stopping after canon pipeline because --canon-only was requested.")
+            return 0
+
+    summary = run_final_build(build_canon_groups=False)
     print_run_summary(summary)
     return 0
 

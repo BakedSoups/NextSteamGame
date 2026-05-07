@@ -8,12 +8,12 @@ from pathlib import Path
 import numpy as np
 from sentence_transformers import SentenceTransformer
 
-from canon_pipeline.layer_1_normalization import normalize_tag, tokenize
+from db_creation.canon_pipeline.layer_1_normalization import normalize_tag, tokenize
+from .diagnostics import write_stage_diagnostics
 
 
-ANALYSIS_DIR = Path(__file__).resolve().parent / "analysis"
-V1_INPUT_CSV = ANALYSIS_DIR / "canon_groups.csv"
-V2_INPUT_CSV = ANALYSIS_DIR / "canon_groups_v2.csv"
+ANALYSIS_DIR = Path(__file__).resolve().parents[1] / "analysis"
+INPUT_CSV = ANALYSIS_DIR / "canon_groups_v2.csv"
 OUTPUT_CSV = ANALYSIS_DIR / "canon_groups_v3.csv"
 SUMMARY_TXT = ANALYSIS_DIR / "canon_groups_v3_summary.txt"
 
@@ -78,9 +78,12 @@ WRAPPER_TOKENS = {
 class CanonRow:
     context: str
     canon_tag: str
+    final_tag: str
     member_count: int
     total_occurrences: int
     member_tags: tuple[str, ...]
+    pattern_type: str
+    anchor_tokens: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -126,26 +129,15 @@ def _load_rows(csv_path: Path) -> list[CanonRow]:
                 CanonRow(
                     context=(row.get("context") or "").strip(),
                     canon_tag=(row.get("canon_tag") or "").strip(),
+                    final_tag=(row.get("final_tag") or "").strip(),
                     member_count=int(row.get("member_count") or 0),
                     total_occurrences=int(row.get("total_occurrences") or 0),
                     member_tags=_parse_member_tags(row.get("member_tags") or ""),
+                    pattern_type=(row.get("pattern_type") or "").strip(),
+                    anchor_tokens=_parse_member_tags(row.get("anchor_tokens") or ""),
                 )
             )
     return rows
-
-
-def _load_v2_claimed_members(csv_path: Path) -> set[tuple[str, str]]:
-    if not csv_path.exists():
-        return set()
-
-    claimed: set[tuple[str, str]] = set()
-    with csv_path.open(newline="", encoding="utf-8") as handle:
-        reader = csv.DictReader(handle)
-        for row in reader:
-            context = (row.get("context") or "").strip()
-            for member in _parse_member_tags(row.get("member_tags") or ""):
-                claimed.add((context, member))
-    return claimed
 
 
 def _normalize_semantic_tokens(tag: str) -> list[str]:
@@ -171,12 +163,10 @@ def _semantic_token_sets(rows: list[CanonRow]) -> dict[int, tuple[str, ...]]:
     return token_sets
 
 
-def _collect_v3_rows(rows: list[CanonRow], claimed_members: set[tuple[str, str]]) -> dict[str, list[CanonRow]]:
+def _collect_v3_rows(rows: list[CanonRow]) -> dict[str, list[CanonRow]]:
     grouped: dict[str, list[CanonRow]] = defaultdict(list)
     for row in rows:
-        if row.member_count != 1 or not row.canon_tag:
-            continue
-        if (row.context, row.canon_tag) in claimed_members:
+        if not row.canon_tag:
             continue
         grouped[row.context].append(row)
     return grouped
@@ -236,6 +226,17 @@ def _mine_context_candidates(context: str, rows: list[CanonRow], model: Sentence
         f"V3 context start: context={context} rows={len(rows)} "
         f"eligible_buckets={len(eligible_buckets)}"
     )
+    print(f"V3 encoding context: context={context} rows={len(rows)}")
+
+    context_texts = [normalize_tag(row.canon_tag) for row in rows]
+    context_embeddings = np.asarray(
+        model.encode(
+            context_texts,
+            batch_size=ENCODE_BATCH_SIZE,
+            normalize_embeddings=True,
+            show_progress_bar=False,
+        )
+    )
 
     union_find = UnionFind(list(range(len(rows))))
     processed_buckets = 0
@@ -250,14 +251,8 @@ def _mine_context_candidates(context: str, rows: list[CanonRow], model: Sentence
                 f"token={token} bucket_size={len(indexes)}"
             )
 
-        texts = [normalize_tag(rows[index].canon_tag) for index in indexes]
-        embeddings = model.encode(
-            texts,
-            batch_size=ENCODE_BATCH_SIZE,
-            normalize_embeddings=True,
-            show_progress_bar=False,
-        )
-        similarities = np.matmul(np.asarray(embeddings), np.asarray(embeddings).T)
+        bucket_embeddings = context_embeddings[indexes]
+        similarities = np.matmul(bucket_embeddings, bucket_embeddings.T)
 
         for left_position, left_index in enumerate(indexes):
             for right_position in range(left_position + 1, len(indexes)):
@@ -322,7 +317,57 @@ def _mine_context_candidates(context: str, rows: list[CanonRow], model: Sentence
     return candidates, stats
 
 
-def _write_candidates(csv_path: Path, candidates: list[V3Candidate]) -> None:
+def _build_output_rows(rows: list[CanonRow], candidates: list[V3Candidate]) -> tuple[list[CanonRow], int]:
+    consumed_members = {
+        (candidate.context, member)
+        for candidate in candidates
+        for member in candidate.member_tags
+    }
+    output_rows: list[CanonRow] = []
+    consumed_count = 0
+
+    for row in rows:
+        if row.canon_tag and (row.context, row.canon_tag) in consumed_members:
+            consumed_count += 1
+            continue
+        output_rows.append(row)
+
+    rows_by_key = {(row.context, row.canon_tag): row for row in rows if row.canon_tag}
+    for candidate in candidates:
+        consumed_rows = [
+            rows_by_key[(candidate.context, member)]
+            for member in candidate.member_tags
+            if (candidate.context, member) in rows_by_key
+        ]
+        merged_member_tags = tuple(
+            sorted(
+                {
+                    member
+                    for consumed_row in consumed_rows
+                    for member in (consumed_row.member_tags or ((consumed_row.canon_tag,) if consumed_row.canon_tag else tuple()))
+                }
+            )
+        )
+        output_rows.append(
+            CanonRow(
+                context=candidate.context,
+                canon_tag=candidate.canon_tag,
+                final_tag="",
+                member_count=len(merged_member_tags),
+                total_occurrences=candidate.total_occurrences,
+                member_tags=merged_member_tags,
+                pattern_type="semantic_bucket",
+                anchor_tokens=candidate.anchor_tokens,
+            )
+        )
+
+    output_rows.sort(
+        key=lambda row: (-row.member_count, -row.total_occurrences, row.context, row.canon_tag.lower()),
+    )
+    return output_rows, consumed_count
+
+
+def _write_rows(csv_path: Path, rows: list[CanonRow]) -> None:
     csv_path.parent.mkdir(parents=True, exist_ok=True)
     with csv_path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.writer(handle)
@@ -338,60 +383,63 @@ def _write_candidates(csv_path: Path, candidates: list[V3Candidate]) -> None:
                 "anchor_tokens",
             ]
         )
-        for candidate in candidates:
+        for row in rows:
             writer.writerow(
                 [
-                    candidate.context,
-                    candidate.canon_tag,
-                    "",
-                    candidate.member_count,
-                    candidate.total_occurrences,
-                    " | ".join(candidate.member_tags),
-                    "semantic_bucket",
-                    " | ".join(candidate.anchor_tokens),
+                    row.context,
+                    row.canon_tag,
+                    row.final_tag,
+                    row.member_count,
+                    row.total_occurrences,
+                    " | ".join(row.member_tags),
+                    row.pattern_type,
+                    " | ".join(row.anchor_tokens),
                 ]
             )
 
 
-def _write_summary(summary_path: Path, rows: list[CanonRow], claimed_members: set[tuple[str, str]], candidates: list[V3Candidate], context_stats: dict[str, dict[str, int]]) -> None:
-    singleton_count = sum(1 for row in rows if row.member_count == 1)
-    unresolved_singletons = sum(
-        1
-        for row in rows
-        if row.member_count == 1 and (row.context, row.canon_tag) not in claimed_members
-    )
-    new_merges = sum(max(0, candidate.member_count - 1) for candidate in candidates)
+def _write_summary(summary_path: Path, rows: list[CanonRow], output_rows: list[CanonRow], candidates: list[V3Candidate], context_stats: dict[str, dict[str, int]], consumed_count: int) -> None:
+    regroupable_rows = sum(1 for row in rows if row.canon_tag)
+    group_merges = sum(max(0, candidate.member_count - 1) for candidate in candidates)
     total_eligible_buckets = sum(stats["eligible_buckets"] for stats in context_stats.values())
     total_processed_buckets = sum(stats["processed_buckets"] for stats in context_stats.values())
     total_skipped_large_buckets = sum(stats["skipped_large_buckets"] for stats in context_stats.values())
     total_skipped_oversized_groups = sum(stats["skipped_oversized_groups"] for stats in context_stats.values())
     total_skipped_weak_anchor_groups = sum(stats["skipped_weak_anchor_groups"] for stats in context_stats.values())
 
-    summary_lines = [
-        f"input_csv: {V1_INPUT_CSV}",
-        f"v2_input_csv: {V2_INPUT_CSV}",
+    metrics = [
+        f"input_csv: {INPUT_CSV}",
         f"rows_read: {len(rows)}",
-        f"singleton_rows: {singleton_count}",
-        f"v2_claimed_members: {len(claimed_members)}",
-        f"unresolved_singletons: {unresolved_singletons}",
+        f"rows_written: {len(output_rows)}",
+        f"rows_evaluated_for_regrouping: {regroupable_rows}",
+        f"consumed_source_rows: {consumed_count}",
         f"v3_candidates: {len(candidates)}",
-        f"new_merges: {new_merges}",
+        f"group_merges: {group_merges}",
         f"eligible_buckets: {total_eligible_buckets}",
         f"processed_buckets: {total_processed_buckets}",
         f"skipped_large_buckets: {total_skipped_large_buckets}",
         f"skipped_oversized_groups: {total_skipped_oversized_groups}",
         f"skipped_weak_anchor_groups: {total_skipped_weak_anchor_groups}",
     ]
-    summary_path.write_text("\n".join(summary_lines) + "\n", encoding="utf-8")
+    context_lines = [
+        "context_stats:",
+        *[
+            f"{context}: rows={stats['rows']} eligible_buckets={stats['eligible_buckets']} "
+            f"processed_buckets={stats['processed_buckets']} skipped_large_buckets={stats['skipped_large_buckets']} "
+            f"skipped_oversized_groups={stats['skipped_oversized_groups']} skipped_weak_anchor_groups={stats['skipped_weak_anchor_groups']} "
+            f"emitted_groups={stats['candidates']}"
+            for context, stats in sorted(context_stats.items())
+        ],
+    ]
+    write_stage_diagnostics(summary_path, metrics=metrics, sections=[context_lines])
 
 
 def main() -> None:
-    if not V1_INPUT_CSV.exists():
-        raise FileNotFoundError(f"Missing canon groups CSV: {V1_INPUT_CSV}")
+    if not INPUT_CSV.exists():
+        raise FileNotFoundError(f"Missing v2 groups CSV: {INPUT_CSV}")
 
-    rows = _load_rows(V1_INPUT_CSV)
-    claimed_members = _load_v2_claimed_members(V2_INPUT_CSV)
-    grouped_rows = _collect_v3_rows(rows, claimed_members)
+    rows = _load_rows(INPUT_CSV)
+    grouped_rows = _collect_v3_rows(rows)
     model = SentenceTransformer(EMBEDDING_MODEL)
 
     candidates: list[V3Candidate] = []
@@ -407,14 +455,16 @@ def main() -> None:
         key=lambda candidate: (-candidate.member_count, -candidate.total_occurrences, candidate.context, candidate.canon_tag),
     )
 
-    _write_candidates(OUTPUT_CSV, candidates)
-    _write_summary(SUMMARY_TXT, rows, claimed_members, candidates, context_stats)
+    output_rows, consumed_count = _build_output_rows(rows, candidates)
+    _write_rows(OUTPUT_CSV, output_rows)
+    _write_summary(SUMMARY_TXT, rows, output_rows, candidates, context_stats, consumed_count)
 
     print(f"Rows read: {len(rows)}")
-    print(f"V2 claimed members: {len(claimed_members)}")
+    print(f"Rows written: {len(output_rows)}")
     print(f"Contexts analyzed: {len(grouped_rows)}")
     print(f"V3 candidate groups: {len(candidates)}")
-    print(f"New merges: {sum(max(0, candidate.member_count - 1) for candidate in candidates)}")
+    print(f"Consumed source rows: {consumed_count}")
+    print(f"Group merges: {sum(max(0, candidate.member_count - 1) for candidate in candidates)}")
     print(f"V3 CSV: {OUTPUT_CSV}")
     print(f"Summary: {SUMMARY_TXT}")
 

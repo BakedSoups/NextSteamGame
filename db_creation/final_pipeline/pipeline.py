@@ -7,15 +7,15 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Dict
 
-from canon_pipeline.layer_1_normalization import normalize_tag
-from paths import analysis_dir, final_canon_db_path, initial_noncanon_db_path
+from db_creation.canon_pipeline.layer_1_normalization import normalize_tag
+from db_creation.paths import analysis_dir, final_canon_db_path, initial_noncanon_db_path
 
 
 BATCH_SIZE = 500
 NONCANON_DB_PATH = initial_noncanon_db_path()
 OUTPUT_DB_PATH = final_canon_db_path()
 ANALYSIS_DIR = analysis_dir()
-CANON_GROUPS_CSV_PATH = ANALYSIS_DIR / "canon_groups_v5.csv"
+CANON_GROUPS_CSV_PATH = ANALYSIS_DIR / "canon_groups_v6.csv"
 VECTOR_CONTEXTS = {"mechanics", "narrative", "vibe", "structure_loop"}
 
 

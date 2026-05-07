@@ -44,6 +44,7 @@ services:
       DB_CREATION_DATA_DIR: /app/data
     volumes:
       - ./data:/app/data
+      - chroma_model_cache:/root/.cache/chroma
     ports:
       - "127.0.0.1:8000:8000"
     restart: unless-stopped
@@ -63,3 +64,4 @@ services:
 
 volumes:
   postgres_data:
+  chroma_model_cache:

@@ -5,10 +5,11 @@ from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 
-from canon_pipeline.layer_1_normalization import normalize_tag, tokenize
+from db_creation.canon_pipeline.layer_1_normalization import normalize_tag, tokenize
+from .diagnostics import write_stage_diagnostics
 
 
-ANALYSIS_DIR = Path(__file__).resolve().parent / "analysis"
+ANALYSIS_DIR = Path(__file__).resolve().parents[1] / "analysis"
 INPUT_CSV = ANALYSIS_DIR / "canon_groups.csv"
 OUTPUT_CSV = ANALYSIS_DIR / "canon_groups_v2.csv"
 SUMMARY_TXT = ANALYSIS_DIR / "canon_groups_v2_summary.txt"
@@ -73,9 +74,12 @@ WRAPPER_TOKENS = {
 class CanonRow:
     context: str
     canon_tag: str
+    final_tag: str
     member_count: int
     total_occurrences: int
     member_tags: tuple[str, ...]
+    pattern_type: str
+    anchor_tokens: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -107,21 +111,24 @@ def _load_rows(csv_path: Path) -> list[CanonRow]:
                 CanonRow(
                     context=(row.get("context") or "").strip(),
                     canon_tag=(row.get("canon_tag") or "").strip(),
+                    final_tag=(row.get("final_tag") or "").strip(),
                     member_count=int(row.get("member_count") or 0),
                     total_occurrences=int(row.get("total_occurrences") or 0),
                     member_tags=_parse_member_tags(row.get("member_tags") or ""),
+                    pattern_type=(row.get("pattern_type") or "").strip(),
+                    anchor_tokens=_parse_member_tags(row.get("anchor_tokens") or ""),
                 )
             )
     return rows
 
 
-def _collect_singletons(rows: list[CanonRow]) -> dict[str, list[CanonRow]]:
-    singleton_rows: dict[str, list[CanonRow]] = defaultdict(list)
+def _collect_candidate_rows(rows: list[CanonRow]) -> dict[str, list[CanonRow]]:
+    candidate_rows: dict[str, list[CanonRow]] = defaultdict(list)
     for row in rows:
-        if row.member_count != 1 or not row.canon_tag:
+        if not row.canon_tag:
             continue
-        singleton_rows[row.context].append(row)
-    return singleton_rows
+        candidate_rows[row.context].append(row)
+    return candidate_rows
 
 
 def _normalize_core_tokens(tokens: list[str]) -> list[str]:
@@ -147,10 +154,10 @@ def _concept_core(tag: str) -> str:
     return " ".join(content_tokens)
 
 
-def _mine_candidates(singleton_rows: dict[str, list[CanonRow]]) -> list[PatternCandidate]:
+def _mine_candidates(candidate_rows: dict[str, list[CanonRow]]) -> list[PatternCandidate]:
     core_buckets: dict[tuple[str, str], list[CanonRow]] = defaultdict(list)
 
-    for context, rows in singleton_rows.items():
+    for context, rows in candidate_rows.items():
         for row in rows:
             core = _concept_core(row.canon_tag)
             if core:
@@ -184,7 +191,65 @@ def _mine_candidates(singleton_rows: dict[str, list[CanonRow]]) -> list[PatternC
     )
 
 
-def _write_candidates(csv_path: Path, candidates: list[PatternCandidate]) -> None:
+def _candidate_anchor_tokens(candidate: PatternCandidate) -> tuple[str, ...]:
+    return tuple(token for token in tokenize(normalize_tag(candidate.pattern_key)) if token)
+
+
+def _row_leaf_members(row: CanonRow) -> tuple[str, ...]:
+    return row.member_tags or ((row.canon_tag,) if row.canon_tag else tuple())
+
+
+def _build_output_rows(rows: list[CanonRow], candidates: list[PatternCandidate]) -> tuple[list[CanonRow], int]:
+    consumed_members = {
+        (candidate.context, member)
+        for candidate in candidates
+        for member in candidate.members
+    }
+    output_rows: list[CanonRow] = []
+    consumed_count = 0
+
+    for row in rows:
+        if row.member_count == 1 and (row.context, row.canon_tag) in consumed_members:
+            consumed_count += 1
+            continue
+        output_rows.append(row)
+
+    rows_by_key = {(row.context, row.canon_tag): row for row in rows if row.canon_tag}
+    for candidate in candidates:
+        consumed_rows = [
+            rows_by_key[(candidate.context, member)]
+            for member in candidate.members
+            if (candidate.context, member) in rows_by_key
+        ]
+        merged_member_tags = tuple(
+            sorted(
+                {
+                    member
+                    for consumed_row in consumed_rows
+                    for member in _row_leaf_members(consumed_row)
+                }
+            )
+        )
+        output_rows.append(
+            CanonRow(
+                context=candidate.context,
+                canon_tag=candidate.canon_tag,
+                final_tag="",
+                member_count=len(merged_member_tags),
+                total_occurrences=candidate.total_occurrences,
+                member_tags=merged_member_tags,
+                pattern_type=candidate.pattern_type,
+                anchor_tokens=_candidate_anchor_tokens(candidate),
+            )
+        )
+
+    output_rows.sort(
+        key=lambda row: (-row.member_count, -row.total_occurrences, row.context, row.canon_tag.lower()),
+    )
+    return output_rows, consumed_count
+
+
+def _write_rows(csv_path: Path, rows: list[CanonRow]) -> None:
     csv_path.parent.mkdir(parents=True, exist_ok=True)
     with csv_path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.writer(handle)
@@ -197,35 +262,37 @@ def _write_candidates(csv_path: Path, candidates: list[PatternCandidate]) -> Non
                 "total_occurrences",
                 "member_tags",
                 "pattern_type",
-                "pattern_key",
+                "anchor_tokens",
             ]
         )
-        for candidate in candidates:
+        for row in rows:
             writer.writerow(
                 [
-                    candidate.context,
-                    candidate.canon_tag,
-                    "",
-                    candidate.member_count,
-                    candidate.total_occurrences,
-                    " | ".join(candidate.members),
-                    candidate.pattern_type,
-                    candidate.pattern_key,
+                    row.context,
+                    row.canon_tag,
+                    row.final_tag,
+                    row.member_count,
+                    row.total_occurrences,
+                    " | ".join(row.member_tags),
+                    row.pattern_type,
+                    " | ".join(row.anchor_tokens),
                 ]
             )
 
 
-def _write_summary(summary_path: Path, rows: list[CanonRow], candidates: list[PatternCandidate]) -> None:
-    singleton_count = sum(1 for row in rows if row.member_count == 1)
-    new_merges = sum(max(0, candidate.member_count - 1) for candidate in candidates)
-    summary_lines = [
+def _write_summary(summary_path: Path, rows: list[CanonRow], output_rows: list[CanonRow], candidates: list[PatternCandidate], consumed_count: int) -> None:
+    regroupable_rows = sum(1 for row in rows if row.canon_tag)
+    group_merges = sum(max(0, candidate.member_count - 1) for candidate in candidates)
+    metrics = [
         f"input_csv: {INPUT_CSV}",
         f"rows_read: {len(rows)}",
-        f"singleton_rows: {singleton_count}",
+        f"rows_written: {len(output_rows)}",
+        f"rows_evaluated_for_regrouping: {regroupable_rows}",
+        f"consumed_source_rows: {consumed_count}",
         f"v2_candidates: {len(candidates)}",
-        f"new_merges: {new_merges}",
+        f"group_merges: {group_merges}",
     ]
-    summary_path.write_text("\n".join(summary_lines) + "\n", encoding="utf-8")
+    write_stage_diagnostics(summary_path, metrics=metrics)
 
 
 def main() -> None:
@@ -233,15 +300,18 @@ def main() -> None:
         raise FileNotFoundError(f"Missing canon groups CSV: {INPUT_CSV}")
 
     rows = _load_rows(INPUT_CSV)
-    singleton_rows = _collect_singletons(rows)
-    candidates = _mine_candidates(singleton_rows)
-    _write_candidates(OUTPUT_CSV, candidates)
-    _write_summary(SUMMARY_TXT, rows, candidates)
+    candidate_rows = _collect_candidate_rows(rows)
+    candidates = _mine_candidates(candidate_rows)
+    output_rows, consumed_count = _build_output_rows(rows, candidates)
+    _write_rows(OUTPUT_CSV, output_rows)
+    _write_summary(SUMMARY_TXT, rows, output_rows, candidates, consumed_count)
 
     print(f"Rows read: {len(rows)}")
-    print(f"Contexts with singleton analysis: {len(singleton_rows)}")
+    print(f"Rows written: {len(output_rows)}")
+    print(f"Contexts with regroup analysis: {len(candidate_rows)}")
     print(f"V2 candidate groups: {len(candidates)}")
-    print(f"New merges: {sum(max(0, candidate.member_count - 1) for candidate in candidates)}")
+    print(f"Consumed source rows: {consumed_count}")
+    print(f"Group merges: {sum(max(0, candidate.member_count - 1) for candidate in candidates)}")
     print(f"V2 CSV: {OUTPUT_CSV}")
     print(f"Summary: {SUMMARY_TXT}")
 
