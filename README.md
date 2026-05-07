@@ -377,16 +377,16 @@ Local machine:
 bash scripts/server_deploy/rsync_push.sh
 ```
 
-Defaults:
+Defaults come from `scripts/server_deploy/.env`:
 
-- remote host: `root@134.209.35.2`
-- remote dir: `/root/Steam_Reccomender`
-- ssh key: `~/.ssh/id_ed25519`
+- remote host: `REMOTE_HOST`
+- remote dir: `REMOTE_DIR`
+- ssh key: `SSH_KEY`
 
 Then on the droplet:
 
 ```bash
-cd /root/Steam_Reccomender
+cd /root/steamrec2
 sudo DOMAIN=nextsteamgame.com bash scripts/server_deploy/cutover_server.sh
 ```
 

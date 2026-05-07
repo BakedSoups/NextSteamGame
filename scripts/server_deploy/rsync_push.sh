@@ -11,11 +11,16 @@ if [[ -f "${ENV_FILE}" ]]; then
   set +a
 fi
 
-REMOTE_HOST="${REMOTE_HOST:-root@134.209.35.2}"
+REMOTE_HOST="${REMOTE_HOST:-}"
 REMOTE_DIR="${REMOTE_DIR:-/root/steamrec2}"
 LOCAL_DIR="${LOCAL_DIR:-$(cd "${SCRIPT_DIR}/../.." && pwd)}"
 SSH_KEY="${SSH_KEY:-$HOME/.ssh/id_ed25519}"
 SEND_EVERYTHING="${SEND_EVERYTHING:-0}"
+
+if [[ -z "${REMOTE_HOST}" ]]; then
+  echo "REMOTE_HOST is not set. Configure scripts/server_deploy/.env or export REMOTE_HOST before running." >&2
+  exit 1
+fi
 
 RSYNC_ARGS=(
   -az

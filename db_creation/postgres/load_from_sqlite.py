@@ -322,6 +322,7 @@ def ensure_postgres_schema(cursor) -> None:
 
 
 def reset_postgres_tables(cursor, *, reset_all: bool = False) -> None:
+    cursor.execute("DROP TABLE IF EXISTS precomputed_candidates")
     cursor.execute("DROP TABLE IF EXISTS game_screenshots")
     cursor.execute("DROP TABLE IF EXISTS canonical_tag_members")
     cursor.execute("DROP TABLE IF EXISTS canonical_tag_groups")

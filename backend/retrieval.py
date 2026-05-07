@@ -259,9 +259,11 @@ class CandidateRetriever:
         tag_boosts: dict[str, dict[str, float]] | None = None,
         soundtrack_boosts: dict[str, float] | None = None,
     ) -> list[dict]:
+        precomputed_ids: list[int] = []
         prescreen_ids: list[int] = []
         chroma_ids: list[int] = []
         started = time.perf_counter()
+        precomputed_elapsed = 0.0
         prescreen_elapsed = 0.0
         chroma_elapsed = 0.0
         use_default_chroma_path = self._can_use_stored_embedding(
@@ -269,6 +271,30 @@ class CandidateRetriever:
             tag_boosts=tag_boosts,
             soundtrack_boosts=soundtrack_boosts,
         )
+
+        if self.store is not None:
+            precomputed_started = time.perf_counter()
+            precomputed_ids = self.store.load_precomputed_candidate_appids(
+                int(game["appid"]),
+                limit=merged_limit,
+            )
+            precomputed_elapsed = time.perf_counter() - precomputed_started
+            if precomputed_ids:
+                hydrate_started = time.perf_counter()
+                candidates = self.store.load_games_by_appids(precomputed_ids)
+                hydrate_elapsed = time.perf_counter() - hydrate_started
+                total_elapsed = time.perf_counter() - started
+                logger.info(
+                    "retrieve_candidates appid=%s precomputed_count=%s precomputed_wait=%.3fs "
+                    "hydrate=%.3fs total=%.3fs mode=precomputed",
+                    game.get("appid"),
+                    len(precomputed_ids),
+                    precomputed_elapsed,
+                    hydrate_elapsed,
+                    total_elapsed,
+                )
+                if candidates:
+                    return candidates
 
         with ThreadPoolExecutor(max_workers=2) as executor:
             prescreen_future = None
@@ -311,13 +337,15 @@ class CandidateRetriever:
             hydrate_elapsed = time.perf_counter() - hydrate_started
             total_elapsed = time.perf_counter() - started
             logger.info(
-                "retrieve_candidates appid=%s prescreen_count=%s chroma_count=%s merged_count=%s "
-                "candidate_count=%s prescreen_wait=%.3fs chroma_wait=%.3fs merge=%.3fs hydrate=%.3fs total=%.3fs",
+                "retrieve_candidates appid=%s precomputed_count=%s prescreen_count=%s chroma_count=%s merged_count=%s "
+                "candidate_count=%s precomputed_wait=%.3fs prescreen_wait=%.3fs chroma_wait=%.3fs merge=%.3fs hydrate=%.3fs total=%.3fs mode=live",
                 game.get("appid"),
+                len(precomputed_ids),
                 len(prescreen_ids),
                 len(chroma_ids),
                 len(merged_ids),
                 len(candidates),
+                precomputed_elapsed,
                 prescreen_elapsed,
                 chroma_elapsed,
                 merge_elapsed,
@@ -329,12 +357,14 @@ class CandidateRetriever:
 
         total_elapsed = time.perf_counter() - started
         logger.info(
-            "retrieve_candidates appid=%s prescreen_count=%s chroma_count=%s merged_count=%s "
-            "candidate_count=0 prescreen_wait=%.3fs chroma_wait=%.3fs merge=%.3fs total=%.3fs",
+            "retrieve_candidates appid=%s precomputed_count=%s prescreen_count=%s chroma_count=%s merged_count=%s "
+            "candidate_count=0 precomputed_wait=%.3fs prescreen_wait=%.3fs chroma_wait=%.3fs merge=%.3fs total=%.3fs mode=live",
             game.get("appid"),
+            len(precomputed_ids),
             len(prescreen_ids),
             len(chroma_ids),
             len(merged_ids),
+            precomputed_elapsed,
             prescreen_elapsed,
             chroma_elapsed,
             merge_elapsed,

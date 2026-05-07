@@ -81,3 +81,15 @@ CREATE TABLE IF NOT EXISTS game_screenshots (
 
 CREATE INDEX IF NOT EXISTS game_screenshots_appid_idx
     ON game_screenshots (appid);
+
+CREATE TABLE IF NOT EXISTS precomputed_candidates (
+    source_appid BIGINT NOT NULL REFERENCES games(appid) ON DELETE CASCADE,
+    candidate_appid BIGINT NOT NULL REFERENCES games(appid) ON DELETE CASCADE,
+    rank INTEGER NOT NULL,
+    source TEXT NOT NULL DEFAULT 'chroma',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (source_appid, candidate_appid)
+);
+
+CREATE INDEX IF NOT EXISTS precomputed_candidates_source_rank_idx
+    ON precomputed_candidates (source_appid, rank);

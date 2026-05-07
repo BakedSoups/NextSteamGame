@@ -54,6 +54,7 @@ if not postgres_dsn:
 store = PostgresGameStore(postgres_dsn)
 store.ensure_diagnostics_table()
 store.ensure_recommendation_indexes()
+store.ensure_precomputed_candidates_table()
 retriever = CandidateRetriever(
     chroma_dir=chroma_dir_path(),
     store=store,

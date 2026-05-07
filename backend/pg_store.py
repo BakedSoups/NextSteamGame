@@ -98,6 +98,86 @@ class PostgresGameStore:
                     cursor.execute(statement)
             connection.commit()
 
+    def ensure_precomputed_candidates_table(self) -> None:
+        statements = [
+            """
+            CREATE TABLE IF NOT EXISTS precomputed_candidates (
+                source_appid BIGINT NOT NULL REFERENCES games(appid) ON DELETE CASCADE,
+                candidate_appid BIGINT NOT NULL REFERENCES games(appid) ON DELETE CASCADE,
+                rank INTEGER NOT NULL,
+                source TEXT NOT NULL DEFAULT 'chroma',
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                PRIMARY KEY (source_appid, candidate_appid)
+            )
+            """,
+            """
+            CREATE INDEX IF NOT EXISTS precomputed_candidates_source_rank_idx
+                ON precomputed_candidates (source_appid, rank)
+            """,
+        ]
+        with self._connect() as connection:
+            with connection.cursor() as cursor:
+                for statement in statements:
+                    cursor.execute(statement)
+            connection.commit()
+
+    def load_precomputed_candidate_appids(self, source_appid: int, *, limit: int = 300) -> list[int]:
+        sql = """
+            SELECT candidate_appid
+            FROM precomputed_candidates
+            WHERE source_appid = %s
+            ORDER BY rank
+            LIMIT %s
+        """
+        with self._connect() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(sql, (int(source_appid), int(limit)))
+                rows = cursor.fetchall()
+        return [int(row["candidate_appid"]) for row in rows if row.get("candidate_appid") is not None]
+
+    def replace_precomputed_candidates(
+        self,
+        source_appid: int,
+        candidate_appids: list[int],
+        *,
+        source: str = "chroma",
+    ) -> None:
+        normalized_candidates: list[int] = []
+        seen: set[int] = set()
+        for raw_appid in candidate_appids:
+            try:
+                appid = int(raw_appid)
+            except (TypeError, ValueError):
+                continue
+            if appid == int(source_appid) or appid in seen:
+                continue
+            seen.add(appid)
+            normalized_candidates.append(appid)
+
+        delete_sql = "DELETE FROM precomputed_candidates WHERE source_appid = %s"
+        insert_sql = """
+            INSERT INTO precomputed_candidates (source_appid, candidate_appid, rank, source)
+            VALUES (%s, %s, %s, %s)
+        """
+        with self._connect() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(delete_sql, (int(source_appid),))
+                if normalized_candidates:
+                    rows = [
+                        (int(source_appid), candidate_appid, rank, source)
+                        for rank, candidate_appid in enumerate(normalized_candidates, start=1)
+                    ]
+                    cursor.executemany(insert_sql, rows)
+            connection.commit()
+
+    def list_game_appids(self) -> list[int]:
+        sql = "SELECT appid FROM games ORDER BY appid"
+        with self._connect() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(sql)
+                rows = cursor.fetchall()
+        return [int(row["appid"]) for row in rows if row.get("appid") is not None]
+
     @staticmethod
     def _normalize_search_text(text: str) -> str:
         lowered = text.lower()
