@@ -261,6 +261,7 @@ export default function NextSteamGamePage() {
   const [searchResults, setSearchResults] = useState<Game[]>([])
   const [searchLoading, setSearchLoading] = useState(false)
   const [searchError, setSearchError] = useState<string | null>(null)
+  const [githubStarCount, setGithubStarCount] = useState<number | null>(null)
   const [resultsLoading, setResultsLoading] = useState(false)
   const [resultsError, setResultsError] = useState<string | null>(null)
   const [rawRecommendations, setRawRecommendations] = useState<RecommendedGame[]>([])
@@ -309,6 +310,34 @@ export default function NextSteamGamePage() {
   const selectedGameHasSemanticProfile = hasSemanticProfile(selectedGame)
   const selectedGameSteamUrl = steamStoreUrl(selectedGame)
   const selectedGameScreenshots = selectedGame?.screenshots?.slice(0, 3) ?? []
+
+  useEffect(() => {
+    const controller = new AbortController()
+
+    async function loadGithubStars() {
+      try {
+        const response = await fetch("https://api.github.com/repos/BakedSoups/NextSteamGame", {
+          signal: controller.signal,
+          headers: {
+            Accept: "application/vnd.github+json",
+          },
+        })
+        if (!response.ok) {
+          return
+        }
+        const payload = (await response.json()) as { stargazers_count?: number }
+        if (typeof payload.stargazers_count === "number") {
+          setGithubStarCount(payload.stargazers_count)
+        }
+      } catch {
+        // Keep the CTA usable even if the GitHub API is unavailable.
+      }
+    }
+
+    void loadGithubStars()
+
+    return () => controller.abort()
+  }, [])
 
   useEffect(() => {
     const query = searchQuery.trim()
@@ -768,6 +797,11 @@ export default function NextSteamGamePage() {
             >
               <Github className="h-4 w-4" />
               <span>Star on GitHub</span>
+              {githubStarCount !== null ? (
+                <span className="rounded-full bg-white/12 px-2 py-0.5 text-xs font-semibold tabular-nums text-white/90">
+                  {githubStarCount.toLocaleString()}
+                </span>
+              ) : null}
               <Star className="h-3.5 w-3.5 fill-current" />
             </a>
             <div className="relative z-10 flex min-h-[calc(100dvh-77px)] items-center justify-center px-4 py-10 sm:px-8 md:px-12">

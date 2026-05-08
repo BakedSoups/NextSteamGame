@@ -386,7 +386,25 @@ Defaults come from `scripts/server_deploy/.env`:
 Then on the droplet:
 
 ```bash
+ssh -i ~/.ssh/id_ed25519 root@YOUR_SERVER_IP
 cd /root/steamrec2
+```
+
+Frontend-only deploy:
+
+```bash
+docker compose up --build -d frontend
+```
+
+Code-only app deploy, without data refresh:
+
+```bash
+docker compose up --build -d api frontend
+```
+
+Full cutover, when canonical data or retrieval data changed:
+
+```bash
 sudo DOMAIN=nextsteamgame.com bash scripts/server_deploy/cutover_server.sh
 ```
 
@@ -396,7 +414,21 @@ That cutover script:
 - rewrites the Nginx proxy config
 - brings the Docker stack down
 - rebuilds and starts the Docker stack
+- rebuilds `steam_final_canon.db` from `canon_groups_v6.csv` with `--skip-canon`
+- reloads Postgres from the rebuilt final SQLite DB
+- rebuilds Chroma from the rebuilt final SQLite DB
+- regenerates `precomputed_candidates`
 - reloads Nginx
+
+Use full cutover only when data/build artifacts changed, such as:
+
+- `canon_groups_v6.csv`
+- `steam_final_canon.db`
+- Postgres-loaded canonical game data
+- Chroma collection contents
+- precomputed candidate cache
+
+For UI-only changes, do not run full cutover. Just rebuild `frontend`.
 
 This is the safer version of “kill the old ports and serve from Docker” because it only targets:
 

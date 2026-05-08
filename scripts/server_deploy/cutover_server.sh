@@ -15,7 +15,7 @@ APP_DIR="${APP_DIR:-/root/steamrec2}"
 DOMAIN="${DOMAIN:-nextsteamgame.com}"
 EMAIL="${EMAIL:-overbakedrice@gmail.com}"
 SERVER_NAME="${SERVER_NAME:-steamrec2}"
-PRECOMPUTE_PER_GAME="${PRECOMPUTE_PER_GAME:-120}"
+PRECOMPUTE_PER_GAME="${PRECOMPUTE_PER_GAME:-500}"
 PRECOMPUTE_BATCH_SIZE="${PRECOMPUTE_BATCH_SIZE:-64}"
 
 if [[ "${EUID}" -ne 0 ]]; then
