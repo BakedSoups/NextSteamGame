@@ -40,14 +40,14 @@ echo "[4/8] Building and starting docker stack"
 docker compose up -d --build
 
 echo "[5/8] Rebuilding final canonical SQLite DB from canon_groups_v6.csv"
-docker compose exec api sh -lc 'PYTHONPATH=/app python db_creation/final_db.py --skip-canon'
+docker compose exec api python -m db_creation.final_db --skip-canon
 
 echo "[6/8] Refreshing Postgres from final canonical SQLite DB"
-docker compose exec api sh -lc 'PYTHONPATH=/app python db_creation/postgres/load_from_sqlite.py'
+docker compose exec api python -m db_creation.postgres.load_from_sqlite
 
 echo "[7/8] Rebuilding Chroma and precomputed candidate cache"
-docker compose exec api sh -lc 'PYTHONPATH=/app python db_creation/chroma_db_migration.py'
-docker compose exec api python db_creation/precompute_candidates.py --per-game "${PRECOMPUTE_PER_GAME}" --batch-size "${PRECOMPUTE_BATCH_SIZE}"
+docker compose exec api python -m db_creation.chroma_db_migration
+docker compose exec api python -m db_creation.precompute_candidates --per-game "${PRECOMPUTE_PER_GAME}" --batch-size "${PRECOMPUTE_BATCH_SIZE}"
 
 echo "[8/8] Final nginx reload"
 nginx -t

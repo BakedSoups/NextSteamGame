@@ -408,6 +408,15 @@ Full cutover, when canonical data or retrieval data changed:
 sudo DOMAIN=nextsteamgame.com bash scripts/server_deploy/cutover_server.sh
 ```
 
+Server-side stack involved in deploys:
+
+- Docker Compose for `api`, `frontend`, and `postgres`
+- Nginx as the public reverse proxy
+- Certbot for HTTPS/TLS certificate management
+- Postgres for canonical game data and cached candidate pools
+- Chroma for semantic retrieval data
+- SQLite `steam_final_canon.db` as the build artifact that feeds Postgres and Chroma
+
 That cutover script:
 
 - stops the old gunicorn path on port `5000`

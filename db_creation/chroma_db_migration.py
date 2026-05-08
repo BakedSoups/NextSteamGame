@@ -1,7 +1,15 @@
 #!/usr/bin/env python3
 
-from chroma_pipeline import run_chroma_migration
-from paths import chroma_dir_path, final_canon_db_path
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from db_creation.chroma_pipeline import run_chroma_migration
+from db_creation.paths import chroma_dir_path, final_canon_db_path
 
 
 FINAL_DB_PATH = final_canon_db_path()
