@@ -12,7 +12,8 @@ The project has three main layers:
 ## App Stack
 
 Current runtime shape:
-<img width="1312" height="1313" alt="image" src="https://github.com/user-attachments/assets/39d21a7d-f147-4993-baf4-2064b687b234" />
+<img width="1445" height="1365" alt="image" src="https://github.com/user-attachments/assets/a95801fe-6c18-4c29-9026-80a6f930a60e" />
+
 
 - backend: `FastAPI`
 - frontend: `Next.js` / React
