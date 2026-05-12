@@ -53,7 +53,7 @@ Entrypoint:
 
 This stage:
 
-- syncs SteamSpy + Steam Store metadata
+- refreshes Steam Store metadata for appids already present in `steam_metadata.db`
 - writes `steam_metadata.db`
 - backfills extra storefront art assets like:
   - `logo_image`
@@ -355,6 +355,14 @@ Start the app stack:
 docker compose up -d --build
 ```
 
+Note:
+
+- this only starts the containers
+- on a fresh VPS it does not load Postgres from SQLite
+- on a fresh VPS it does not build Chroma
+- on a fresh VPS it does not precompute candidate caches
+- for first boot, use `init_server.sh` instead of stopping here
+
 Later redeploys:
 
 ```bash
@@ -369,7 +377,7 @@ That script does:
 
 ## Rsync Deployment Flow
 
-If you want to deploy by pushing the repo directly to the droplet instead of pulling on-server:
+If you want to deploy by pushing the repo directly to the server instead of pulling on-server:
 
 Local machine:
 
@@ -383,11 +391,79 @@ Defaults come from `scripts/server_deploy/.env`:
 - remote dir: `REMOTE_DIR`
 - ssh key: `SSH_KEY`
 
-Then on the droplet:
+Then SSH to the server:
 
 ```bash
-ssh -i ~/.ssh/id_ed25519 root@YOUR_SERVER_IP
+bash scripts/server_deploy/ssh_remote.sh
 cd /root/steamrec2
+```
+
+## VPS Deployment
+
+Use this order on a brand new VPS.
+
+### 1. Configure deployment env locally
+
+Edit `scripts/server_deploy/.env` and make sure these are correct:
+
+- `REMOTE_HOST=root@YOUR_SERVER_IP`
+- `REMOTE_DIR=/root/steamrec2`
+- `SSH_KEY=$HOME/.ssh/id_ed25519`
+- `DOMAIN=your-domain.com`
+- `EMAIL=you@example.com`
+
+### 2. Push the repo to the VPS
+
+From your local machine:
+
+```bash
+bash scripts/server_deploy/rsync_push.sh
+```
+
+### 3. Run first-time server init
+
+This is the correct first-boot command. It handles:
+
+- OS/bootstrap setup
+- Docker + Nginx + Certbot
+- Postgres load from SQLite
+- Chroma build
+- candidate precompute
+- API/frontend startup
+
+```bash
+bash scripts/server_deploy/run_remote.sh "cd /root/steamrec2 && sudo DOMAIN=nextsteamgame.com bash scripts/server_deploy/init_server.sh"
+```
+
+### 4. Smoke test the live site
+
+From the server or your local machine:
+
+```bash
+curl -I https://nextsteamgame.com
+curl "https://nextsteamgame.com/api/search?q=hades"
+```
+
+If you want to check the containers on the server:
+
+```bash
+bash scripts/server_deploy/run_remote.sh "cd /root/steamrec2 && docker compose ps"
+```
+
+### 5. Later deploys
+
+Use the smallest script that matches the change.
+
+Frontend-only deploy:
+
+```bash
+bash scripts/server_deploy/run_remote.sh "cd /root/steamrec2 && docker compose up --build -d frontend"
+```
+
+Code-only app deploy, without data refresh:
+
+```bash
+bash scripts/server_deploy/run_remote.sh "cd /root/steamrec2 && docker compose up --build -d api frontend"
 ```
 
 Frontend-only deploy:
@@ -405,7 +481,25 @@ docker compose up --build -d api frontend
 Full cutover, when canonical data or retrieval data changed:
 
 ```bash
-sudo DOMAIN=nextsteamgame.com bash scripts/server_deploy/cutover_server.sh
+bash scripts/server_deploy/run_remote.sh "cd /root/steamrec2 && sudo DOMAIN=nextsteamgame.com bash scripts/server_deploy/cutover_server.sh"
+```
+
+First-time server initialization, including server bootstrap, Postgres load, Chroma build, and candidate precompute:
+
+```bash
+bash scripts/server_deploy/run_remote.sh "cd /root/steamrec2 && sudo DOMAIN=nextsteamgame.com bash scripts/server_deploy/init_server.sh"
+```
+
+If you only need to rebuild retrieval data on the VPS and want to let it run in the background:
+
+```bash
+bash scripts/server_deploy/run_remote.sh "cd /root/steamrec2 && bash scripts/server_deploy/rebuild_retrieval_async.sh"
+```
+
+Then check status later with:
+
+```bash
+bash scripts/server_deploy/run_remote.sh "cd /root/steamrec2 && bash scripts/server_deploy/rebuild_retrieval_status.sh"
 ```
 
 Server-side stack involved in deploys:

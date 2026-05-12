@@ -776,59 +776,6 @@ export function ControlPanel({
               </div>
             </div>
 
-            <div className="panel overflow-hidden glow-box-subtle">
-              <div className="panel-header">
-                <div className="text-primary">
-                  <span className="h-3.5 w-3.5" aria-hidden="true" />
-                </div>
-                <span className="text-xs font-medium text-foreground">Shape the Match</span>
-              </div>
-              <div className="border-t border-border/50 p-3">
-              <div className="space-y-4">
-                <p className="text-[12px] leading-6 text-slate-100/90">
-                  Use a few broad presets to push the match in clearly different directions before you get more specific with tags.
-                </p>
-                <div className="space-y-3">
-                  <div>
-                    <div className="mb-2 text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
-                      How It Plays
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      {coreVectorIntents.map((intent) => (
-                        <button
-                          key={intent.key}
-                          onClick={() => onSimpleIntentBoost(intent.key)}
-                          className="rounded-2xl border border-white/12 bg-white/[0.06] px-3 py-2.5 text-left transition-colors hover:border-primary/60 hover:bg-white/[0.10]"
-                        >
-                          <div className="text-[13px] font-medium text-slate-50">{intent.label}</div>
-                          <div className="mt-1 text-[11px] leading-5 text-slate-200/82">{intent.hint}</div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="mb-2 text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
-                      Broader Direction
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      {tagSignalIntents.map((intent) => (
-                        <button
-                          key={intent.key}
-                          onClick={() => onSimpleIntentBoost(intent.key)}
-                          className="rounded-2xl border border-white/12 bg-white/[0.06] px-3 py-2.5 text-left transition-colors hover:border-primary/60 hover:bg-white/[0.10]"
-                        >
-                          <div className="text-[13px] font-medium text-slate-50">{intent.label}</div>
-                          <div className="mt-1 text-[11px] leading-5 text-slate-200/82">{intent.hint}</div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-              </div>
-            </div>
-
           </div>
         </div>
       )}

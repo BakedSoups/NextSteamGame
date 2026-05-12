@@ -45,7 +45,7 @@ This pipeline is not just ETL. It is an ontology-building workflow.
 The stages exist because they solve different problems:
 
 - metadata stage:
-  - what factual/storefront information exists?
+  - what factual/storefront information exists for the appids already in the catalog?
 - non-canon stage:
   - what do players seem to mean about this game in their own language?
 - canon stage:

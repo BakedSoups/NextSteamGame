@@ -32,7 +32,6 @@ def build_metadata_builder() -> SteamMetadataBuilder:
             base_delay=2.0,
             timeout=30,
         ),
-        steamspy_delay=1.1,
         store_delay=0.4,
         store_batch_delay=8.0,
         store_batch_size=25,

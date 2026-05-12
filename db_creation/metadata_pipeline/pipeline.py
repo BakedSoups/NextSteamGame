@@ -2,9 +2,8 @@
 """
 Steam metadata database builder.
 
-This script builds a canonical SQLite metadata layer for Steam games using:
-- SteamSpy catalog pages for broad app discovery and popularity metrics
-- Steam Store appdetails for richer structured metadata
+This script refreshes a canonical SQLite metadata layer for Steam games using
+Steam Store appdetails for richer structured metadata.
 
 The output is intentionally SQLite-only. Chroma/vector generation can be built
 later on top of the canonical `games` and related normalized tables.
@@ -140,14 +139,12 @@ def first_non_empty(*values: Any) -> Optional[str]:
 
 
 class SteamMetadataBuilder:
-    steamspy_url = "https://steamspy.com/api.php"
     appdetails_url = "https://store.steampowered.com/api/appdetails"
 
     def __init__(
         self,
         db_path: Path,
         retry_config: RetryConfig,
-        steamspy_delay: float = 1.1,
         store_delay: float = 0.4,
         store_batch_delay: float = 8.0,
         store_batch_size: int = 25,
@@ -156,7 +153,6 @@ class SteamMetadataBuilder:
     ) -> None:
         self.db_path = db_path
         self.retry_config = retry_config
-        self.steamspy_delay = steamspy_delay
         self.store_delay = store_delay
         self.store_batch_delay = store_batch_delay
         self.store_batch_size = store_batch_size
@@ -580,13 +576,6 @@ class SteamMetadataBuilder:
                 """,
                 (sync_run_id, appid, source, context, error_message, utcnow_iso()),
             )
-
-    def fetch_steamspy_page(self, page: int) -> Dict[str, Any]:
-        return self._request_json(
-            self.steamspy_url,
-            {"request": "all", "page": page},
-            context=f"SteamSpy page {page}",
-        )
 
     def fetch_app_details(self, appid: int, region_code: str = "us") -> Dict[str, Any]:
         return self._request_json(
@@ -1040,7 +1029,7 @@ class SteamMetadataBuilder:
         query = """
             SELECT appid
             FROM games
-            WHERE has_steamspy_data = 1
+            WHERE 1 = 1
         """
         params: List[Any] = []
 
@@ -1055,57 +1044,6 @@ class SteamMetadataBuilder:
 
         with self.connect() as conn:
             return [int(row["appid"]) for row in conn.execute(query, params)]
-
-    def get_next_steamspy_page(self) -> int:
-        with self.connect() as conn:
-            row = conn.execute(
-                "SELECT COALESCE(MAX(source_page), -1) AS max_page FROM raw_steamspy_games"
-            ).fetchone()
-            return int(row["max_page"]) + 1
-
-    def collect_steamspy_catalog(
-        self,
-        sync_run_id: int,
-        limit: Optional[int],
-        page_limit: Optional[int],
-        resume: bool,
-    ) -> tuple[int, int, int]:
-        page = self.get_next_steamspy_page() if resume else 0
-        total_pages = 0
-        total_games = 0
-        total_errors = 0
-
-        while True:
-            if page_limit is not None and page >= page_limit:
-                break
-            if limit is not None and total_games >= limit:
-                break
-
-            try:
-                payload = self.fetch_steamspy_page(page)
-            except Exception as exc:
-                total_errors += 1
-                self.record_error(sync_run_id, source="steamspy", error_message=str(exc), context=f"page={page}")
-                LOGGER.error("SteamSpy page %s failed: %s", page, exc)
-                break
-
-            if not payload:
-                break
-
-            if limit is not None:
-                remaining = limit - total_games
-                trimmed_items = list(payload.items())[:remaining]
-                payload = {key: value for key, value in trimmed_items}
-
-            written = self.upsert_steamspy_games(page, payload)
-            total_pages += 1
-            total_games += written
-            LOGGER.info("SteamSpy page %s saved %s apps (total=%s)", page, written, total_games)
-
-            page += 1
-            time.sleep(self.steamspy_delay)
-
-        return total_pages, total_games, total_errors
 
     def enrich_store_metadata(self, sync_run_id: int, limit: Optional[int], refresh_store: bool) -> tuple[int, int, int]:
         appids = self.load_appids_for_store_enrichment(limit=limit, refresh_store=refresh_store)
@@ -1167,6 +1105,7 @@ class SteamMetadataBuilder:
         resume: bool,
         notes: Optional[str],
     ) -> int:
+        del page_limit, resume
         self.create_schema()
         sync_run_id = self.start_sync_run(notes=notes)
 
@@ -1178,13 +1117,11 @@ class SteamMetadataBuilder:
         status = "completed"
 
         try:
-            steamspy_pages_seen, appids_discovered, steamspy_errors = self.collect_steamspy_catalog(
-                sync_run_id=sync_run_id,
-                limit=limit,
-                page_limit=page_limit,
-                resume=resume,
+            appids_discovered = len(self.load_appids_for_store_enrichment(limit=limit, refresh_store=True))
+            LOGGER.info(
+                "SteamSpy discovery disabled; using %s existing appids from steam_metadata.db",
+                appids_discovered,
             )
-            error_count += steamspy_errors
 
             if not skip_store:
                 store_attempted, store_succeeded, store_errors = self.enrich_store_metadata(
