@@ -31,7 +31,7 @@ fuser -k 5000/tcp || true
 
 echo "[2/8] Rewriting nginx proxy config"
 INSTALL_BASE=0 RUN_CERTBOT=0 DOMAIN="${DOMAIN}" EMAIL="${EMAIL}" APP_DIR="${APP_DIR}" SERVER_NAME="${SERVER_NAME}" \
-  bash "${SCRIPT_DIR}/setup_droplet.sh"
+  bash "${SCRIPT_DIR}/setup_server.sh"
 
 echo "[3/8] Stopping old docker stack"
 docker compose down --remove-orphans || true

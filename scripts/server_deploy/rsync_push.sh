@@ -26,7 +26,7 @@ RSYNC_ARGS=(
   -az
   --delete
   --info=progress2
-  -e "ssh -i ${SSH_KEY}"
+  -e "ssh -i ${SSH_KEY} -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
 )
 
 if [[ "${SEND_EVERYTHING}" != "1" ]]; then
