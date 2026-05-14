@@ -65,7 +65,6 @@ frontend/.next/
 frontend/*.tsbuildinfo
 frontend/out/
 frontend/.turbo/
-frontend/.vercel/
 frontend/.pnpm-store/
 frontend/.npm/
 frontend/.yarn/
