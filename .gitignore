@@ -62,6 +62,7 @@ db_creation/analysis/
 node_modules/
 frontend/node_modules/
 frontend/.next/
+frontend/*.tsbuildinfo
 frontend/out/
 frontend/.turbo/
 frontend/.vercel/
