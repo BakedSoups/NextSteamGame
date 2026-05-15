@@ -39,7 +39,6 @@ if [[ "${SEND_EVERYTHING}" != "1" ]]; then
     --exclude "__pycache__/"
     --exclude ".mypy_cache/"
     --exclude ".pytest_cache/"
-    --exclude ".env"
     --exclude "scripts/server_deploy/.env"
   )
 fi
