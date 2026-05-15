@@ -13,7 +13,8 @@ The project has three main layers:
 
 Current runtime shape:
 <img width="1445" height="1365" alt="image" src="https://github.com/user-attachments/assets/a95801fe-6c18-4c29-9026-80a6f930a60e" />
-
+## Pipeline:
+<img width="1688" height="1260" alt="pipeline" src="https://github.com/user-attachments/assets/fb48c02d-53c1-4afd-ae4a-d7f58fee58f1" />
 
 - backend: `FastAPI`
 - frontend: `Next.js` / React
