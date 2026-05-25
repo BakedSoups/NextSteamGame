@@ -167,6 +167,31 @@ class InitialNoncanonDbBuilder:
         filtered_rows = [row for row in rows if int(row["appid"]) not in existing_appids]
         return filtered_rows
 
+    def load_games_for_appids(self, appids: List[int]) -> List[sqlite3.Row]:
+        unique_appids = sorted({int(appid) for appid in appids})
+        if not unique_appids:
+            return []
+
+        loaded_rows: List[sqlite3.Row] = []
+        query_template = """
+            SELECT appid, name
+            FROM games
+            WHERE has_store_data = 1
+              AND appid IN ({placeholders})
+            ORDER BY appid
+        """
+
+        with self.metadata_conn() as connection:
+            chunk_size = 900
+            for start in range(0, len(unique_appids), chunk_size):
+                chunk = unique_appids[start : start + chunk_size]
+                placeholders = ",".join(["?"] * len(chunk))
+                query = query_template.format(placeholders=placeholders)
+                loaded_rows.extend(connection.execute(query, chunk).fetchall())
+
+        existing_appids = self.load_existing_appids()
+        return [row for row in loaded_rows if int(row["appid"]) not in existing_appids]
+
     def count_existing_profiles(self) -> int:
         with self.output_conn() as connection:
             row = connection.execute("SELECT COUNT(*) AS count FROM raw_game_semantics").fetchone()
@@ -511,7 +536,12 @@ class InitialNoncanonDbBuilder:
             "status": str(writer_summary["status"]),
         }
 
-    def build(self, limit: Optional[int] = None, notes: Optional[str] = None) -> Dict:
+    def build(
+        self,
+        limit: Optional[int] = None,
+        notes: Optional[str] = None,
+        appids: Optional[List[int]] = None,
+    ) -> Dict:
         log_banner("Initial Non-Canonical DB Build")
         log_stage("setup", detail="preparing non-canon DB schema")
         self.create_schema()
@@ -530,7 +560,10 @@ class InitialNoncanonDbBuilder:
 
         try:
             log_stage("setup", detail="loading candidate games from metadata DB")
-            rows = self.load_games(limit=limit)
+            if appids is not None:
+                rows = self.load_games_for_appids(appids)
+            else:
+                rows = self.load_games(limit=limit)
             log_stage("setup", detail=f"queued {len(rows)} games after resume filtering")
             if not rows:
                 log_stage("setup", detail="no new games to process")

@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import posthog from "posthog-js"
 import { ArrowLeft, ArrowRight, Github, MessageCircleMore, Star, X } from "lucide-react"
 import steamLogo from "@/art_assets/Steam-Logo.png"
 import gameShelfBackground from "@/art_assets/game_collection_background.webp"
@@ -12,6 +13,7 @@ import { TagFilterPanel } from "@/components/tag-filter-panel"
 import type { Game, RecommendedGame, TagFilters, Weights } from "@/lib/types"
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000"
+const SITE_URL = "https://nextsteamgame.com"
 
 const DEFAULT_MATCH_WEIGHTS: Weights["match"] = {
   vector: 34,
@@ -199,6 +201,24 @@ function steamStoreUrl(game: Game | null): string {
   return `https://store.steampowered.com/app/${game.id}`
 }
 
+function captureProductEvent(
+  eventType: string,
+  game: Game | RecommendedGame | null,
+  details: Record<string, unknown> = {},
+) {
+  if (!game) {
+    return
+  }
+
+  posthog.capture(eventType, {
+    appid: game.id,
+    game_name: game.title,
+    release_date: game.releaseDate || null,
+    category: game.category || null,
+    ...details,
+  })
+}
+
 async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
     ...init,
@@ -223,6 +243,8 @@ function logUiActivity(
   if (!game) {
     return
   }
+
+  captureProductEvent(eventType, game, details)
 
   const payload = JSON.stringify({
     appid: game.id,
@@ -310,6 +332,19 @@ export default function NextSteamGamePage() {
   const selectedGameHasSemanticProfile = hasSemanticProfile(selectedGame)
   const selectedGameSteamUrl = steamStoreUrl(selectedGame)
   const selectedGameScreenshots = selectedGame?.screenshots?.slice(0, 3) ?? []
+  const websiteStructuredData = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "NextSteamGame",
+    url: SITE_URL,
+    description:
+      "Find similar Steam games by mechanics, tags, structure, genre, and music.",
+    potentialAction: {
+      "@type": "SearchAction",
+      target: `${SITE_URL}/?q={search_term_string}`,
+      "query-input": "required name=search_term_string",
+    },
+  }
 
   useEffect(() => {
     const controller = new AbortController()
@@ -354,6 +389,11 @@ export default function NextSteamGamePage() {
         setSearchError(null)
         const payload = await fetchJson<{ results: Game[] }>(`/api/search?q=${encodeURIComponent(query)}`)
         setSearchResults(payload.results)
+        posthog.capture("search_results_loaded", {
+          query,
+          query_length: query.length,
+          results_count: payload.results.length,
+        })
       } catch (error) {
         setSearchError(error instanceof Error ? error.message : "Search failed")
       } finally {
@@ -398,6 +438,12 @@ export default function NextSteamGamePage() {
         })
         if (!cancelled) {
           setRawRecommendations(payload.results)
+          posthog.capture("recommendations_loaded", {
+            source_appid: selectedGame.id,
+            source_game_name: selectedGame.title,
+            release_date: selectedGame.releaseDate || null,
+            results_count: payload.results.length,
+          })
         }
       } catch (error) {
         if (!cancelled) {
@@ -495,6 +541,7 @@ export default function NextSteamGamePage() {
       const fullGame = await fetchJson<Game>(`/api/games/${game.id}`)
       logUiActivity(fullGame, "selected_game_from_search", {
         source: "search",
+        query: searchQuery.trim(),
       })
       setSelectedGame(fullGame)
       setScreen("profile")
@@ -706,6 +753,10 @@ export default function NextSteamGamePage() {
 
   return (
     <div className="min-h-screen bg-background">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteStructuredData) }}
+      />
       <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur-sm">
         <div className="mx-auto max-w-[1800px] px-6 py-4">
           <div className="relative flex items-start justify-between gap-6">
@@ -804,22 +855,27 @@ export default function NextSteamGamePage() {
               ) : null}
               <Star className="h-3.5 w-3.5 fill-current" />
             </a>
-            <div className="relative z-10 flex min-h-[calc(100dvh-77px)] items-center justify-center px-4 py-10 sm:px-8 md:px-12">
-              <div className="w-full max-w-3xl text-center">
-                <div className="flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4">
-                  <h1 className="text-4xl font-semibold tracking-tight text-white sm:text-5xl md:text-6xl">
-                    NextSteamGame
-                  </h1>
+            <div className="relative z-10 flex min-h-[calc(100dvh-77px)] items-center justify-center px-4 pb-12 pt-6 sm:px-8 sm:pt-8 md:px-12 md:pt-10">
+              <div className="w-full max-w-5xl text-center">
+                <div className="flex flex-col items-center justify-center gap-4 sm:flex-row sm:gap-6">
+                  <div className="space-y-2 text-center sm:text-left">
+                    <h1 className="text-4xl font-semibold tracking-tight text-white sm:text-[2.85rem] md:text-[3.5rem] xl:text-[3.9rem]">
+                      Find Similar Steam Games
+                    </h1>
+                    <div className="text-sm font-medium uppercase tracking-[0.24em] text-slate-300/88">
+                      NextSteamGame
+                    </div>
+                  </div>
                   <img
                     src={steamLogo.src}
                     alt="Steam"
-                    className="h-12 w-12 object-contain md:h-14 md:w-14"
+                    className="h-28 w-28 object-contain sm:h-32 sm:w-32 md:h-40 md:w-40"
                   />
                 </div>
                 <p className="mx-auto mt-5 max-w-2xl text-base text-slate-200 md:text-lg">
-                  Have fun exploring your taste in games. Start with one you already love, discover why it clicks, and find what to play next.
+                  A Steam recommendation engine that finds similar games and shows exactly why they match.
                 </p>
-                <div className="mx-auto mt-8 max-w-2xl sm:mt-10">
+                <div className="mx-auto mt-8 max-w-4xl sm:mt-10">
                   <SearchBar
                     games={searchResults}
                     isLoading={searchLoading}
@@ -1156,9 +1212,10 @@ export default function NextSteamGamePage() {
                       recommendations={recommendations}
                       weights={weights}
                       selectedGame={selectedGame}
-                      onOpenSteam={(game) =>
+                      onOpenSteam={(game, rank) =>
                         logUiActivity(game, "opened_recommendation_on_steam", {
                           source: "results",
+                          rank,
                           selectedGameAppid: selectedGame?.id ?? null,
                           selectedGameTitle: selectedGame?.title ?? null,
                         })

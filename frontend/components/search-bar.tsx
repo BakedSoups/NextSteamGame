@@ -60,7 +60,7 @@ export function SearchBar({ games, isLoading = false, onQueryChange, onSelect, s
   return (
     <div className="relative" ref={dropdownRef}>
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
         <input
           ref={inputRef}
           type="text"
@@ -75,7 +75,7 @@ export function SearchBar({ games, isLoading = false, onQueryChange, onSelect, s
           onFocus={() => query.length > 0 && setIsOpen(true)}
           onKeyDown={handleKeyDown}
           placeholder="Search games..."
-          className="w-full h-10 pl-10 pr-9 bg-card border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-foreground/20 transition-all"
+          className="w-full h-16 rounded-2xl border border-border bg-card pl-14 pr-12 text-base text-foreground shadow-[0_18px_42px_rgba(0,0,0,0.18)] placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-foreground/20 transition-all sm:h-18 sm:text-lg"
         />
         {query && (
           <button
@@ -84,28 +84,28 @@ export function SearchBar({ games, isLoading = false, onQueryChange, onSelect, s
               onQueryChange?.("")
               inputRef.current?.focus()
             }}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
           >
-            <X className="h-4 w-4" />
+            <X className="h-5 w-5" />
           </button>
         )}
       </div>
 
       {isOpen && filteredGames.length > 0 && (
-        <div className="absolute top-full left-0 right-0 mt-2 bg-card border border-border rounded-lg overflow-hidden shadow-lg z-50">
-          <div className="max-h-80 overflow-y-auto">
+        <div className="absolute top-full left-0 right-0 z-50 mt-3 overflow-hidden rounded-2xl border border-border bg-card shadow-[0_24px_60px_rgba(0,0,0,0.28)]">
+          <div className="max-h-96 overflow-y-auto">
             {filteredGames.map((game, index) => (
               <button
                 key={game.id}
                 onClick={() => handleSelect(game)}
                 onMouseEnter={() => setFocusedIndex(index)}
-                className={`w-full flex items-center gap-3 p-3 text-left transition-colors ${
+                className={`w-full flex items-center gap-4 px-4 py-4 text-left transition-colors ${
                   focusedIndex === index 
                     ? "bg-secondary" 
                     : "hover:bg-secondary/50"
                 } ${selectedGame?.id === game.id ? "bg-secondary/30" : ""}`}
               >
-                <div className="relative w-14 h-8 rounded overflow-hidden bg-muted flex-shrink-0">
+                <div className="relative h-12 w-20 flex-shrink-0 overflow-hidden rounded bg-muted">
                   <Image
                     src={game.assets.libraryCapsule || game.assets.capsuleV5 || game.image || IMAGE_FALLBACK}
                     alt={game.title}
@@ -116,14 +116,14 @@ export function SearchBar({ games, isLoading = false, onQueryChange, onSelect, s
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-foreground truncate">{game.title}</span>
+                    <span className="truncate text-base font-medium text-foreground">{game.title}</span>
                     {selectedGame?.id === game.id && (
                       <span className="flex-shrink-0 px-1.5 py-0.5 text-[10px] bg-foreground text-background rounded">
                         Selected
                       </span>
                     )}
                   </div>
-                  <span className="text-xs text-muted-foreground">{game.category}</span>
+                  <span className="text-sm text-muted-foreground">{game.category}</span>
                 </div>
               </button>
             ))}
@@ -132,8 +132,8 @@ export function SearchBar({ games, isLoading = false, onQueryChange, onSelect, s
       )}
 
       {isOpen && query.length > 0 && filteredGames.length === 0 && (
-        <div className="absolute top-full left-0 right-0 mt-2 bg-card border border-border rounded-lg p-4 text-center shadow-lg z-50">
-          <Search className="h-5 w-5 mx-auto text-muted-foreground mb-2" />
+        <div className="absolute top-full left-0 right-0 z-50 mt-3 rounded-2xl border border-border bg-card p-5 text-center shadow-[0_24px_60px_rgba(0,0,0,0.28)]">
+          <Search className="mx-auto mb-2 h-5 w-5 text-muted-foreground" />
           <p className="text-sm text-muted-foreground">{isLoading ? "Searching..." : "No games found"}</p>
         </div>
       )}

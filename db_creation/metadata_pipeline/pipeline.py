@@ -715,11 +715,12 @@ class SteamMetadataBuilder:
         values: Sequence[str],
     ) -> None:
         cursor.execute(f"DELETE FROM {table_name} WHERE appid = ?", (appid,))
-        if not values:
+        deduped_values = self._split_people_field(values)
+        if not deduped_values:
             return
         cursor.executemany(
             f"INSERT INTO {table_name} (appid, {value_column}) VALUES (?, ?)",
-            [(appid, value) for value in values],
+            [(appid, value) for value in deduped_values],
         )
 
     def _replace_tags(self, cursor: sqlite3.Cursor, appid: int, tags: Dict[str, Any], source: str) -> None:
@@ -745,13 +746,38 @@ class SteamMetadataBuilder:
 
     def _replace_simple_join(self, cursor: sqlite3.Cursor, table_name: str, appid: int, rows: Iterable[Sequence[Any]]) -> None:
         cursor.execute(f"DELETE FROM {table_name} WHERE appid = ?", (appid,))
-        seen: set[tuple] = set()
-        deduped = []
-        for row in rows:
-            key = tuple(row)
-            if key not in seen:
+
+        deduped: list[tuple[Any, ...]] = []
+        if table_name == "game_languages":
+            merged_languages: dict[str, list[Any]] = {}
+            for raw_row in rows:
+                row = tuple(raw_row)
+                language = str(row[1])
+                existing = merged_languages.get(language)
+                if existing is None:
+                    merged_languages[language] = list(row)
+                    continue
+                existing[2] = max(int(existing[2]), int(row[2]))
+                existing[3] = max(int(existing[3]), int(row[3]))
+                existing[4] = max(int(existing[4]), int(row[4]))
+            deduped = [tuple(row) for row in merged_languages.values()]
+        else:
+            unique_index = {
+                "game_genres": 2,
+                "game_categories": 2,
+                "game_packages": 1,
+                "game_screenshots": 1,
+                "game_movies": 1,
+            }[table_name]
+            seen: set[Any] = set()
+            for raw_row in rows:
+                row = tuple(raw_row)
+                key = row[unique_index]
+                if key in seen:
+                    continue
                 seen.add(key)
                 deduped.append(row)
+
         if deduped:
             placeholders = {
                 "game_genres": "(appid, genre_id, genre_name)",
@@ -870,7 +896,7 @@ class SteamMetadataBuilder:
                     metacritic_score, recommendations_total, has_store_data,
                     source_last_updated, created_at, updated_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(appid) DO UPDATE SET
                     name = COALESCE(excluded.name, games.name),
                     type = excluded.type,
@@ -936,6 +962,7 @@ class SteamMetadataBuilder:
                     parse_release_date(release_data.get("date", "")),
                     metacritic.get("score"),
                     recommendations.get("total"),
+                    1,
                     fetched_at,
                     fetched_at,
                     fetched_at,

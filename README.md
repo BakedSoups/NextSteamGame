@@ -236,6 +236,8 @@ The semantics pipeline reads the OpenAI key from the process environment:
 
 - `OPENAI_API_KEY`
 - `STEAM_REC_POSTGRES_DSN`
+- `NEXT_PUBLIC_POSTHOG_TOKEN`
+- `NEXT_PUBLIC_POSTHOG_HOST`
 
 `app.py` loads `.env` from the repo root before checking `STEAM_REC_POSTGRES_DSN`.
 The semantics pipeline still reads `OPENAI_API_KEY` from the process environment.

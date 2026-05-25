@@ -45,7 +45,7 @@ interface RecommendationsPanelProps {
   recommendations: RecommendedGame[]
   weights: Weights
   selectedGame: Game | null
-  onOpenSteam?: (game: RecommendedGame) => void
+  onOpenSteam?: (game: RecommendedGame, rank: number) => void
 }
 
 interface ScoreBarProps {
@@ -395,7 +395,7 @@ interface RecommendationCardProps {
   weights: Weights
   selectedGame: Game | null
   highlights: string[]
-  onOpenSteam?: (game: RecommendedGame) => void
+  onOpenSteam?: (game: RecommendedGame, rank: number) => void
 }
 
 const RecommendationCard = memo(function RecommendationCard({ game, rank, weights, selectedGame, highlights, onOpenSteam }: RecommendationCardProps) {
@@ -452,7 +452,7 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
         href={steamStoreUrl}
         target="_blank"
         rel="noreferrer"
-        onClick={() => onOpenSteam?.(game)}
+        onClick={() => onOpenSteam?.(game, rank)}
         className="block border-b border-transparent transition-colors hover:bg-secondary/20"
         aria-label={`Open ${game.title} on Steam`}
       >

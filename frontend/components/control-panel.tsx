@@ -702,36 +702,111 @@ export function ControlPanel({
       )}
 
       {!resultsCompact && mode === "simple" && (
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1.18fr)_minmax(0,0.82fr)]">
-          <div className="space-y-4 xl:sticky xl:top-24 xl:self-start">
-            <div className="panel p-4 glow-box">
-              <div className="flex items-center gap-2">
-                <Puzzle className="h-4 w-4 text-primary" />
-                <span className="terminal-label text-primary">Base Gameplay Shape</span>
+        <>
+          <div className="space-y-4 xl:hidden">
+            <div className="panel overflow-hidden glow-box-subtle">
+              <div className="panel-header">
+                <div className="text-primary">
+                  <Zap className="h-3.5 w-3.5" />
+                </div>
+                <span className="text-xs font-medium text-foreground">Quick Direction</span>
               </div>
-              <p className="mt-3 text-[12px] leading-6 text-slate-100/90">
-                This is the starting shape from the game you picked. Use it as the baseline, then add tags on the right for what you want more of.
-              </p>
+              <div className="border-t border-border/50 p-3">
+                <div className="space-y-4">
+                  <p className="text-[12px] leading-6 text-slate-100/90">
+                    Pick the kind of match you want, then tap traits below to push the search toward the parts of this game you care about most.
+                  </p>
+                  <div className="grid gap-2">
+                    {SIMPLE_INTENTS.map((intent) => (
+                      <button
+                        key={intent.key}
+                        onClick={() => onSimpleIntentBoost(intent.key)}
+                        className="rounded-2xl border border-sky-300/22 bg-sky-400/10 px-4 py-3.5 text-left shadow-[0_0_18px_rgba(56,189,248,0.08)] transition-colors hover:border-sky-300/55 hover:bg-sky-400/16"
+                      >
+                        <div className="text-[13px] font-semibold text-slate-50">{intent.label}</div>
+                        <div className="mt-1 text-[11px] leading-5 text-slate-200/82">{intent.hint}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="grid gap-5 2xl:grid-cols-2">
-              {VECTOR_CONTEXT_KEYS.map((context) => (
-                <VectorRadarCard
-                  key={`simple-${context}`}
-                  context={context}
-                  label={context.replace(/_/g, " ")}
-                  selectedGame={selectedGame}
-                  weights={weights}
-                  visibleTags={featuredTags.find((group) => group.context === context)?.tags ?? []}
-                  onContextWeightChange={onContextWeightChange}
-                  onTagWeightChange={onTagWeightChange}
-                  interactive={false}
-                  highlighted={highlightedContexts.includes(context)}
-                />
-              ))}
+
+            <div className="panel overflow-hidden glow-box-subtle">
+              <div className="panel-header">
+                <div className="text-primary">
+                  <Puzzle className="h-3.5 w-3.5" />
+                </div>
+                <span className="text-xs font-medium text-foreground">Tap What You Want More Of</span>
+              </div>
+              <div className="border-t border-border/50 p-3">
+                <div className="space-y-4">
+                  {featuredTags.map((group) => (
+                    <div key={group.context}>
+                      <div className="mb-2 flex items-center justify-between gap-2">
+                        <div className="text-[11px] uppercase tracking-[0.2em] text-slate-200/78">
+                          {group.label}
+                        </div>
+                        <div className="text-[10px] uppercase tracking-[0.16em] text-slate-400/80">
+                          Tap to add
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-2.5">
+                        {group.tags.map((tag) => {
+                          const selectionKey = `${group.context}:${tag}`
+                          const isSelected = selectedSimpleTags.includes(selectionKey)
+                          return (
+                            <button
+                              key={selectionKey}
+                              onClick={() => onSimpleTagToggle(group.context, tag)}
+                              className={`rounded-2xl border px-4 py-3 text-[13px] font-medium transition-colors ${
+                                isSelected
+                                  ? "border-sky-300/60 bg-sky-400/18 text-sky-50 shadow-[0_0_16px_var(--glow-cyan)]"
+                                  : "border-white/12 bg-white/[0.08] text-slate-100 hover:border-primary/60 hover:bg-white/[0.12]"
+                              }`}
+                            >
+                              {tag}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="space-y-4">
+          <div className="hidden xl:grid gap-4 xl:grid-cols-[minmax(0,1.18fr)_minmax(0,0.82fr)]">
+            <div className="space-y-4 xl:sticky xl:top-24 xl:self-start">
+              <div className="panel p-4 glow-box">
+                <div className="flex items-center gap-2">
+                  <Puzzle className="h-4 w-4 text-primary" />
+                  <span className="terminal-label text-primary">Base Gameplay Shape</span>
+                </div>
+                <p className="mt-3 text-[12px] leading-6 text-slate-100/90">
+                  This is the starting shape from the game you picked. Use it as the baseline, then add tags on the right for what you want more of.
+                </p>
+              </div>
+              <div className="grid gap-5 2xl:grid-cols-2">
+                {VECTOR_CONTEXT_KEYS.map((context) => (
+                  <VectorRadarCard
+                    key={`simple-${context}`}
+                    context={context}
+                    label={context.replace(/_/g, " ")}
+                    selectedGame={selectedGame}
+                    weights={weights}
+                    visibleTags={featuredTags.find((group) => group.context === context)?.tags ?? []}
+                    onContextWeightChange={onContextWeightChange}
+                    onTagWeightChange={onTagWeightChange}
+                    interactive={false}
+                    highlighted={highlightedContexts.includes(context)}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-4">
             <div className="panel overflow-hidden glow-box-subtle">
               <div className="panel-header">
                 <div className="text-primary">
@@ -775,40 +850,81 @@ export function ControlPanel({
               </div>
               </div>
             </div>
-
           </div>
-        </div>
+          </div>
+        </>
       )}
 
       {!resultsCompact && mode === "advanced" && (
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1.18fr)_minmax(0,0.82fr)]">
-          <div className="space-y-4 xl:sticky xl:top-24 xl:self-start">
+        <>
+          <div className="space-y-4 xl:hidden">
             <div className="panel p-4 glow-box">
               <div className="flex items-center gap-2">
                 <Puzzle className="h-4 w-4 text-primary" />
                 <span className="terminal-label text-primary">How It Plays</span>
               </div>
               <p className="mt-3 text-xs leading-6 text-muted-foreground">
-                The left side shows the four gameplay dimensions. The right side lets you rebalance those dimensions and the themes layered on top of them.
+                Adjust how much each gameplay dimension and theme should matter, without the chart-heavy desktop view.
               </p>
+              <div className="mt-4">
+                <SummaryVectorBar weights={weights.context} />
+              </div>
             </div>
-            <div className="grid gap-5 2xl:grid-cols-2">
-              {VECTOR_CONTEXT_KEYS.map((context) => (
-                <VectorRadarCard
-                  key={context}
-                  context={context}
-                  label={context.replace(/_/g, " ")}
-                selectedGame={selectedGame}
-                weights={weights}
-                onContextWeightChange={onContextWeightChange}
-                onTagWeightChange={onTagWeightChange}
-                highlighted={highlightedContexts.includes(context)}
-              />
-            ))}
-          </div>
+
+            <div className="panel overflow-hidden glow-box-subtle">
+              <div className="panel-header">
+                <div className="text-primary">
+                  <Grid3X3 className="h-3.5 w-3.5" />
+                </div>
+                <span className="text-xs font-medium text-foreground">Active Reasons</span>
+              </div>
+              <div className="border-t border-border/50 p-3">
+                <div className="flex flex-wrap gap-2">
+                  {activeSignalTags.length > 0 ? activeSignalTags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="rounded-full border border-sky-300/30 bg-sky-400/12 px-3 py-1.5 text-[11px] font-medium text-sky-50 shadow-[0_0_14px_rgba(56,189,248,0.16)]"
+                    >
+                      {tag}
+                    </span>
+                  )) : (
+                    <p className="text-[11px] text-muted-foreground">
+                      No active tags yet. Adjust weights below to shape the match.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div className="space-y-4">
+          <div className="hidden xl:grid gap-4 xl:grid-cols-[minmax(0,1.18fr)_minmax(0,0.82fr)]">
+            <div className="space-y-4 xl:sticky xl:top-24 xl:self-start">
+              <div className="panel p-4 glow-box">
+                <div className="flex items-center gap-2">
+                  <Puzzle className="h-4 w-4 text-primary" />
+                  <span className="terminal-label text-primary">How It Plays</span>
+                </div>
+                <p className="mt-3 text-xs leading-6 text-muted-foreground">
+                  The left side shows the four gameplay dimensions. The right side lets you rebalance those dimensions and the themes layered on top of them.
+                </p>
+              </div>
+              <div className="grid gap-5 2xl:grid-cols-2">
+                {VECTOR_CONTEXT_KEYS.map((context) => (
+                  <VectorRadarCard
+                    key={context}
+                    context={context}
+                    label={context.replace(/_/g, " ")}
+                    selectedGame={selectedGame}
+                    weights={weights}
+                    onContextWeightChange={onContextWeightChange}
+                    onTagWeightChange={onTagWeightChange}
+                    highlighted={highlightedContexts.includes(context)}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-4">
             <div className="panel p-4 glow-box-subtle">
               <div className="text-[10px] uppercase tracking-[0.3em] text-primary">How Influence Works</div>
               <p className="mt-3 text-sm leading-7 text-foreground/88">
@@ -938,7 +1054,8 @@ export function ControlPanel({
               </div>
             </div>
           </div>
-        </div>
+          </div>
+        </>
       )}
     </div>
   )
