@@ -312,7 +312,7 @@ function PreferenceTagButton({
   )
 }
 
-interface VectorRadarCardProps {
+interface VectorControlCardProps {
   context: keyof Weights["tags"]
   label: string
   selectedGame: Game | null
@@ -324,21 +324,7 @@ interface VectorRadarCardProps {
   highlighted?: boolean
 }
 
-function polarPoint(index: number, total: number, radius: number) {
-  const angle = (-Math.PI / 2) + (index / total) * Math.PI * 2
-  return {
-    x: 80 + Math.cos(angle) * radius,
-    y: 80 + Math.sin(angle) * radius,
-  }
-}
-
-function tagRadarRadius(value: number, ceiling = 100) {
-  const safeMax = Math.max(ceiling, 1)
-  const normalized = Math.max(0, Math.min(value, safeMax)) / safeMax
-  return 10 + Math.pow(normalized, 1.12) * 68
-}
-
-function VectorRadarCard({
+function VectorControlCard({
   context,
   label,
   selectedGame,
@@ -348,7 +334,7 @@ function VectorRadarCard({
   onTagWeightChange,
   interactive = true,
   highlighted = false,
-}: VectorRadarCardProps) {
+}: VectorControlCardProps) {
   const visual = CONTEXT_VISUALS[context]
   const selectedTags = selectedGame?.tags[context] ?? []
   const allowSimpleTagShape =
@@ -383,24 +369,8 @@ function VectorRadarCard({
           : Math.min(100, baselineTagWeights[axis] ?? 0),
     ),
   )
-  // Simple mode uses a display-only ceiling so 3-axis canonical vectors show
-  // visible differences between medium and high tag strengths.
-  const radarCeiling = interactive ? 100 : 60
-  const polygon = values
-    .map((value, index) => {
-      const point = polarPoint(index, values.length, tagRadarRadius(value, radarCeiling))
-      return `${point.x},${point.y}`
-    })
-    .join(" ")
   const topTags = axisLabels.slice(0, 5)
-  const weightedChips = axisLabels
-    .map((axis, index) => ({ tag: axis, value: values[index] ?? 0 }))
-    .sort((a, b) => b.value - a.value || a.tag.localeCompare(b.tag))
-  const chartCanvasSize = 206 + Math.round(contextWeight * 0.74)
-  const simpleChartCanvasSize = Math.max(196, Math.round(chartCanvasSize * 0.8))
-  const contentGridClass = interactive
-    ? "mt-5 grid min-w-0 gap-8 xl:grid-cols-[260px_minmax(0,1fr)] 2xl:grid-cols-[280px_minmax(0,1fr)]"
-    : "mt-5"
+  const weightedChips = axisLabels.map((axis, index) => ({ tag: axis, value: values[index] ?? 0 }))
 
   if (!interactive) {
     return (
@@ -466,13 +436,13 @@ function VectorRadarCard({
 
   return (
     <div
-      className={`min-w-0 overflow-hidden rounded-[26px] border p-5 shadow-[0_28px_80px_rgba(0,0,0,0.34)] ${interactive ? "min-h-[424px]" : "min-h-[324px]"}`}
+      className="min-w-0 overflow-hidden rounded-[24px] border p-5 shadow-[0_28px_80px_rgba(0,0,0,0.28)]"
       style={{
         borderColor: highlighted ? `${visual.accent}88` : "rgba(255,255,255,0.08)",
-        background: `linear-gradient(180deg, rgba(10,17,26,0.98), rgba(16,24,36,0.92)), radial-gradient(circle at top, ${highlighted ? visual.glow.replace("0.", "0.55") : visual.glow}, transparent 58%)`,
+        background: `linear-gradient(180deg, rgba(10,17,26,0.98), rgba(16,24,36,0.92)), radial-gradient(circle at top left, ${highlighted ? visual.glow.replace("0.", "0.48") : visual.glow}, transparent 58%)`,
         boxShadow: highlighted
-          ? `0 0 0 1px ${visual.accent}55, 0 0 24px ${visual.glow}, 0 28px 80px rgba(0,0,0,0.34)`
-          : "0 28px 80px rgba(0,0,0,0.34)",
+          ? `0 0 0 1px ${visual.accent}55, 0 0 24px ${visual.glow}, 0 28px 80px rgba(0,0,0,0.28)`
+          : "0 28px 80px rgba(0,0,0,0.28)",
       }}
     >
       <div className="flex items-start justify-between gap-3">
@@ -487,111 +457,26 @@ function VectorRadarCard({
         </div>
       </div>
 
-      <div className={contentGridClass}>
-        {interactive ? (
-          <div className="min-w-0 space-y-3 pr-2">
+      <div className="mt-5 min-w-0 space-y-3">
+        <WeightSlider
+          label={`${label} influence`}
+          value={contextWeight}
+          onChange={(value) => onContextWeightChange(context, value)}
+          fillColor={VECTOR_INFLUENCE_COLORS[context].fill}
+          thumbColor={VECTOR_INFLUENCE_COLORS[context].fill}
+        />
+        <div className="min-w-0 space-y-2">
+          {topTags.map((tag) => (
             <WeightSlider
-              label={`${label} influence`}
-              value={contextWeight}
-              onChange={(value) => onContextWeightChange(context, value)}
+              key={`${context}-${tag}`}
+              label={tag}
+              value={weights.tags[context][tag] ?? 0}
+              onChange={(value) => onTagWeightChange(context, tag, value)}
               fillColor={VECTOR_INFLUENCE_COLORS[context].fill}
               thumbColor={VECTOR_INFLUENCE_COLORS[context].fill}
             />
-            <div className="min-w-0 space-y-2">
-              {topTags.map((tag) => (
-                <WeightSlider
-                  key={`${context}-${tag}`}
-                  label={tag}
-                  value={weights.tags[context][tag] ?? 0}
-                  onChange={(value) => onTagWeightChange(context, tag, value)}
-                  fillColor={VECTOR_INFLUENCE_COLORS[context].fill}
-                  thumbColor={VECTOR_INFLUENCE_COLORS[context].fill}
-                />
-              ))}
-            </div>
-          </div>
-        ) : null}
-
-        <div
-          className={`relative ${interactive ? "mx-auto xl:mx-0" : "mx-auto"}`}
-          style={{
-            width: interactive ? `${chartCanvasSize}px` : `${simpleChartCanvasSize}px`,
-            minWidth: interactive ? `${chartCanvasSize}px` : undefined,
-            maxWidth: interactive ? `${chartCanvasSize}px` : `${simpleChartCanvasSize}px`,
-          }}
-        >
-          <svg
-            viewBox="0 0 160 160"
-            className="overflow-visible"
-            style={{
-              width: interactive ? `${chartCanvasSize}px` : `${simpleChartCanvasSize}px`,
-              height: interactive ? `${chartCanvasSize}px` : `${simpleChartCanvasSize}px`,
-              aspectRatio: "1 / 1",
-            }}
-          >
-            {[24, 42, 60, 78].map((radius) => (
-              <polygon
-                key={radius}
-                points={axisLabels.map((_, index) => {
-                  const point = polarPoint(index, axisLabels.length, radius)
-                  return `${point.x},${point.y}`
-                }).join(" ")}
-                fill="none"
-                stroke="rgba(255,255,255,0.14)"
-                strokeWidth="1"
-              />
-            ))}
-            {axisLabels.map((_, index) => {
-              const point = polarPoint(index, axisLabels.length, 84)
-              return (
-                <line
-                  key={`axis-${index}`}
-                  x1="80"
-                  y1="80"
-                  x2={point.x}
-                  y2={point.y}
-                  stroke="rgba(255,255,255,0.12)"
-                  strokeWidth="1"
-                />
-              )
-            })}
-            <polygon
-              points={polygon}
-              fill={`${visual.accent}22`}
-              stroke={visual.accent}
-              strokeWidth="2.25"
-              style={{
-                filter: `drop-shadow(0 0 10px ${visual.glow})`,
-                opacity: 0.92,
-              }}
-            />
-            {values.map((value, index) => {
-              const point = polarPoint(index, values.length, tagRadarRadius(value, radarCeiling))
-              return (
-                <circle
-                  key={`point-${index}`}
-                  cx={point.x}
-                  cy={point.y}
-                  r="2.75"
-                  fill={visual.accent}
-                />
-              )
-            })}
-          </svg>
-          {axisLabels.map((axis, index) => {
-            const point = polarPoint(index, axisLabels.length, interactive ? 114 : 122)
-            return (
-              <div
-                key={`${axis}-label`}
-                className={`pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 text-center leading-snug font-semibold uppercase text-white/92 ${interactive ? "max-w-[148px] text-[10px] tracking-[0.08em]" : "max-w-[186px] text-[12px] tracking-[0.05em]"}`}
-                style={{ left: `${(point.x / 160) * 100}%`, top: `${(point.y / 160) * 100}%` }}
-              >
-                {axis.replace(/_/g, " ")}
-              </div>
-            )
-          })}
+          ))}
         </div>
-
       </div>
     </div>
   )
@@ -677,12 +562,15 @@ export function ControlPanel({
     const [, ...tagParts] = entry.split(":")
     return tagParts.join(":")
   })
+  const selectedSimpleTagSet = new Set(selectedSimpleLabels)
   const simpleFeaturedLabels = featuredTags.flatMap((group) => group.tags)
+  const baseActiveTags = Array.from(new Set(simpleFeaturedLabels))
+    .filter((tag) => !selectedSimpleTagSet.has(tag))
+    .slice(0, selectedSimpleLabels.length > 0 ? 6 : 8)
+  const boostedActiveTags = Array.from(new Set(selectedSimpleLabels)).slice(0, 6)
   const activeSignalTags =
-    selectedSimpleLabels.length > 0
-      ? Array.from(new Set(selectedSimpleLabels)).slice(0, 8)
-      : mode === "simple"
-        ? Array.from(new Set(simpleFeaturedLabels)).slice(0, 8)
+    mode === "simple"
+      ? [...boostedActiveTags, ...baseActiveTags]
       : Object.entries(weights.tags)
           .flatMap(([context, tagMap]) =>
             Object.entries(tagMap).map(([tag, value]) => ({
@@ -733,16 +621,41 @@ export function ControlPanel({
                   <div className="mb-2 text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
                     Active Tags
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    {activeSignalTags.map((tag) => (
-                      <span
-                        key={tag}
-                        className="rounded-full border border-sky-300/30 bg-sky-400/12 px-3 py-1.5 text-[11px] font-medium text-sky-50 shadow-[0_0_14px_rgba(56,189,248,0.16)]"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
+                  {mode === "simple" && boostedActiveTags.length > 0 ? (
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap gap-2">
+                        {boostedActiveTags.map((tag) => (
+                          <span
+                            key={`boosted-${tag}`}
+                            className="rounded-full border border-sky-200/70 bg-sky-300/20 px-3 py-1.5 text-[11px] font-semibold text-sky-50 shadow-[0_0_18px_rgba(56,189,248,0.24)]"
+                          >
+                            + {tag}
+                          </span>
+                        ))}
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {baseActiveTags.map((tag) => (
+                          <span
+                            key={`base-${tag}`}
+                            className="rounded-full border border-white/10 bg-white/[0.045] px-2.5 py-1 text-[10px] font-medium text-slate-300/80"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {activeSignalTags.map((tag) => (
+                        <span
+                          key={tag}
+                          className="rounded-full border border-sky-300/30 bg-sky-400/12 px-3 py-1.5 text-[11px] font-medium text-sky-50 shadow-[0_0_14px_rgba(56,189,248,0.16)]"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -971,7 +884,7 @@ export function ControlPanel({
               </div>
               <div className="grid gap-5 2xl:grid-cols-2">
                 {VECTOR_CONTEXT_KEYS.map((context) => (
-                  <VectorRadarCard
+                  <VectorControlCard
                     key={`simple-${context}`}
                     context={context}
                     label={context.replace(/_/g, " ")}
@@ -1098,7 +1011,7 @@ export function ControlPanel({
               </div>
               <div className="grid gap-5 2xl:grid-cols-2">
                 {VECTOR_CONTEXT_KEYS.map((context) => (
-                  <VectorRadarCard
+                  <VectorControlCard
                     key={context}
                     context={context}
                     label={context.replace(/_/g, " ")}
