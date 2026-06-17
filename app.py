@@ -314,8 +314,8 @@ def _serialize_recommendation(item: dict) -> dict[str, Any]:
             "narrative": float(item.get("vector_context_percentages", {}).get("narrative", 0.0)),
             "vibe": float(item.get("vector_context_percentages", {}).get("vibe", 0.0)),
             "structure_loop": float(item.get("vector_context_percentages", {}).get("structure_loop", 0.0)),
-            "identity": float(item.get("vector_context_percentages", {}).get("identity", 0.0)),
-            "setting": float(item.get("vector_context_percentages", {}).get("setting", 0.0)),
+            "identity": float(item.get("signal_context_percentages", {}).get("identity", 0.0)),
+            "setting": float(item.get("signal_context_percentages", {}).get("setting", 0.0)),
             "music": float(item.get("active_context_percentages", {}).get("music", 0.0)),
         },
         "reviewStats": {

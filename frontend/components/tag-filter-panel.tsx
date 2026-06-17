@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { Search, X, Filter, ChevronDown, ChevronRight, Crosshair } from "lucide-react"
+import { ArrowRight, Check, Search, X, Filter, ChevronDown, ChevronRight, Crosshair } from "lucide-react"
 
 interface TagFilterState {
   include: string[]
@@ -145,7 +145,7 @@ export function TagFilterPanel({ filters, tagOptions, onFiltersChange }: TagFilt
             
             {expandedCategories.includes(category) && (
               <div className="px-3 pb-2.5">
-                <div className="flex flex-wrap gap-1">
+                <div className="grid gap-1.5 sm:grid-cols-2">
                   {tags.map(tag => {
                     const isIncluded = filters.include.includes(tag)
                     
@@ -153,12 +153,15 @@ export function TagFilterPanel({ filters, tagOptions, onFiltersChange }: TagFilt
                       <button
                         key={tag}
                         onClick={() => toggleIncludeTag(tag)}
-                        className={`tag-chip cursor-pointer ${
+                        aria-pressed={isIncluded}
+                        className={`filter-tag-button ${
                           isIncluded ? "included" : ""
                         }`}
                       >
-                        <span>{tag}</span>
-                        {isIncluded && <X className="w-2.5 h-2.5" />}
+                        <span className="min-w-0 break-words leading-4">{tag}</span>
+                        <span className="filter-tag-arrow" aria-hidden="true">
+                          {isIncluded ? <Check className="h-3.5 w-3.5" /> : <ArrowRight className="h-3.5 w-3.5" />}
+                        </span>
                       </button>
                     )
                   })}

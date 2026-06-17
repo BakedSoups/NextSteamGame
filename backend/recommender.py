@@ -15,7 +15,8 @@ SETTING_CONTEXT_MULTIPLIER = 0.76
 SOUNDTRACK_CONTEXT_MULTIPLIER = 0.82
 
 VECTOR_CONTEXT_ORDER = tuple(VECTOR_CONTEXT_MULTIPLIERS.keys())
-CONTENT_CONTEXT_ORDER = VECTOR_CONTEXT_ORDER + ("identity", "setting", "music")
+SIGNAL_CONTEXT_ORDER = ("identity", "setting", "music")
+CONTENT_CONTEXT_ORDER = VECTOR_CONTEXT_ORDER + SIGNAL_CONTEXT_ORDER
 APPEAL_AXIS_ORDER = (
     "challenge",
     "complexity",
@@ -113,18 +114,27 @@ def context_percentages_to_multipliers(percentages: dict[str, float | int]) -> d
             "setting": SETTING_CONTEXT_MULTIPLIER,
             "music": SOUNDTRACK_CONTEXT_MULTIPLIER,
         }
-    total = sum(float(value) for value in percentages.values())
-    if total <= 0:
+
+    defaults = {
+        **VECTOR_CONTEXT_MULTIPLIERS,
+        "identity": IDENTITY_CONTEXT_MULTIPLIER,
+        "setting": SETTING_CONTEXT_MULTIPLIER,
+        "music": SOUNDTRACK_CONTEXT_MULTIPLIER,
+    }
+
+    def normalize_group(contexts: tuple[str, ...]) -> dict[str, float]:
+        total = sum(float(percentages.get(context, 0.0)) for context in contexts)
+        if total <= 0:
+            return {context: defaults[context] for context in contexts}
+        context_count = max(len(contexts), 1)
         return {
-            **VECTOR_CONTEXT_MULTIPLIERS,
-            "identity": IDENTITY_CONTEXT_MULTIPLIER,
-            "setting": SETTING_CONTEXT_MULTIPLIER,
-            "music": SOUNDTRACK_CONTEXT_MULTIPLIER,
+            context: (float(percentages.get(context, 0.0)) / total) * context_count
+            for context in contexts
         }
-    context_count = max(len(CONTENT_CONTEXT_ORDER), 1)
+
     return {
-        context: (float(percentages.get(context, 0.0)) / total) * context_count
-        for context in CONTENT_CONTEXT_ORDER
+        **normalize_group(VECTOR_CONTEXT_ORDER),
+        **normalize_group(SIGNAL_CONTEXT_ORDER),
     }
 
 
@@ -571,17 +581,9 @@ def recommend_games(
         vector_breakdown = _vector_context_breakdown(game["vectors"], vector_preferences)
         identity_score = _identity_match_score(game["metadata"], identity_preferences)
         setting_score = _setting_match_score(game["metadata"], setting_preferences)
-        if identity_preferences:
-            vector_breakdown["identity"] = identity_score
-        if setting_preferences:
-            vector_breakdown["setting"] = setting_score
         active_vector_contexts = [
             context for context, preferred_weights in vector_preferences.items() if preferred_weights
         ]
-        if identity_preferences:
-            active_vector_contexts.append("identity")
-        if setting_preferences:
-            active_vector_contexts.append("setting")
         if active_vector_contexts:
             weighted_context_total = sum(
                 max(context_multipliers.get(context, 1.0), 0.0)
@@ -594,7 +596,25 @@ def recommend_games(
         else:
             vector_score = 0.0
         genre_score = _genre_match_score(game["metadata"], genre_preferences)
-        appeal_score = _appeal_match_score(game["metadata"], target_appeal_axes)
+        raw_appeal_score = _appeal_match_score(game["metadata"], target_appeal_axes)
+        signal_scores = {}
+        if identity_preferences:
+            signal_scores["identity"] = identity_score
+        if setting_preferences:
+            signal_scores["setting"] = setting_score
+        if signal_scores:
+            signal_weight_total = sum(
+                max(context_multipliers.get(context, 1.0), 0.0)
+                for context in signal_scores
+            ) or 1.0
+            metadata_signal_score = sum(
+                score * max(context_multipliers.get(context, 1.0), 0.0)
+                for context, score in signal_scores.items()
+            ) / signal_weight_total
+            appeal_score = raw_appeal_score * 0.62 + metadata_signal_score * 0.38
+        else:
+            metadata_signal_score = 0.0
+            appeal_score = raw_appeal_score
         soundtrack_score = _music_match_score(game["metadata"], music_preferences)
         matched_vector_tags = _top_vector_matches(game["vectors"], vector_preferences)
         matched_identity_tags = _top_weighted_matches(
@@ -624,6 +644,11 @@ def recommend_games(
             for context, value in vector_breakdown.items()
         }
         vector_component_percentages = _percent_breakdown(vector_component_weights)
+        signal_component_weights = {
+            context: value * context_multipliers.get(context, 1.0)
+            for context, value in signal_scores.items()
+        }
+        signal_component_percentages = _percent_breakdown(signal_component_weights)
         total_score = (
             weighted_components["vector"]
             + weighted_components["genre"]
@@ -642,10 +667,13 @@ def recommend_games(
                 "vector_score": vector_score,
                 "genre_score": genre_score,
                 "appeal_score": appeal_score,
+                "metadata_signal_score": metadata_signal_score,
                 "soundtrack_score": soundtrack_score,
                 "vector_context_breakdown": vector_breakdown,
+                "signal_context_breakdown": signal_scores,
                 "weighted_component_percentages": component_percentages,
                 "vector_context_percentages": vector_component_percentages,
+                "signal_context_percentages": signal_component_percentages,
                 "weighted_components": weighted_components,
                 "confidence_multiplier": confidence_multiplier,
                 "matched_tags": {

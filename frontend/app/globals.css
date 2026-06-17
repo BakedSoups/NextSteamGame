@@ -117,6 +117,54 @@
     @apply border-red-300/50 bg-red-400/12 text-red-100;
   }
 
+  .filter-tag-button {
+    @apply inline-flex min-h-9 items-center gap-2 rounded-md border border-white/14 bg-white/[0.07] px-2.5 py-2 text-left text-[11px] font-medium text-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all hover:-translate-y-px hover:border-primary/60 hover:bg-white/[0.12] focus-visible:ring-2 focus-visible:ring-primary/50;
+  }
+
+  .filter-tag-button.included {
+    @apply border-sky-300/70 bg-sky-300/16 text-sky-50 shadow-[0_0_14px_var(--glow-cyan),inset_0_1px_0_rgba(255,255,255,0.08)];
+  }
+
+  .filter-tag-arrow {
+    @apply ml-auto flex h-5 w-5 shrink-0 items-center justify-center rounded-sm border border-white/14 bg-black/20 text-slate-300/80 transition-colors;
+  }
+
+  .filter-tag-button:hover .filter-tag-arrow {
+    @apply border-primary/55 text-primary;
+  }
+
+  .filter-tag-button.included .filter-tag-arrow {
+    @apply border-sky-200/70 bg-sky-200 text-slate-950;
+  }
+
+  .preference-chip {
+    @apply inline-flex min-h-10 items-center gap-2 rounded-lg border border-white/18 bg-white/[0.075] px-3 py-2 text-left text-[12px] font-semibold text-slate-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all hover:-translate-y-px hover:border-primary/65 hover:bg-white/[0.12] focus-visible:ring-2 focus-visible:ring-primary/55;
+  }
+
+  .preference-chip.selected {
+    @apply border-sky-300/75 bg-sky-300/18 text-sky-50 shadow-[0_0_18px_var(--glow-cyan),inset_0_1px_0_rgba(255,255,255,0.10)];
+  }
+
+  .preference-chip-marker {
+    @apply h-5 w-1.5 shrink-0 rounded-full bg-primary/70 shadow-[0_0_10px_var(--glow-cyan)];
+  }
+
+  .preference-chip-icon {
+    @apply ml-auto flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-white/18 bg-black/20 text-slate-200/80;
+  }
+
+  .preference-chip.selected .preference-chip-icon {
+    @apply border-sky-200/70 bg-sky-200 text-slate-950;
+  }
+
+  .signal-tag-button {
+    @apply inline-flex min-h-9 items-center gap-2 rounded-md border border-amber-200/18 bg-amber-200/[0.055] px-2.5 py-2 text-left text-[11px] font-semibold text-slate-100 transition-all hover:border-amber-200/50 hover:bg-amber-200/[0.10] focus-visible:ring-2 focus-visible:ring-amber-200/45;
+  }
+
+  .signal-tag-button.selected {
+    @apply border-sky-300/70 bg-sky-300/16 text-sky-50 shadow-[0_0_14px_var(--glow-cyan)];
+  }
+
   .status-dot {
     @apply h-2 w-2 rounded-full bg-primary shadow-[0_0_8px_var(--glow-cyan)];
   }

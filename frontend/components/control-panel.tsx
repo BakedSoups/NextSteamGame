@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { ChevronDown, ChevronRight, Puzzle, Sparkles, Grid3X3, Activity, Zap } from "lucide-react"
+import { ArrowRight, Check, ChevronDown, ChevronRight, Puzzle, Sparkles, Grid3X3, Activity, Zap } from "lucide-react"
 import type { Game, Weights } from "@/lib/types"
 import { MATCH_LABELS } from "@/lib/score-labels"
 
@@ -99,6 +99,16 @@ const VECTOR_INFLUENCE_COLORS: Record<keyof Weights["context"], { fill: string; 
   identity: { fill: "#fb7185", glow: "rgba(251, 113, 133, 0.30)" },
   setting: { fill: "#60a5fa", glow: "rgba(96, 165, 250, 0.30)" },
   music: { fill: "#fcd34d", glow: "rgba(252, 211, 77, 0.3)" },
+}
+
+const TAG_CONTEXT_ACCENTS: Record<keyof Weights["tags"], string> = {
+  mechanics: "#7dd3fc",
+  narrative: "#fda4af",
+  vibe: "#2dd4bf",
+  structure_loop: "#86efac",
+  identity: "#fcd34d",
+  setting: "#60a5fa",
+  music: "#f9a8d4",
 }
 
 interface CollapsibleSectionProps {
@@ -268,6 +278,40 @@ function SummaryVectorBar({ weights }: { weights: Weights["context"] }) {
   )
 }
 
+function PreferenceTagButton({
+  context,
+  tag,
+  selected,
+  onClick,
+}: {
+  context: keyof Weights["tags"]
+  tag: string
+  selected: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={selected}
+      className={`preference-chip ${selected ? "selected" : ""}`}
+    >
+      <span
+        className="preference-chip-marker"
+        style={{
+          backgroundColor: TAG_CONTEXT_ACCENTS[context],
+          boxShadow: `0 0 10px ${TAG_CONTEXT_ACCENTS[context]}`,
+        }}
+        aria-hidden="true"
+      />
+      <span className="min-w-0 break-words leading-4">{tag}</span>
+      <span className="preference-chip-icon" aria-hidden="true">
+        {selected ? <Check className="h-3.5 w-3.5" /> : <ArrowRight className="h-3.5 w-3.5" />}
+      </span>
+    </button>
+  )
+}
+
 interface VectorRadarCardProps {
   context: keyof Weights["tags"]
   label: string
@@ -353,7 +397,9 @@ function VectorRadarCard({
   const topTags = axisLabels.slice(0, 5)
   const chartCanvasSize = 206 + Math.round(contextWeight * 0.74)
   const simpleChartCanvasSize = Math.max(196, Math.round(chartCanvasSize * 0.8))
-  const contentGridClass = interactive ? "mt-5 grid min-w-0 gap-8 xl:grid-cols-[260px_minmax(0,1fr)] 2xl:grid-cols-[280px_minmax(0,1fr)]" : "mt-5"
+  const contentGridClass = interactive
+    ? "mt-5 grid min-w-0 gap-8 xl:grid-cols-[260px_minmax(0,1fr)] 2xl:grid-cols-[280px_minmax(0,1fr)]"
+    : "mt-5"
 
   return (
     <div
@@ -482,7 +528,65 @@ function VectorRadarCard({
             )
           })}
         </div>
+
       </div>
+    </div>
+  )
+}
+
+function SignalTagMenus({
+  groups,
+  selectedSimpleTags,
+  onSimpleTagToggle,
+}: {
+  groups: Array<{
+    context: keyof Weights["tags"]
+    label: string
+    tags: string[]
+  }>
+  selectedSimpleTags: string[]
+  onSimpleTagToggle: (context: keyof Weights["tags"], tag: string) => void
+}) {
+  return (
+    <div className="space-y-5">
+      {groups.map((group) => {
+        const selectedCount = group.tags.filter((tag) =>
+          selectedSimpleTags.includes(`${group.context}:${tag}`),
+        ).length
+
+        return (
+          <div key={`${group.context}-${group.label}`}>
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-200/82">
+                {group.label}
+              </div>
+              <div className="rounded-full border border-amber-200/20 bg-amber-200/10 px-2 py-0.5 text-[10px] tracking-[0.12em] text-amber-100/85">
+                {selectedCount > 0 ? `${selectedCount} active` : `${group.tags.length} tags`}
+              </div>
+            </div>
+              <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+              {group.tags.map((tag) => {
+                const selectionKey = `${group.context}:${tag}`
+                const isSelected = selectedSimpleTags.includes(selectionKey)
+                return (
+                  <button
+                    key={selectionKey}
+                    type="button"
+                    onClick={() => onSimpleTagToggle(group.context, tag)}
+                    aria-pressed={isSelected}
+                    className={`signal-tag-button ${isSelected ? "selected" : ""}`}
+                  >
+                    <span className="min-w-0 break-words leading-4">{tag}</span>
+                    <span className="ml-auto shrink-0" aria-hidden="true">
+                      {isSelected ? <Check className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -504,6 +608,8 @@ export function ControlPanel({
 }: ControlPanelProps) {
   const coreVectorIntents = SIMPLE_INTENTS.filter((intent) => SIMPLE_CORE_VECTOR_INTENTS.includes(intent.key))
   const tagSignalIntents = SIMPLE_INTENTS.filter((intent) => SIMPLE_TAG_SIGNAL_INTENTS.includes(intent.key))
+  const vectorFeaturedGroups = featuredTags.filter((group) => VECTOR_CONTEXT_KEYS.includes(group.context))
+  const signalFeaturedGroups = featuredTags.filter((group) => TAG_SIGNAL_CONTEXT_KEYS.includes(group.context))
   const selectedSimpleLabels = selectedSimpleTags.map((entry) => {
     const [, ...tagParts] = entry.split(":")
     return tagParts.join(":")
@@ -737,12 +843,12 @@ export function ControlPanel({
                 <div className="text-primary">
                   <Puzzle className="h-3.5 w-3.5" />
                 </div>
-                <span className="text-xs font-medium text-foreground">Tap What You Want More Of</span>
+                <span className="text-xs font-medium text-foreground">Gameplay Tags</span>
               </div>
               <div className="border-t border-border/50 p-3">
                 <div className="space-y-4">
-                  {featuredTags.map((group) => (
-                    <div key={group.context}>
+                  {vectorFeaturedGroups.map((group) => (
+                    <div key={`${group.context}-${group.label}`}>
                       <div className="mb-2 flex items-center justify-between gap-2">
                         <div className="text-[11px] uppercase tracking-[0.2em] text-slate-200/78">
                           {group.label}
@@ -751,22 +857,18 @@ export function ControlPanel({
                           Tap to add
                         </div>
                       </div>
-                      <div className="flex flex-wrap gap-2.5">
+                      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
                         {group.tags.map((tag) => {
                           const selectionKey = `${group.context}:${tag}`
                           const isSelected = selectedSimpleTags.includes(selectionKey)
                           return (
-                            <button
+                            <PreferenceTagButton
                               key={selectionKey}
+                              context={group.context}
+                              tag={tag}
+                              selected={isSelected}
                               onClick={() => onSimpleTagToggle(group.context, tag)}
-                              className={`rounded-2xl border px-4 py-3 text-[13px] font-medium transition-colors ${
-                                isSelected
-                                  ? "border-sky-300/60 bg-sky-400/18 text-sky-50 shadow-[0_0_16px_var(--glow-cyan)]"
-                                  : "border-white/12 bg-white/[0.08] text-slate-100 hover:border-primary/60 hover:bg-white/[0.12]"
-                              }`}
-                            >
-                              {tag}
-                            </button>
+                            />
                           )
                         })}
                       </div>
@@ -775,17 +877,33 @@ export function ControlPanel({
                 </div>
               </div>
             </div>
+
+            <div className="panel overflow-hidden glow-box-subtle">
+              <div className="panel-header">
+                <div className="text-primary">
+                  <Zap className="h-3.5 w-3.5" />
+                </div>
+                <span className="text-xs font-medium text-foreground">Theme / World Signals</span>
+              </div>
+              <div className="border-t border-border/50 p-3">
+                <SignalTagMenus
+                  groups={signalFeaturedGroups}
+                  selectedSimpleTags={selectedSimpleTags}
+                  onSimpleTagToggle={onSimpleTagToggle}
+                />
+              </div>
+            </div>
           </div>
 
-          <div className="hidden xl:grid gap-4 xl:grid-cols-[minmax(0,1.18fr)_minmax(0,0.82fr)]">
-            <div className="space-y-4 xl:sticky xl:top-24 xl:self-start">
+          <div className="hidden xl:block space-y-4">
+            <div className="space-y-4">
               <div className="panel p-4 glow-box">
                 <div className="flex items-center gap-2">
                   <Puzzle className="h-4 w-4 text-primary" />
                   <span className="terminal-label text-primary">Base Gameplay Shape</span>
                 </div>
                 <p className="mt-3 text-[12px] leading-6 text-slate-100/90">
-                  This is the starting shape from the game you picked. Use it as the baseline, then add tags on the right for what you want more of.
+                  This is the starting shape from the game you picked. Use it as the baseline, then add tags below for what you want more of.
                 </p>
               </div>
               <div className="grid gap-5 2xl:grid-cols-2">
@@ -806,51 +924,58 @@ export function ControlPanel({
               </div>
             </div>
 
-            <div className="space-y-4">
-            <div className="panel overflow-hidden glow-box-subtle">
-              <div className="panel-header">
-                <div className="text-primary">
-                  <Zap className="h-3.5 w-3.5" />
+            <div className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
+              <div className="panel overflow-hidden glow-box-subtle">
+                <div className="panel-header">
+                  <div className="text-primary">
+                    <Puzzle className="h-3.5 w-3.5" />
+                  </div>
+                  <span className="text-xs font-medium text-foreground">Gameplay Tag Boosts</span>
                 </div>
-                <span className="text-xs font-medium text-foreground">What Do You Care About?</span>
-              </div>
-              <div className="border-t border-border/50 p-3">
-              <div className="space-y-4">
-                <p className="text-[12px] leading-6 text-slate-100/90">
-                  Add the things you want more of from this game. These tags shape the themes, mechanics, world details, or music the search should lean into, without changing the base gameplay cards on the left.
-                </p>
-                <div className="space-y-4">
-                  {featuredTags.map((group) => (
-                    <div key={group.context}>
-                      <div className="mb-2 text-[11px] uppercase tracking-[0.2em] text-slate-200/78">
-                        {group.label}
+                <div className="border-t border-border/50 p-3">
+                  <div className="space-y-4">
+                    {vectorFeaturedGroups.map((group) => (
+                      <div key={`${group.context}-${group.label}`}>
+                        <div className="mb-2 text-[11px] uppercase tracking-[0.2em] text-slate-200/78">
+                          {group.label}
+                        </div>
+                        <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                          {group.tags.map((tag) => {
+                            const selectionKey = `${group.context}:${tag}`
+                            const isSelected = selectedSimpleTags.includes(selectionKey)
+                            return (
+                              <PreferenceTagButton
+                                key={selectionKey}
+                                context={group.context}
+                                tag={tag}
+                                selected={isSelected}
+                                onClick={() => onSimpleTagToggle(group.context, tag)}
+                              />
+                            )
+                          })}
+                        </div>
                       </div>
-                      <div className="flex flex-wrap gap-2">
-                        {group.tags.map((tag) => {
-                          const selectionKey = `${group.context}:${tag}`
-                          const isSelected = selectedSimpleTags.includes(selectionKey)
-                          return (
-                            <button
-                              key={selectionKey}
-                              onClick={() => onSimpleTagToggle(group.context, tag)}
-                              className={`rounded-full border px-3.5 py-2 text-[12px] transition-colors ${
-                                isSelected
-                                  ? "border-sky-300/55 bg-sky-400/16 text-sky-50 shadow-[0_0_14px_var(--glow-cyan)]"
-                                  : "border-white/12 bg-white/[0.06] text-slate-100 hover:border-primary/60 hover:bg-white/[0.10]"
-                              }`}
-                            >
-                              {tag}
-                            </button>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               </div>
+
+              <div className="panel overflow-hidden glow-box-subtle">
+                <div className="panel-header">
+                  <div className="text-primary">
+                    <Zap className="h-3.5 w-3.5" />
+                  </div>
+                  <span className="text-xs font-medium text-foreground">Theme / World Signals</span>
+                </div>
+                <div className="border-t border-border/50 p-3">
+                  <SignalTagMenus
+                    groups={signalFeaturedGroups}
+                    selectedSimpleTags={selectedSimpleTags}
+                    onSimpleTagToggle={onSimpleTagToggle}
+                  />
+                </div>
               </div>
             </div>
-          </div>
           </div>
         </>
       )}

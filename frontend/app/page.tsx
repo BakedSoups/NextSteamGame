@@ -43,6 +43,8 @@ const DEFAULT_APPEAL_WEIGHTS: Weights["appeal"] = {
 
 type Screen = "search" | "profile" | "results"
 type TagContextKey = keyof Weights["tags"]
+const VECTOR_CONTEXT_KEYS: TagContextKey[] = ["mechanics", "narrative", "vibe", "structure_loop"]
+const SIGNAL_CONTEXT_KEYS: TagContextKey[] = ["identity", "setting", "music"]
 type SimpleIntentKey =
   | "more_similar"
   | "more_different"
@@ -576,7 +578,8 @@ export default function NextSteamGamePage() {
 
   const updateContextWeight = (key: keyof Weights["context"], value: number) => {
     setWeights((prev) => {
-      const others = Object.keys(prev.context).filter((k) => k !== key) as (keyof Weights["context"])[]
+      const contextGroup = VECTOR_CONTEXT_KEYS.includes(key) ? VECTOR_CONTEXT_KEYS : SIGNAL_CONTEXT_KEYS
+      const others = contextGroup.filter((k) => k !== key)
       const remaining = 100 - value
       const otherTotal = others.reduce((sum, k) => sum + prev.context[k], 0)
 
@@ -587,7 +590,7 @@ export default function NextSteamGamePage() {
         })
       }
 
-      const total = Object.values(newContext).reduce((a, b) => a + b, 0)
+      const total = contextGroup.reduce((sum, item) => sum + newContext[item], 0)
       if (total !== 100 && others.length > 0) {
         const largestKey = others.reduce((a, b) => (newContext[a] > newContext[b] ? a : b))
         newContext[largestKey] += 100 - total
@@ -643,7 +646,22 @@ export default function NextSteamGamePage() {
       return {
         ...prev,
         match: rebalancePercentMap(prev.match, matchBoosts),
-        context: rebalancePercentMap(prev.context, contextBoosts),
+        context: {
+          ...rebalancePercentMap(
+            VECTOR_CONTEXT_KEYS.reduce(
+              (acc, key) => ({ ...acc, [key]: prev.context[key] }),
+              {} as Record<TagContextKey, number>,
+            ),
+            contextBoosts,
+          ),
+          ...rebalancePercentMap(
+            SIGNAL_CONTEXT_KEYS.reduce(
+              (acc, key) => ({ ...acc, [key]: prev.context[key] }),
+              {} as Record<TagContextKey, number>,
+            ),
+            contextBoosts,
+          ),
+        },
         appeal: { ...prev.appeal, ...appealUpdates },
       }
     })
