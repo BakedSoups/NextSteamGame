@@ -562,15 +562,10 @@ export function ControlPanel({
     const [, ...tagParts] = entry.split(":")
     return tagParts.join(":")
   })
-  const selectedSimpleTagSet = new Set(selectedSimpleLabels)
-  const simpleFeaturedLabels = featuredTags.flatMap((group) => group.tags)
-  const baseActiveTags = Array.from(new Set(simpleFeaturedLabels))
-    .filter((tag) => !selectedSimpleTagSet.has(tag))
-    .slice(0, selectedSimpleLabels.length > 0 ? 6 : 8)
   const boostedActiveTags = Array.from(new Set(selectedSimpleLabels)).slice(0, 6)
   const activeSignalTags =
     mode === "simple"
-      ? [...boostedActiveTags, ...baseActiveTags]
+      ? boostedActiveTags
       : Object.entries(weights.tags)
           .flatMap(([context, tagMap]) =>
             Object.entries(tagMap).map(([tag, value]) => ({
@@ -605,65 +600,40 @@ export function ControlPanel({
           <div className="mb-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
             What You&apos;re Chasing
           </div>
-          {activeSignalTags.length > 0 ? (
-            <div className="space-y-2">
-              <p className="text-[12px] leading-6 text-slate-100/90">
-                Vectors shape the kind of game structure you want. Tags tell the system which exact reasons to chase.
-              </p>
-              <div className="space-y-3">
-                <div>
-                  <div className="mb-2 text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
-                    How This Game Feels
-                  </div>
-                  <SummaryVectorBar weights={weights.context} />
+          <div className="space-y-2">
+            <p className="text-[12px] leading-6 text-slate-100/90">
+              Vectors shape the kind of game structure you want. Tags tell the system which exact reasons to chase.
+            </p>
+            <div className="space-y-3">
+              <div>
+                <div className="mb-2 text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+                  How This Game Feels
                 </div>
-                <div>
-                  <div className="mb-2 text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
-                    Active Tags
-                  </div>
-                  {mode === "simple" && boostedActiveTags.length > 0 ? (
-                    <div className="space-y-2">
-                      <div className="flex flex-wrap gap-2">
-                        {boostedActiveTags.map((tag) => (
-                          <span
-                            key={`boosted-${tag}`}
-                            className="rounded-full border border-sky-200/70 bg-sky-300/20 px-3 py-1.5 text-[11px] font-semibold text-sky-50 shadow-[0_0_18px_rgba(56,189,248,0.24)]"
-                          >
-                            + {tag}
-                          </span>
-                        ))}
-                      </div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {baseActiveTags.map((tag) => (
-                          <span
-                            key={`base-${tag}`}
-                            className="rounded-full border border-white/10 bg-white/[0.045] px-2.5 py-1 text-[10px] font-medium text-slate-300/80"
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex flex-wrap gap-2">
-                      {activeSignalTags.map((tag) => (
-                        <span
-                          key={tag}
-                          className="rounded-full border border-sky-300/30 bg-sky-400/12 px-3 py-1.5 text-[11px] font-medium text-sky-50 shadow-[0_0_14px_rgba(56,189,248,0.16)]"
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  )}
+                <SummaryVectorBar weights={weights.context} />
+              </div>
+              <div>
+                <div className="mb-2 text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+                  Active Tags
                 </div>
+                {activeSignalTags.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {activeSignalTags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="rounded-full border border-sky-200/70 bg-sky-300/20 px-3 py-1.5 text-[11px] font-semibold text-sky-50 shadow-[0_0_18px_rgba(56,189,248,0.24)]"
+                      >
+                        + {tag}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.035] px-3 py-2 text-[11px] text-slate-300/72">
+                    No tags selected yet.
+                  </div>
+                )}
               </div>
             </div>
-          ) : (
-            <p className="text-[12px] leading-6 text-slate-100/90">
-              Pick structural tags first, then add identity, setting, or music tags to explain the kind of match you want.
-            </p>
-          )}
+          </div>
           {mode === "advanced" && (genrePathSummary || weights.genres.traits.length > 0) && (
             <>
               <div className="h-px bg-border my-3" />
