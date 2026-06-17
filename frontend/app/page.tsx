@@ -81,6 +81,36 @@ function normalizeToHundred(tags: string[]): Record<string, number> {
   }, {})
 }
 
+function normalizeTagKey(tag: string): string {
+  return tag.replace(/[\s-]+/g, "_").toLowerCase()
+}
+
+function displayTagWeights(
+  tags: string[],
+  liveWeights: Record<string, number> | undefined,
+): Record<string, number> {
+  const fallbackWeights = normalizeToHundred(tags)
+  const rawWeights = liveWeights ?? {}
+  const normalizedEntries = Object.entries(rawWeights).reduce<Record<string, number>>((acc, [tag, value]) => {
+    acc[normalizeTagKey(tag)] = value
+    return acc
+  }, {})
+
+  const resolved = tags.reduce<Record<string, number>>((acc, tag) => {
+    acc[tag] = rawWeights[tag] ?? normalizedEntries[normalizeTagKey(tag)] ?? fallbackWeights[tag] ?? 0
+    return acc
+  }, {})
+
+  for (const [tag, value] of Object.entries(rawWeights)) {
+    const displayTag = tag.replace(/_/g, " ")
+    if (!(displayTag in resolved) && !(tag in resolved)) {
+      resolved[displayTag] = value
+    }
+  }
+
+  return resolved
+}
+
 function buildTagWeights(game: Game): Weights["tags"] {
   return {
     mechanics: normalizeToHundred(game.tags.mechanics),
@@ -118,10 +148,10 @@ function featuredTagGroups(game: Game | null): Array<{
     { context: "identity", label: "Identity Details", tags: identityDetailTags },
     { context: "setting", label: "World / Setting", tags: game.tags.setting.slice(0, 6) },
     { context: "music", label: "Music", tags: game.tags.music.slice(0, 6) },
-    { context: "narrative", label: "Narrative", tags: game.tags.narrative.slice(0, 6) },
-    { context: "vibe", label: "Vibe", tags: game.tags.vibe.slice(0, 6) },
-    { context: "structure_loop", label: "Structure", tags: game.tags.structure_loop.slice(0, 6) },
-    { context: "mechanics", label: "Mechanics", tags: game.tags.mechanics.slice(0, 6) },
+    { context: "narrative", label: "Narrative", tags: game.tags.narrative.slice(0, 3) },
+    { context: "vibe", label: "Vibe", tags: game.tags.vibe.slice(0, 3) },
+    { context: "structure_loop", label: "Structure", tags: game.tags.structure_loop.slice(0, 3) },
+    { context: "mechanics", label: "Mechanics", tags: game.tags.mechanics.slice(0, 3) },
   ]
   return groups.filter((group) => group.tags.length > 0)
 }
@@ -141,13 +171,13 @@ function buildWeightsFromGame(game: Game): Weights {
     context: { ...DEFAULT_CONTEXT_WEIGHTS, ...(liveWeights.context ?? {}) },
     appeal: { ...DEFAULT_APPEAL_WEIGHTS, ...(liveWeights.appeal ?? {}) },
     tags: {
-      mechanics: liveWeights.tags?.mechanics ?? {},
-      narrative: liveWeights.tags?.narrative ?? {},
-      vibe: liveWeights.tags?.vibe ?? {},
-      structure_loop: liveWeights.tags?.structure_loop ?? {},
-      identity: liveWeights.tags?.identity ?? {},
-      setting: liveWeights.tags?.setting ?? {},
-      music: liveWeights.tags?.music ?? {},
+      mechanics: displayTagWeights(game.tags.mechanics, liveWeights.tags?.mechanics),
+      narrative: displayTagWeights(game.tags.narrative, liveWeights.tags?.narrative),
+      vibe: displayTagWeights(game.tags.vibe, liveWeights.tags?.vibe),
+      structure_loop: displayTagWeights(game.tags.structure_loop, liveWeights.tags?.structure_loop),
+      identity: displayTagWeights(game.tags.identity, liveWeights.tags?.identity),
+      setting: displayTagWeights(game.tags.setting, liveWeights.tags?.setting),
+      music: displayTagWeights(game.tags.music, liveWeights.tags?.music),
     },
     genres: {
       primary: [...game.genres.primary],

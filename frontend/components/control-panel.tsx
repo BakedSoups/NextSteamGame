@@ -364,30 +364,28 @@ function VectorRadarCard({
   const fallbackTags = Object.entries(weights.tags[context])
     .sort((a, b) => b[1] - a[1])
     .map(([tag]) => tag)
-  const simpleVisibleAxes = visibleTags.slice(0, 6)
+  const radarAxisLimit = 3
+  const simpleVisibleAxes = visibleTags.slice(0, radarAxisLimit)
   const axes = interactive
-    ? Array.from(new Set([...selectedTags, ...fallbackTags])).slice(0, 6)
+    ? Array.from(new Set([...selectedTags, ...fallbackTags])).slice(0, radarAxisLimit)
     : simpleVisibleAxes.length > 0
-      ? Array.from(new Set([...simpleVisibleAxes, ...selectedTags, ...fallbackTags])).slice(0, 6)
-      : Array.from(new Set([...selectedTags, ...fallbackTags])).slice(0, 6)
+      ? Array.from(new Set([...simpleVisibleAxes, ...selectedTags, ...fallbackTags])).slice(0, radarAxisLimit)
+      : Array.from(new Set([...selectedTags, ...fallbackTags])).slice(0, radarAxisLimit)
   const axisLabels = axes.length > 0 ? axes : ["signal", "profile", "tone", "focus", "identity"]
   const contextWeight = weights.context[context]
-  const simpleModeScale = 0.62 + Math.min(Math.max(contextWeight, 0), 100) / 100 * 0.72
   const values = axisLabels.map((axis) =>
     Math.max(
       0,
       interactive
         ? (weights.tags[context][axis] ?? 0)
         : allowSimpleTagShape
-          ? Math.min(100, (weights.tags[context][axis] ?? 0) * simpleModeScale)
-          : Math.min(100, (baselineTagWeights[axis] ?? 0) * simpleModeScale),
+          ? Math.min(100, Math.max(weights.tags[context][axis] ?? 0, baselineTagWeights[axis] ?? 0))
+          : Math.min(100, baselineTagWeights[axis] ?? 0),
     ),
   )
-  // In simple mode these values are a composition that usually sums to ~100
-  // across several axes, so a 0-100 visual ceiling compresses the polygon too
-  // far inward. Use a lower display ceiling there so the shape occupies more
-  // of the radar without changing the underlying weights.
-  const radarCeiling = interactive ? 100 : 38
+  // Simple mode uses a display-only ceiling so 3-axis canonical vectors show
+  // visible differences between medium and high tag strengths.
+  const radarCeiling = interactive ? 100 : 60
   const polygon = values
     .map((value, index) => {
       const point = polarPoint(index, values.length, tagRadarRadius(value, radarCeiling))
@@ -395,11 +393,76 @@ function VectorRadarCard({
     })
     .join(" ")
   const topTags = axisLabels.slice(0, 5)
+  const weightedChips = axisLabels
+    .map((axis, index) => ({ tag: axis, value: values[index] ?? 0 }))
+    .sort((a, b) => b.value - a.value || a.tag.localeCompare(b.tag))
   const chartCanvasSize = 206 + Math.round(contextWeight * 0.74)
   const simpleChartCanvasSize = Math.max(196, Math.round(chartCanvasSize * 0.8))
   const contentGridClass = interactive
     ? "mt-5 grid min-w-0 gap-8 xl:grid-cols-[260px_minmax(0,1fr)] 2xl:grid-cols-[280px_minmax(0,1fr)]"
     : "mt-5"
+
+  if (!interactive) {
+    return (
+      <div
+        className="min-w-0 overflow-hidden rounded-[24px] border p-5 shadow-[0_28px_80px_rgba(0,0,0,0.28)]"
+        style={{
+          borderColor: highlighted ? `${visual.accent}88` : "rgba(255,255,255,0.08)",
+          background: `linear-gradient(180deg, rgba(10,17,26,0.98), rgba(16,24,36,0.92)), radial-gradient(circle at top left, ${highlighted ? visual.glow.replace("0.", "0.5") : visual.glow}, transparent 56%)`,
+          boxShadow: highlighted
+            ? `0 0 0 1px ${visual.accent}55, 0 0 24px ${visual.glow}, 0 28px 80px rgba(0,0,0,0.28)`
+            : "0 28px 80px rgba(0,0,0,0.28)",
+        }}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="text-lg font-semibold text-white">{label}</div>
+          </div>
+          <div
+            className="rounded-full border px-3 py-1 text-[11px] font-medium"
+            style={{ borderColor: `${visual.accent}55`, color: visual.accent, backgroundColor: `${visual.accent}12` }}
+          >
+            {contextWeight}% pull
+          </div>
+        </div>
+
+        <div className="mt-5 grid gap-2.5">
+          {weightedChips.map(({ tag, value }, index) => {
+            const strength = Math.max(8, Math.min(100, value))
+            return (
+              <div
+                key={`${context}-${tag}`}
+                className="relative min-h-[46px] overflow-hidden rounded-2xl border bg-white/[0.035] px-3.5 py-2.5"
+                style={{
+                  borderColor: index === 0 ? `${visual.accent}70` : "rgba(255,255,255,0.12)",
+                  boxShadow: index === 0 ? `0 0 18px ${visual.glow}` : undefined,
+                }}
+              >
+                <div
+                  className="absolute inset-y-0 left-0 rounded-2xl transition-[width] duration-500 ease-out"
+                  style={{
+                    width: `${strength}%`,
+                    background: `linear-gradient(90deg, ${visual.accent}40, ${visual.accent}14)`,
+                  }}
+                />
+                <div className="relative flex min-w-0 items-center justify-between gap-3">
+                  <div className="min-w-0 truncate text-[12px] font-semibold text-slate-50">
+                    {tag.replace(/_/g, " ")}
+                  </div>
+                  <div
+                    className="shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold"
+                    style={{ borderColor: `${visual.accent}55`, color: visual.accent, backgroundColor: `${visual.accent}12` }}
+                  >
+                    {Math.round(value)}
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div
