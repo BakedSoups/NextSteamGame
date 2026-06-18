@@ -6,6 +6,7 @@ import type { Game } from "@/lib/types"
 import Image from "next/image"
 
 const IMAGE_FALLBACK = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='320' height='180'><rect width='100%' height='100%' fill='%2311161f'/></svg>"
+const MAX_SEARCH_RESULTS = 20
 
 interface SearchBarProps {
   games: Game[]
@@ -22,7 +23,7 @@ export function SearchBar({ games, isLoading = false, onQueryChange, onSelect, s
   const inputRef = useRef<HTMLInputElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
-  const filteredGames = query.length > 0 ? games.slice(0, 8) : []
+  const filteredGames = query.length > 0 ? games.slice(0, MAX_SEARCH_RESULTS) : []
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -93,7 +94,7 @@ export function SearchBar({ games, isLoading = false, onQueryChange, onSelect, s
 
       {isOpen && filteredGames.length > 0 && (
         <div className="absolute top-full left-0 right-0 z-50 mt-3 overflow-hidden rounded-2xl border border-border bg-card shadow-[0_24px_60px_rgba(0,0,0,0.28)]">
-          <div className="max-h-96 overflow-y-auto">
+          <div className="max-h-72 overflow-y-auto custom-scrollbar">
             {filteredGames.map((game, index) => (
               <button
                 key={game.id}

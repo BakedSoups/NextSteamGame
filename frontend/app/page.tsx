@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import posthog from "posthog-js"
-import { ArrowLeft, ArrowRight, Github, MessageCircleMore, Star, X } from "lucide-react"
+import { ArrowLeft, ArrowRight, ExternalLink, Github, MessageCircleMore, Star, X } from "lucide-react"
 import steamLogo from "@/art_assets/Steam-Logo.png"
 import gameShelfBackground from "@/art_assets/game_collection_background.webp"
 import { SearchBar } from "@/components/search-bar"
@@ -14,6 +14,9 @@ import type { Game, RecommendedGame, TagFilters, Weights } from "@/lib/types"
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000"
 const SITE_URL = "https://nextsteamgame.com"
+const SNEAKY_FISHY_URL = "https://store.steampowered.com/app/4582530/Sneaky_Fishy/"
+const SNEAKY_FISHY_IMAGE_URL =
+  "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4582530/9304a73e47cea4c5a053e9c041135ac3175fa657/ss_9304a73e47cea4c5a053e9c041135ac3175fa657.1920x1080.jpg?t=1781654447"
 
 const DEFAULT_MATCH_WEIGHTS: Weights["match"] = {
   vector: 34,
@@ -902,6 +905,27 @@ export default function NextSteamGamePage() {
                 </span>
               ) : null}
               <Star className="h-3.5 w-3.5 fill-current" />
+            </a>
+            <a
+              href={SNEAKY_FISHY_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="fixed bottom-4 right-4 z-[80] flex w-[min(20rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-lg border border-white/20 bg-black/72 text-left text-white shadow-[0_18px_46px_rgba(0,0,0,0.42)] backdrop-blur transition hover:-translate-y-0.5 hover:border-cyan-200/55 hover:bg-black/82 sm:bottom-6 sm:right-6"
+            >
+              <img
+                src={SNEAKY_FISHY_IMAGE_URL}
+                alt="Sneaky Fishy"
+                className="aspect-video w-full object-cover"
+              />
+              <span className="flex min-w-0 flex-col gap-1 px-3 py-2.5">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-cyan-200/90">
+                  Support my sister&apos;s new game
+                </span>
+                <span className="flex items-center gap-1.5 text-sm font-semibold leading-tight">
+                  Sneaky Fishy
+                  <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                </span>
+              </span>
             </a>
             <div className="relative z-10 flex min-h-[calc(100dvh-77px)] items-center justify-center px-4 pb-12 pt-6 sm:px-8 sm:pt-8 md:px-12 md:pt-10">
               <div className="w-full max-w-5xl text-center">
