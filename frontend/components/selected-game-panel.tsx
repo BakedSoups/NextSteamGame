@@ -40,13 +40,13 @@ export function SelectedGamePanel({ game }: SelectedGamePanelProps) {
           <h2 className="text-xl font-semibold text-foreground sm:text-2xl">{game.title}</h2>
 
           {(primaryGenres.length > 0 || game.category) ? (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               {[...primaryGenres, game.category].filter(Boolean).join(" · ")}
             </p>
           ) : null}
 
           {!hasSemanticProfile ? (
-            <div className="rounded-2xl border border-amber-300/30 bg-amber-300/10 px-3 py-2 text-xs leading-5 text-amber-50/95">
+            <div className="rounded-2xl border border-amber-300/30 bg-amber-300/10 px-3 py-2 text-sm leading-5 text-amber-50/95">
               This game didn&apos;t have enough insightful reviews. If you want to change that, give this lovely game a review.
             </div>
           ) : null}

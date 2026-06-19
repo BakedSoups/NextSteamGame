@@ -910,20 +910,23 @@ export default function NextSteamGamePage() {
               href={SNEAKY_FISHY_URL}
               target="_blank"
               rel="noreferrer"
-              className="fixed bottom-6 right-6 z-[80] hidden w-[min(20rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-lg border border-white/20 bg-black/72 text-left text-white shadow-[0_18px_46px_rgba(0,0,0,0.42)] backdrop-blur transition hover:-translate-y-0.5 hover:border-cyan-200/55 hover:bg-black/82 sm:flex"
+              className="fixed bottom-6 right-6 z-[80] hidden w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-cyan-200/35 bg-black/78 text-left text-white shadow-[0_18px_46px_rgba(0,0,0,0.46)] backdrop-blur transition hover:-translate-y-0.5 hover:border-cyan-200/65 hover:bg-black/86 sm:block"
             >
-              <img
-                src={SNEAKY_FISHY_IMAGE_URL}
-                alt="Sneaky Fishy"
-                className="aspect-video w-full object-cover"
+              <span
+                aria-hidden="true"
+                className="block h-40 w-full bg-cover bg-center"
+                style={{ backgroundImage: `linear-gradient(180deg, rgba(0,0,0,0.08), rgba(0,0,0,0.18)), url(${SNEAKY_FISHY_IMAGE_URL})` }}
               />
-              <span className="flex min-w-0 flex-col gap-1 px-2.5 py-2 sm:px-3 sm:py-2.5">
-                <span className="text-xs font-semibold uppercase tracking-[0.12em] text-cyan-200/90 sm:text-xs sm:tracking-[0.16em]">
+              <span className="flex min-w-0 flex-col gap-1.5 px-4 py-3">
+                <span className="text-sm font-semibold uppercase tracking-[0.14em] text-cyan-200/90">
                   Support my sister&apos;s new game
                 </span>
-                <span className="flex items-center gap-1.5 text-xs font-semibold leading-tight sm:text-sm">
+                <span className="flex items-center gap-1.5 text-lg font-semibold leading-tight">
                   Sneaky Fishy
                   <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                </span>
+                <span className="text-sm leading-5 text-white/76">
+                  Check it out, it&apos;s her first game. No, it&apos;s not in the recommender yet. Not an endpoint yet :(
                 </span>
               </span>
             </a>
@@ -1075,10 +1078,6 @@ export default function NextSteamGamePage() {
                           AppID {selectedGame?.id}
                         </span>
                       </div>
-                      <p className="mt-5 max-w-3xl text-base leading-8 text-slate-300">
-                        Choose what you like. Start with the traits that make this game click, then switch to advanced mode when you want full control over vectors, match weighting, and detailed profile shaping.
-                      </p>
-
                       {selectedGameScreenshots.length > 0 ? (
                         <>
                           <div className="mt-6 md:hidden">
@@ -1136,7 +1135,16 @@ export default function NextSteamGamePage() {
                         onContextWeightChange={updateContextWeight}
                         onAppealWeightChange={updateAppealWeight}
                         onTagWeightChange={updateTagWeight}
-                        onSimpleIntentBoost={handleSimpleIntentBoost}
+                        onTuningSectionFeedback={(section, feedback) => {
+                          posthog.capture("tuning_section_feedback_saved", {
+                            section,
+                            feedback,
+                            source: "profile",
+                            selected_game_appid: selectedGame?.id ?? null,
+                            selected_game_name: selectedGame?.title ?? null,
+                            mode: controlMode,
+                          })
+                        }}
                         selectedSimpleTags={selectedSimpleTags}
                         onSimpleTagToggle={toggleSimpleTag}
                       />
@@ -1292,6 +1300,22 @@ export default function NextSteamGamePage() {
                           selectedGameTitle: selectedGame?.title ?? null,
                         })
                       }
+                      onRecommendationFeedback={(game, rank, feedback) => {
+                        posthog.capture("recommendation_feedback_saved", {
+                          feedback,
+                          rank,
+                          source_appid: selectedGame?.id ?? null,
+                          source_game_name: selectedGame?.title ?? null,
+                          recommendation_appid: game.appId,
+                          recommendation_game_name: game.title,
+                          recommendation_category: game.category,
+                          match_score: game.matchScore,
+                          score_vector: game.scores.vector,
+                          score_genre: game.scores.genre,
+                          score_appeal: game.scores.appeal,
+                          score_music: game.scores.music,
+                        })
+                      }}
                     />
                   )}
                 </>

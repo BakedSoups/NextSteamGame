@@ -2,7 +2,7 @@
 
 import { memo, useState } from "react"
 import Image from "next/image"
-import { ChevronDown, ChevronUp, Radar, Target, AudioLines } from "lucide-react"
+import { ChevronDown, ChevronUp, Radar, Target, AudioLines, ThumbsDown, ThumbsUp } from "lucide-react"
 import type { Game, RecommendedGame, Weights } from "@/lib/types"
 import { MATCH_LABELS } from "@/lib/score-labels"
 
@@ -46,6 +46,7 @@ interface RecommendationsPanelProps {
   weights: Weights
   selectedGame: Game | null
   onOpenSteam?: (game: RecommendedGame, rank: number) => void
+  onRecommendationFeedback?: (game: RecommendedGame, rank: number, feedback: "up" | "down") => void
 }
 
 interface ScoreBarProps {
@@ -71,7 +72,7 @@ function ScoreBar({ label, value, max = 100, color = "primary", fillColor }: Sco
           style={{ width: `${percentage}%`, ...(fillColor ? { background: fillColor } : {}) }}
         />
       </div>
-      <span className={`data-value text-xs w-12 text-right ${isNegative ? "text-destructive" : ""}`}>
+      <span className={`data-value text-sm w-12 text-right ${isNegative ? "text-destructive" : ""}`}>
         {value.toFixed(1)}%
       </span>
     </div>
@@ -124,9 +125,9 @@ function SteamReviewBar({ positivePercent, reviewCount }: { positivePercent: num
 
   return (
     <div className="min-w-[160px] flex-1 max-w-[240px]">
-      <div className="mb-1 flex items-center justify-between gap-3 text-xs">
+      <div className="mb-1 flex items-center justify-between gap-3 text-sm">
         <span className="text-slate-300/84">Steam reviews</span>
-        <span className="text-xs font-semibold text-white tracking-[0.01em]">
+        <span className="text-sm font-semibold text-white tracking-[0.01em]">
           {positivePercent !== null ? `${positivePercent}% positive` : `${formatReviewCount(reviewCount)} reviews`}
         </span>
       </div>
@@ -136,7 +137,7 @@ function SteamReviewBar({ positivePercent, reviewCount }: { positivePercent: num
           style={{ width: `${fill}%` }}
         />
       </div>
-      <div className="mt-1 text-right text-xs text-slate-400">
+      <div className="mt-1 text-right text-sm text-slate-400">
         {formatReviewCount(reviewCount)} total
       </div>
     </div>
@@ -190,7 +191,7 @@ function DonutChart({
   return (
     <div className={inline ? "flex items-center gap-2" : `rounded-2xl p-3 ${subdued ? "border border-white/6 bg-white/[0.02]" : "border border-white/8 bg-white/[0.03]"}`}>
       {!inline ? (
-        <div className={`mb-2 uppercase tracking-[0.14em] ${subdued ? "text-xs text-muted-foreground/80" : "text-xs text-muted-foreground"}`}>
+        <div className={`mb-2 uppercase tracking-[0.14em] ${subdued ? "text-sm text-muted-foreground/80" : "text-sm text-muted-foreground"}`}>
           {title}
         </div>
       ) : null}
@@ -241,7 +242,7 @@ function DonutChart({
               y={center}
               textAnchor="middle"
               dominantBaseline="central"
-              className={subdued ? "fill-white/90 text-xs font-medium" : "fill-white text-xs font-semibold"}
+              className={subdued ? "fill-white/90 text-sm font-medium" : "fill-white text-sm font-semibold"}
             >
               {centerLabel}
             </text>
@@ -250,7 +251,7 @@ function DonutChart({
 
         <div className={`min-w-0 flex-1 space-y-1.5 ${inline ? "hidden" : ""}`}>
           {segments.map((segment) => (
-            <div key={segment.label} className={`flex items-center justify-between gap-3 uppercase tracking-[0.1em] ${subdued ? "text-xs text-muted-foreground/78" : "text-xs text-muted-foreground"}`}>
+            <div key={segment.label} className={`flex items-center justify-between gap-3 uppercase tracking-[0.1em] ${subdued ? "text-sm text-muted-foreground/78" : "text-sm text-muted-foreground"}`}>
               <div className="flex min-w-0 items-center gap-2">
                 <span
                   className="h-2.5 w-2.5 shrink-0 rounded-full"
@@ -267,107 +268,37 @@ function DonutChart({
   )
 }
 
-function polarPoint(index: number, total: number, radius: number) {
-  const angle = (-Math.PI / 2) + (index / total) * Math.PI * 2
-  return {
-    x: 80 + Math.cos(angle) * radius,
-    y: 80 + Math.sin(angle) * radius,
-  }
-}
-
-function StructuralRadar({ game, weights }: { game: RecommendedGame; weights: Weights }) {
+function StructuralBars({ game, weights }: { game: RecommendedGame; weights: Weights }) {
   const axes = VECTOR_CONTEXT_KEYS
-  const targetValues = axes.map((axis) => Math.max(8, weights.context[axis]))
-  const matchedValues = axes.map((axis) => Math.max(8, Math.min(100, (game.contextScores[axis] / 30) * 100)))
-  const targetPolygon = targetValues
-    .map((value, index) => {
-      const point = polarPoint(index, axes.length, 14 + (value / 100) * 56)
-      return `${point.x},${point.y}`
-    })
-    .join(" ")
-  const matchedPolygon = matchedValues
-    .map((value, index) => {
-      const point = polarPoint(index, axes.length, 14 + (value / 100) * 56)
-      return `${point.x},${point.y}`
-    })
-    .join(" ")
 
   return (
-    <div className="grid items-start gap-5 lg:grid-cols-[188px_minmax(0,1fr)]">
-      <div className="mx-auto w-[188px]">
-        <svg viewBox="0 0 160 160" className="h-[188px] w-[188px] overflow-visible">
-          {[22, 38, 54, 70].map((radius) => (
-            <polygon
-              key={radius}
-              points={axes.map((_, index) => {
-                const point = polarPoint(index, axes.length, radius)
-                return `${point.x},${point.y}`
-              }).join(" ")}
-              fill="none"
-              stroke="rgba(255,255,255,0.14)"
-              strokeWidth="1"
-            />
-          ))}
-          {axes.map((_, index) => {
-            const point = polarPoint(index, axes.length, 76)
-            return (
-              <line
-                key={`axis-${index}`}
-                x1="80"
-                y1="80"
-                x2={point.x}
-                y2={point.y}
-                stroke="rgba(255,255,255,0.12)"
-                strokeWidth="1"
-              />
-            )
-          })}
-          <polygon
-            points={targetPolygon}
-            fill="rgba(249, 168, 212, 0.10)"
-            stroke="rgba(249, 168, 212, 0.85)"
-            strokeWidth="1.6"
-            strokeDasharray="4 4"
-          />
-          <polygon
-            points={matchedPolygon}
-            fill="rgba(125, 211, 252, 0.18)"
-            stroke="#7dd3fc"
-            strokeWidth="2.25"
-            style={{ filter: "drop-shadow(0 0 12px rgba(125, 211, 252, 0.35))" }}
-          />
-          {matchedValues.map((value, index) => {
-            const point = polarPoint(index, matchedValues.length, 14 + (value / 100) * 56)
-            return <circle key={`point-${index}`} cx={point.x} cy={point.y} r="3" fill="#7dd3fc" />
-          })}
-        </svg>
-        <div className="mt-3 flex items-center justify-center gap-4 text-xs uppercase tracking-[0.14em] text-muted-foreground">
-          <div className="flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-full border border-pink-300/80 bg-pink-300/20" />
-            <span>Requested</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-full bg-sky-300" />
-            <span>Matched</span>
-          </div>
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-4 text-sm uppercase tracking-[0.14em] text-muted-foreground">
+        <div className="flex items-center gap-1.5">
+          <span className="h-2.5 w-2.5 rounded-full border border-pink-300/80 bg-pink-300/20" />
+          <span>Requested</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="h-2.5 w-2.5 rounded-full bg-sky-300" />
+          <span>Matched</span>
         </div>
       </div>
-      <div className="space-y-3">
+      <div className="space-y-4">
         {axes.map((axis) => (
-          <div key={axis} className="space-y-1.5">
-            <div className="flex items-center justify-between text-xs uppercase tracking-[0.1em] text-muted-foreground">
+          <div key={axis} className="space-y-2">
+            <div className="flex items-center justify-between gap-3 text-sm text-slate-100">
               <div className="flex items-center gap-2">
                 <span
                   className="h-2.5 w-2.5 rounded-full"
                   style={{ backgroundColor: VECTOR_CONTEXT_COLORS[axis], boxShadow: `0 0 8px ${VECTOR_CONTEXT_COLORS[axis]}` }}
                 />
-                <span>{axis.replace(/_/g, " ")}</span>
+                <span className="font-semibold capitalize">{axis.replace(/_/g, " ")}</span>
               </div>
-              <span className="font-semibold text-foreground">
+              <span className="shrink-0 text-sm font-semibold text-muted-foreground">
                 req {weights.context[axis]}% / hit {game.contextScores[axis].toFixed(1)}%
               </span>
             </div>
-            <div className="relative h-2 overflow-hidden rounded-full bg-white/8">
+            <div className="relative h-3 overflow-hidden rounded-full bg-white/8">
               <div
                 className="absolute inset-y-0 left-0 rounded-full border border-pink-300/60 bg-pink-300/20"
                 style={{ width: `${Math.min(weights.context[axis], 100)}%` }}
@@ -396,10 +327,12 @@ interface RecommendationCardProps {
   selectedGame: Game | null
   highlights: string[]
   onOpenSteam?: (game: RecommendedGame, rank: number) => void
+  onFeedback?: (game: RecommendedGame, rank: number, feedback: "up" | "down") => void
 }
 
-const RecommendationCard = memo(function RecommendationCard({ game, rank, weights, selectedGame, highlights, onOpenSteam }: RecommendationCardProps) {
+const RecommendationCard = memo(function RecommendationCard({ game, rank, weights, selectedGame, highlights, onOpenSteam, onFeedback }: RecommendationCardProps) {
   const [isExpanded, setIsExpanded] = useState(false)
+  const [savedFeedback, setSavedFeedback] = useState<"up" | "down" | null>(null)
   const cardImage = game.headerImage || game.assets.header || game.assets.libraryCapsule || game.assets.capsuleV5 || game.image || IMAGE_FALLBACK
   const scorePercentages = game.scorePercentages ?? {}
   const steamStoreUrl = `https://store.steampowered.com/app/${game.appId}`
@@ -444,9 +377,42 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
   const steamReview = reviewSummary(game)
   const screenshots = (game.screenshots ?? []).filter(Boolean).slice(0, 3)
   const identityParts = structuredIdentityTags(game)
+  const visibleHighlights = highlights.slice(0, 3)
+  const saveFeedback = (feedback: "up" | "down") => {
+    setSavedFeedback(feedback)
+    onFeedback?.(game, rank, feedback)
+  }
   
   return (
-    <div className="panel overflow-hidden hover:glow-box transition-all">
+    <div className="panel relative overflow-hidden hover:glow-box transition-all">
+      <div className="absolute right-3 top-3 z-10 flex flex-col items-end gap-1.5">
+        <div className="inline-flex rounded-full border border-white/12 bg-black/45 p-1 shadow-[0_10px_24px_rgba(0,0,0,0.24)] backdrop-blur">
+          <button
+            type="button"
+            onClick={() => saveFeedback("up")}
+            aria-label={`Mark ${game.title} as a good recommendation`}
+            className={`inline-flex h-8 w-8 items-center justify-center rounded-full transition ${
+              savedFeedback === "up"
+                ? "bg-emerald-300/22 text-emerald-100"
+                : "text-slate-200/78 hover:bg-white/10 hover:text-white"
+            }`}
+          >
+            <ThumbsUp className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => saveFeedback("down")}
+            aria-label={`Mark ${game.title} as a bad recommendation`}
+            className={`inline-flex h-8 w-8 items-center justify-center rounded-full transition ${
+              savedFeedback === "down"
+                ? "bg-rose-300/22 text-rose-100"
+                : "text-slate-200/78 hover:bg-white/10 hover:text-white"
+            }`}
+          >
+            <ThumbsDown className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
       {/* Header */}
       <a
         href={steamStoreUrl}
@@ -456,7 +422,7 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
         className="block border-b border-transparent transition-colors hover:bg-secondary/20"
         aria-label={`Open ${game.title} on Steam`}
       >
-      <div className="flex flex-col gap-3 p-3 sm:flex-row sm:gap-4 sm:p-4">
+      <div className="flex flex-col gap-3 p-3 pr-24 sm:flex-row sm:gap-4 sm:p-4 sm:pr-28">
         <div className="relative flex-shrink-0">
           <div className="h-36 w-full rounded-xl overflow-hidden border border-border bg-muted sm:h-24 sm:w-48">
             <Image
@@ -479,30 +445,26 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
               <h4 className="text-base font-medium text-foreground sm:text-sm sm:truncate">{game.title}</h4>
               <div className="mt-1 flex flex-wrap items-center gap-2">
                 <span className="tag-chip">{game.category}</span>
+                {visibleHighlights.map((label) => (
+                  <span
+                    key={label}
+                    className="rounded-full border border-amber-300/45 bg-amber-300/18 px-2.5 py-1 text-sm font-semibold uppercase tracking-[0.12em] text-amber-100 shadow-[0_0_12px_rgba(252,211,77,0.16)]"
+                  >
+                    {label}
+                  </span>
+                ))}
               </div>
             </div>
 
             <div className="flex flex-col gap-2 sm:ml-auto sm:flex-shrink-0 sm:items-end sm:text-right">
               <div className="flex items-end justify-between gap-4 sm:block">
-                <div className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                <div className="text-sm uppercase tracking-[0.16em] text-muted-foreground">
                   Match
                 </div>
                 <div>
                   <span className="text-lg font-bold text-accent glow-text-subtle">{(game.matchScore * 100).toFixed(0)}%</span>
                 </div>
               </div>
-              {highlights.length > 0 && (
-                <div className="flex max-w-[220px] flex-wrap gap-1.5 sm:justify-end">
-                  {highlights.map((label) => (
-                    <span
-                      key={label}
-                      className="rounded-full border border-amber-300/45 bg-amber-300/18 px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-amber-100 shadow-[0_0_12px_rgba(252,211,77,0.16)]"
-                    >
-                      {label}
-                    </span>
-                  ))}
-                </div>
-              )}
               {steamReview ? (
                 <SteamReviewBar
                   positivePercent={steamReview.positivePercent}
@@ -572,14 +534,14 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
 
         {(reasonChips.length > 0 || offerChips.length > 0) && (
           <div className="mb-3">
-            <div className="mb-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">
+            <div className="mb-2 text-sm uppercase tracking-[0.18em] text-muted-foreground">
               Why It Matches
             </div>
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap gap-2">
               {reasonChips.map((tag) => (
                 <span
                   key={tag}
-                  className="rounded-full border border-sky-300/40 bg-sky-400/14 px-2.5 py-1 text-xs font-medium text-sky-100 shadow-[0_0_12px_rgba(56,189,248,0.16)]"
+                  className="rounded-full border border-sky-300/45 bg-sky-400/16 px-3.5 py-1.5 text-sm font-semibold leading-5 text-sky-50 shadow-[0_0_14px_rgba(56,189,248,0.18)]"
                 >
                   {tag}
                 </span>
@@ -587,7 +549,7 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
               {offerChips.map((tag) => (
                 <span
                   key={tag}
-                  className="rounded-full border border-white/12 bg-white/[0.06] px-2.5 py-1 text-xs font-medium text-slate-100/92 sm:px-3 sm:py-1.5 sm:text-xs"
+                  className="rounded-full border border-white/14 bg-white/[0.075] px-3.5 py-1.5 text-sm font-medium leading-5 text-slate-100/94"
                 >
                   {tag}
                 </span>
@@ -595,6 +557,7 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
             </div>
           </div>
         )}
+
       </div>
 
       {/* Expand Button */}
@@ -619,7 +582,7 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
       {isExpanded && (
         <div className="p-3 border-t border-border bg-secondary/10 space-y-4">
           {/* Description */}
-          <p className="text-xs text-muted-foreground leading-relaxed">
+          <p className="text-sm text-muted-foreground leading-relaxed">
             {game.description}
           </p>
           {/* Score Contributions */}
@@ -628,7 +591,7 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
               <Radar className="h-3 w-3 text-primary" />
               <span className="terminal-label text-primary">What Drove This Match</span>
             </div>
-            <p className="mb-3 text-xs leading-5 text-muted-foreground">
+            <p className="mb-3 text-sm leading-5 text-muted-foreground">
               This breaks down what actually carried the recommendation score for this result.
             </p>
             <DonutChart
@@ -649,13 +612,13 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
                 </div>
                 {hasVectorOverlap ? (
                   <>
-                    <p className="mb-3 text-xs leading-5 text-muted-foreground">
-                      Pink is the gameplay shape you asked for. Blue is how this game overlaps across mechanics, narrative, vibe, and structure loop.
+                    <p className="mb-3 text-sm leading-6 text-muted-foreground">
+                      Pink is what you asked for. Blue is how this game overlaps across mechanics, narrative, vibe, and structure loop.
                     </p>
-                    {selectedGame ? <StructuralRadar game={game} weights={weights} /> : null}
+                    {selectedGame ? <StructuralBars game={game} weights={weights} /> : null}
                   </>
                 ) : (
-                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4 text-xs leading-5 text-muted-foreground">
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4 text-sm leading-5 text-muted-foreground">
                     No meaningful 4-vector overlap was found here.
                     This result is being carried by genre similarity, appeal alignment, or matched identity / setting / music tags instead of core structural similarity.
                   </div>
@@ -664,10 +627,10 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
 
               <div>
                 <span className="terminal-label block mb-2 text-accent">Tag Match</span>
-                <p className="mb-3 text-xs leading-5 text-muted-foreground">
+                <p className="mb-3 text-sm leading-5 text-muted-foreground">
                   Red shows how much signal you asked for. Blue shows how much this game actually matched for identity, setting, and music.
                 </p>
-                <div className="mb-3 flex items-center gap-4 text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                <div className="mb-3 flex items-center gap-4 text-sm uppercase tracking-[0.14em] text-muted-foreground">
                   <div className="flex items-center gap-1.5">
                     <span className="h-2.5 w-2.5 rounded-full border" style={{ borderColor: TAG_SIGNAL_REQUEST_BORDER, backgroundColor: TAG_SIGNAL_REQUEST_COLOR }} />
                     <span>Requested</span>
@@ -680,7 +643,7 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
                 <div className="space-y-3">
                   {TAG_SIGNAL_KEYS.map((key) => (
                     <div key={key} className="space-y-1.5">
-                      <div className="flex items-center justify-between text-xs uppercase tracking-[0.1em] text-muted-foreground">
+                      <div className="flex items-center justify-between text-sm uppercase tracking-[0.1em] text-muted-foreground">
                         <span>{key.replace(/_/g, " ")}</span>
                         <span className="font-semibold text-foreground">
                           req {weights.context[key]}% / hit {game.contextScores[key].toFixed(1)}%
@@ -717,7 +680,7 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
                 <div className="space-y-3">
                   {showIdentityMatches && (
                     <div>
-                      <div className="mb-1 text-xs uppercase tracking-[0.16em] text-muted-foreground">Identity</div>
+                      <div className="mb-1 text-sm uppercase tracking-[0.16em] text-muted-foreground">Identity</div>
                       <div className="flex flex-wrap gap-1">
                         {matchedTags.identity.map((tag) => (
                           <span key={`identity-${tag}`} className="tag-chip included">{tag}</span>
@@ -727,7 +690,7 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
                   )}
                   {showSettingMatches && (
                     <div>
-                      <div className="mb-1 text-xs uppercase tracking-[0.16em] text-muted-foreground">Setting</div>
+                      <div className="mb-1 text-sm uppercase tracking-[0.16em] text-muted-foreground">Setting</div>
                       <div className="flex flex-wrap gap-1">
                         {matchedTags.setting.map((tag) => (
                           <span key={`setting-${tag}`} className="tag-chip">{tag}</span>
@@ -737,7 +700,7 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
                   )}
                   {showStructureMatches && (
                     <div>
-                      <div className="mb-1 text-xs uppercase tracking-[0.16em] text-muted-foreground">Structure & Mechanics</div>
+                      <div className="mb-1 text-sm uppercase tracking-[0.16em] text-muted-foreground">Structure & Mechanics</div>
                       <div className="flex flex-wrap gap-1">
                         {[...matchedTags.structure_loop, ...matchedTags.mechanics].map((tag) => (
                           <span key={`structure-${tag}`} className="tag-chip">{tag}</span>
@@ -747,7 +710,7 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
                   )}
                   {showMusicMatches && (
                     <div>
-                      <div className="mb-1 text-xs uppercase tracking-[0.16em] text-muted-foreground">Music</div>
+                      <div className="mb-1 text-sm uppercase tracking-[0.16em] text-muted-foreground">Music</div>
                       <div className="flex flex-wrap gap-1">
                         {matchedTags.music.map((tag) => (
                           <span key={`music-${tag}`} className="tag-chip">{tag}</span>
@@ -761,7 +724,7 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
               {/* Genres */}
               <div>
                 <span className="terminal-label block mb-2">Genre Match</span>
-                <p className="mb-3 text-xs leading-5 text-muted-foreground">
+                <p className="mb-3 text-sm leading-5 text-muted-foreground">
                   Genre overlap acts like a strength multiplier. Strong primary and subgenre alignment makes the recommendation more reliable, while weaker genre overlap means the result is being carried more by structure or niche tags.
                 </p>
                 <div className="flex flex-wrap gap-1">
@@ -783,7 +746,7 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
                 <div className="space-y-3">
                   {identityParts.signature.length > 0 && (
                     <div>
-                      <div className="mb-1 text-xs uppercase tracking-[0.16em] text-muted-foreground">Signature Hook</div>
+                      <div className="mb-1 text-sm uppercase tracking-[0.16em] text-muted-foreground">Signature Hook</div>
                       <div className="flex flex-wrap gap-1">
                         {identityParts.signature.map((tag) => (
                           <span key={`signature-${tag}`} className="tag-chip included">{tag}</span>
@@ -793,7 +756,7 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
                   )}
                   {identityParts.anchors.length > 0 && (
                     <div>
-                      <div className="mb-1 text-xs uppercase tracking-[0.16em] text-muted-foreground">Identity Anchors</div>
+                      <div className="mb-1 text-sm uppercase tracking-[0.16em] text-muted-foreground">Identity Anchors</div>
                       <div className="flex flex-wrap gap-1">
                         {identityParts.anchors.slice(0, 4).map((tag) => (
                           <span key={`anchor-${tag}`} className="tag-chip">{tag}</span>
@@ -803,7 +766,7 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
                   )}
                   {identityParts.details.length > 0 && (
                     <div>
-                      <div className="mb-1 text-xs uppercase tracking-[0.16em] text-muted-foreground">Identity Details</div>
+                      <div className="mb-1 text-sm uppercase tracking-[0.16em] text-muted-foreground">Identity Details</div>
                       <div className="flex flex-wrap gap-1">
                         {identityParts.details.slice(0, 4).map((tag) => (
                           <span key={`identity-detail-${tag}`} className="tag-chip">{tag}</span>
@@ -813,7 +776,7 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
                   )}
                   {game.tags.setting.length > 0 && (
                     <div>
-                      <div className="mb-1 text-xs uppercase tracking-[0.16em] text-muted-foreground">World / Setting</div>
+                      <div className="mb-1 text-sm uppercase tracking-[0.16em] text-muted-foreground">World / Setting</div>
                       <div className="flex flex-wrap gap-1">
                         {game.tags.setting.slice(0, 4).map((tag) => (
                           <span key={`setting-${tag}`} className="tag-chip">{tag}</span>
@@ -840,8 +803,15 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
   )
 })
 
-export function RecommendationsPanel({ recommendations, weights, selectedGame, onOpenSteam }: RecommendationsPanelProps) {
+export function RecommendationsPanel({
+  recommendations,
+  weights,
+  selectedGame,
+  onOpenSteam,
+  onRecommendationFeedback,
+}: RecommendationsPanelProps) {
   const [visibleCount, setVisibleCount] = useState(8)
+  const [showFeedbackToast, setShowFeedbackToast] = useState(false)
   const visibleRecommendations = recommendations.slice(0, visibleCount)
   const topOverallId = recommendations[0]?.id ?? null
   const topStructureId =
@@ -869,15 +839,20 @@ export function RecommendationsPanel({ recommendations, weights, selectedGame, o
         : -1
       return matchedTagCount > bestCount ? game : best
     }, null)?.id ?? null
-  const requestedMixSegments: DonutSegment[] = [
-    { label: MATCH_LABELS.vector, value: weights.match.vector, color: MATCH_COLORS.vector },
-    { label: MATCH_LABELS.genre, value: weights.match.genre, color: MATCH_COLORS.genre },
-    { label: MATCH_LABELS.appeal, value: weights.match.appeal, color: MATCH_COLORS.appeal },
-    { label: MATCH_LABELS.music, value: weights.match.music, color: MATCH_COLORS.music },
-  ]
+  const handleFeedback = (game: RecommendedGame, rank: number, feedback: "up" | "down") => {
+    setShowFeedbackToast(true)
+    window.setTimeout(() => setShowFeedbackToast(false), 1600)
+    onRecommendationFeedback?.(game, rank, feedback)
+  }
 
   return (
     <div className="space-y-3">
+      {showFeedbackToast ? (
+        <div className="fixed bottom-6 left-1/2 z-[90] -translate-x-1/2 rounded-full border border-sky-200/30 bg-sky-950/92 px-4 py-2 text-sm font-semibold text-sky-50 shadow-[0_18px_42px_rgba(0,0,0,0.36)] backdrop-blur">
+          Feedback saved!
+        </div>
+      ) : null}
+
       {/* Header */}
       <div className="panel p-4 glow-box">
         <div className="flex items-center justify-between gap-4">
@@ -888,23 +863,12 @@ export function RecommendationsPanel({ recommendations, weights, selectedGame, o
             </div>
             <div>
               <h2 className="text-sm font-semibold text-foreground">Recommendations</h2>
-              <p className="terminal-label">{recommendations.length} matches processed</p>
-              <p className="mt-1 text-[12px] leading-6 text-slate-200/84">
-                The small ring on each card shows what carried that result: gameplay fit, genre match, preference match, or music match.
+              <p className="mt-1 text-base font-semibold text-slate-100">
+                {recommendations.length} matches found!
               </p>
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <div className="hidden xl:block">
-              <DonutChart
-                title="Search Mix"
-                segments={requestedMixSegments}
-                centerLabel="Request"
-                size={58}
-                strokeWidth={7}
-                subdued={true}
-              />
-            </div>
             <div className="flex items-center gap-2">
               <span className="terminal-label">Sorted by</span>
               <span className="data-value bg-primary/10 px-2 py-0.5 rounded border border-primary/30">
@@ -932,6 +896,7 @@ export function RecommendationsPanel({ recommendations, weights, selectedGame, o
             selectedGame={selectedGame}
             highlights={highlights}
             onOpenSteam={onOpenSteam}
+            onFeedback={handleFeedback}
           />
             )
           })()
@@ -953,7 +918,7 @@ export function RecommendationsPanel({ recommendations, weights, selectedGame, o
         <div className="panel p-8 text-center">
           <Target className="h-10 w-10 mx-auto text-muted-foreground/30 mb-3" />
           <span className="terminal-label block mb-1">No Matches Found</span>
-          <p className="text-xs text-muted-foreground">Adjust filters or weights to find recommendations</p>
+          <p className="text-sm text-muted-foreground">Adjust filters or weights to find recommendations</p>
         </div>
       )}
     </div>

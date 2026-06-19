@@ -86,13 +86,13 @@ export function TagFilterPanel({ filters, tagOptions, onFiltersChange }: TagFilt
       {/* Header */}
       <div className="panel-header">
         <Crosshair className="w-3.5 h-3.5 text-primary" />
-        <span className="text-xs font-medium text-foreground">Micro Tag Filters</span>
+        <span className="text-sm font-medium text-foreground">Micro Tag Filters</span>
         {activeFilterCount > 0 && (
           <>
             <span className="ml-auto data-value">{activeFilterCount} active</span>
             <button
               onClick={clearAllFilters}
-              className="text-xs text-muted-foreground hover:text-destructive transition-colors ml-2"
+              className="text-sm text-muted-foreground hover:text-destructive transition-colors ml-2"
             >
               CLEAR
             </button>
@@ -109,7 +109,7 @@ export function TagFilterPanel({ filters, tagOptions, onFiltersChange }: TagFilt
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="filter --tag [query]"
-            className="w-full pl-8 pr-8 py-1.5 text-xs font-mono bg-input border border-border rounded text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary transition-all"
+            className="w-full pl-8 pr-8 py-1.5 text-sm font-mono bg-input border border-border rounded text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary transition-all"
           />
           {searchQuery && (
             <button
@@ -130,7 +130,7 @@ export function TagFilterPanel({ filters, tagOptions, onFiltersChange }: TagFilt
               onClick={() => toggleCategory(category)}
               className="w-full flex items-center justify-between px-3 py-2 hover:bg-secondary/30 transition-colors"
             >
-              <span className="text-xs font-medium text-foreground">
+              <span className="text-sm font-medium text-foreground">
                 {CATEGORY_LABELS[category]}
               </span>
               <div className="flex items-center gap-2">
@@ -182,8 +182,8 @@ export function TagFilterPanel({ filters, tagOptions, onFiltersChange }: TagFilt
       <div className="border-t border-border/60 p-3 space-y-4">
         <div>
           <div className="mb-2 flex items-center justify-between">
-            <span className="text-xs font-medium text-foreground">Minimum Positive Reviews</span>
-            <span className="data-value text-xs">{Math.round(filters.minReviewPercent ?? 0)}%</span>
+            <span className="text-sm font-medium text-foreground">Minimum Positive Reviews</span>
+            <span className="data-value text-sm">{Math.round(filters.minReviewPercent ?? 0)}%</span>
           </div>
           <input
             type="range"
@@ -198,15 +198,15 @@ export function TagFilterPanel({ filters, tagOptions, onFiltersChange }: TagFilt
             }
             className="w-full"
           />
-          <p className="mt-2 text-xs text-muted-foreground">
+          <p className="mt-2 text-sm text-muted-foreground">
             Hide games below this Steam positive review percentage.
           </p>
         </div>
 
         <div>
           <div className="mb-2 flex items-center justify-between">
-            <span className="text-xs font-medium text-foreground">Review Quality Floor</span>
-            <span className="data-value text-xs">{Math.round(filters.minReviewRelevance ?? 0)}</span>
+            <span className="text-sm font-medium text-foreground">Review Quality Floor</span>
+            <span className="data-value text-sm">{Math.round(filters.minReviewRelevance ?? 0)}</span>
           </div>
           <input
             type="range"
@@ -221,7 +221,7 @@ export function TagFilterPanel({ filters, tagOptions, onFiltersChange }: TagFilt
             }
             className="w-full"
           />
-          <p className="mt-2 text-xs text-muted-foreground">
+          <p className="mt-2 text-sm text-muted-foreground">
             Hide games with weaker or low-volume review signals.
           </p>
         </div>
