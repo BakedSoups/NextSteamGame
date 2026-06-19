@@ -92,7 +92,7 @@ export function TagFilterPanel({ filters, tagOptions, onFiltersChange }: TagFilt
             <span className="ml-auto data-value">{activeFilterCount} active</span>
             <button
               onClick={clearAllFilters}
-              className="text-[10px] text-muted-foreground hover:text-destructive transition-colors ml-2"
+              className="text-xs text-muted-foreground hover:text-destructive transition-colors ml-2"
             >
               CLEAR
             </button>
@@ -183,7 +183,7 @@ export function TagFilterPanel({ filters, tagOptions, onFiltersChange }: TagFilt
         <div>
           <div className="mb-2 flex items-center justify-between">
             <span className="text-xs font-medium text-foreground">Minimum Positive Reviews</span>
-            <span className="data-value text-[10px]">{Math.round(filters.minReviewPercent ?? 0)}%</span>
+            <span className="data-value text-xs">{Math.round(filters.minReviewPercent ?? 0)}%</span>
           </div>
           <input
             type="range"
@@ -198,7 +198,7 @@ export function TagFilterPanel({ filters, tagOptions, onFiltersChange }: TagFilt
             }
             className="w-full"
           />
-          <p className="mt-2 text-[10px] text-muted-foreground">
+          <p className="mt-2 text-xs text-muted-foreground">
             Hide games below this Steam positive review percentage.
           </p>
         </div>
@@ -206,7 +206,7 @@ export function TagFilterPanel({ filters, tagOptions, onFiltersChange }: TagFilt
         <div>
           <div className="mb-2 flex items-center justify-between">
             <span className="text-xs font-medium text-foreground">Review Quality Floor</span>
-            <span className="data-value text-[10px]">{Math.round(filters.minReviewRelevance ?? 0)}</span>
+            <span className="data-value text-xs">{Math.round(filters.minReviewRelevance ?? 0)}</span>
           </div>
           <input
             type="range"
@@ -221,7 +221,7 @@ export function TagFilterPanel({ filters, tagOptions, onFiltersChange }: TagFilt
             }
             className="w-full"
           />
-          <p className="mt-2 text-[10px] text-muted-foreground">
+          <p className="mt-2 text-xs text-muted-foreground">
             Hide games with weaker or low-volume review signals.
           </p>
         </div>

@@ -130,7 +130,7 @@ function CollapsibleSection({ title, icon, children, defaultOpen = true, badge }
       >
         <div className="text-primary">{icon}</div>
         <span className="text-xs font-medium text-foreground">{title}</span>
-        {badge && <span className="ml-auto data-value text-[10px]">{badge}</span>}
+        {badge && <span className="ml-auto data-value text-xs">{badge}</span>}
         {isOpen ? (
           <ChevronDown className="h-3.5 w-3.5 text-primary ml-2" />
         ) : (
@@ -233,7 +233,7 @@ function SummaryVectorBar({ weights }: { weights: Weights["context"] }) {
           return (
             <div
               key={`label-${segment.key}`}
-              className="absolute top-0 -translate-x-0 text-[10px] font-medium capitalize tracking-[0.08em] text-slate-100/92 whitespace-nowrap"
+              className="absolute top-0 -translate-x-0 text-xs font-medium capitalize tracking-[0.08em] text-slate-100/92 whitespace-nowrap"
               style={{ left: `${Math.min(left, 94)}%` }}
             >
               {segment.label}
@@ -265,7 +265,7 @@ function SummaryVectorBar({ weights }: { weights: Weights["context"] }) {
         })}
       </div>
 
-      <div className="flex flex-wrap gap-x-3 gap-y-1 text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+      <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs uppercase tracking-[0.12em] text-muted-foreground">
         {segments.map((segment) => (
           <div key={`meta-${segment.key}`} className="flex items-center gap-1.5">
             <span className="h-2 w-2 rounded-full" style={{ backgroundColor: segment.color }} />
@@ -389,7 +389,7 @@ function VectorControlCard({
             <div className="text-lg font-semibold text-white">{label}</div>
           </div>
           <div
-            className="rounded-full border px-3 py-1 text-[11px] font-medium"
+            className="rounded-full border px-3 py-1 text-xs font-medium"
             style={{ borderColor: `${visual.accent}55`, color: visual.accent, backgroundColor: `${visual.accent}12` }}
           >
             {contextWeight}% pull
@@ -397,15 +397,14 @@ function VectorControlCard({
         </div>
 
         <div className="mt-5 grid gap-2.5">
-          {weightedChips.map(({ tag, value }, index) => {
+          {weightedChips.map(({ tag, value }) => {
             const strength = Math.max(8, Math.min(100, value))
             return (
-              <div
+              <label
                 key={`${context}-${tag}`}
-                className="relative min-h-[46px] overflow-hidden rounded-2xl border bg-white/[0.035] px-3.5 py-2.5"
+                className="group relative block min-h-[46px] cursor-ew-resize overflow-hidden rounded-2xl border bg-white/[0.035] px-3.5 py-2.5 transition-colors hover:bg-white/[0.06]"
                 style={{
-                  borderColor: index === 0 ? `${visual.accent}70` : "rgba(255,255,255,0.12)",
-                  boxShadow: index === 0 ? `0 0 18px ${visual.glow}` : undefined,
+                  borderColor: `${visual.accent}4d`,
                 }}
               >
                 <div
@@ -420,13 +419,22 @@ function VectorControlCard({
                     {tag.replace(/_/g, " ")}
                   </div>
                   <div
-                    className="shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold"
+                    className="shrink-0 rounded-full border px-2 py-0.5 text-xs font-semibold"
                     style={{ borderColor: `${visual.accent}55`, color: visual.accent, backgroundColor: `${visual.accent}12` }}
                   >
                     {Math.round(value)}
                   </div>
                 </div>
-              </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={Math.round(value)}
+                  onChange={(event) => onTagWeightChange(context, tag, Number(event.target.value))}
+                  className="absolute inset-0 h-full w-full cursor-ew-resize opacity-0"
+                  aria-label={`${tag.replace(/_/g, " ")} weight`}
+                />
+              </label>
             )
           })}
         </div>
@@ -450,7 +458,7 @@ function VectorControlCard({
           <div className="text-lg font-semibold text-white">{label}</div>
         </div>
         <div
-          className="rounded-full border px-3 py-1 text-[11px] font-medium"
+          className="rounded-full border px-3 py-1 text-xs font-medium"
           style={{ borderColor: `${visual.accent}55`, color: visual.accent, backgroundColor: `${visual.accent}12` }}
         >
           {contextWeight}% pull
@@ -497,6 +505,9 @@ function SignalTagMenus({
 }) {
   return (
     <div className="space-y-5">
+      <p className="text-base leading-6 text-slate-200/82">
+        Click what you want to see most in the recommendations.
+      </p>
       {groups.map((group) => {
         const selectedCount = group.tags.filter((tag) =>
           selectedSimpleTags.includes(`${group.context}:${tag}`),
@@ -505,10 +516,10 @@ function SignalTagMenus({
         return (
           <div key={`${group.context}-${group.label}`}>
             <div className="mb-2 flex items-center justify-between gap-3">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-200/82">
+              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-200/82">
                 {group.label}
               </div>
-              <div className="rounded-full border border-amber-200/20 bg-amber-200/10 px-2 py-0.5 text-[10px] tracking-[0.12em] text-amber-100/85">
+              <div className="rounded-full border border-amber-200/20 bg-amber-200/10 px-2 py-0.5 text-xs tracking-[0.12em] text-amber-100/85">
                 {selectedCount > 0 ? `${selectedCount} active` : `${group.tags.length} tags`}
               </div>
             </div>
@@ -558,26 +569,18 @@ export function ControlPanel({
   const tagSignalIntents = SIMPLE_INTENTS.filter((intent) => SIMPLE_TAG_SIGNAL_INTENTS.includes(intent.key))
   const vectorFeaturedGroups = featuredTags.filter((group) => VECTOR_CONTEXT_KEYS.includes(group.context))
   const signalFeaturedGroups = featuredTags.filter((group) => TAG_SIGNAL_CONTEXT_KEYS.includes(group.context))
-  const selectedSimpleLabels = selectedSimpleTags.map((entry) => {
-    const [, ...tagParts] = entry.split(":")
-    return tagParts.join(":")
-  })
-  const boostedActiveTags = Array.from(new Set(selectedSimpleLabels)).slice(0, 6)
-  const activeSignalTags =
-    mode === "simple"
-      ? boostedActiveTags
-      : Object.entries(weights.tags)
-          .flatMap(([context, tagMap]) =>
-            Object.entries(tagMap).map(([tag, value]) => ({
-              key: `${context}:${tag}`,
-              tag,
-              value,
-            })),
-          )
-          .filter((entry) => entry.value > 0)
-          .sort((left, right) => right.value - left.value)
-          .slice(0, 8)
-          .map((entry) => entry.tag)
+  const activeSignalTags = Object.entries(weights.tags)
+    .flatMap(([context, tagMap]) =>
+      Object.entries(tagMap).map(([tag, value]) => ({
+        key: `${context}:${tag}`,
+        tag,
+        value,
+      })),
+    )
+    .filter((entry) => entry.value > 0)
+    .sort((left, right) => right.value - left.value)
+    .slice(0, 8)
+    .map((entry) => entry.tag)
   const activeCoreVectors = VECTOR_CONTEXT_KEYS
     .filter((key) => weights.context[key] > 0)
     .sort((left, right) => weights.context[right] - weights.context[left])
@@ -588,31 +591,50 @@ export function ControlPanel({
 
   return (
     <div className="space-y-3">
-      {(mode === "advanced" || (!resultsCompact && mode === "simple")) && (
+      {mode === "advanced" && (
         <div className="panel p-3 glow-box">
           <div className="flex items-center gap-2 mb-3">
             <Activity className="w-3.5 h-3.5 text-primary" />
             <span className="terminal-label text-primary">Your Search</span>
-            <span className="ml-auto data-value text-[10px]">
+            <span className="ml-auto data-value text-xs">
               {mode === "advanced" ? "Advanced" : "Simple"}
             </span>
           </div>
-          <div className="mb-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+          <div className="mb-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">
             What You&apos;re Chasing
           </div>
           <div className="space-y-2">
-            <p className="text-[12px] leading-6 text-slate-100/90">
+            <p className="hidden text-[12px] leading-6 text-slate-100/90 xl:block">
               Vectors shape the kind of game structure you want. Tags tell the system which exact reasons to chase.
             </p>
             <div className="space-y-3">
               <div>
-                <div className="mb-2 text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+                <div className="mb-2 text-xs uppercase tracking-[0.22em] text-muted-foreground">
                   How This Game Feels
                 </div>
-                <SummaryVectorBar weights={weights.context} />
+                <div className="xl:hidden">
+                  <p className="mb-4 text-[13px] leading-6 text-slate-100/90">
+                    Slide what you want to prioritize, then tap tags below to refine the search.
+                  </p>
+                  <div className="space-y-4">
+                    {VECTOR_CONTEXT_KEYS.map((context) => (
+                      <WeightSlider
+                        key={`mobile-summary-${context}`}
+                        label={context.replace(/_/g, " ")}
+                        value={weights.context[context]}
+                        onChange={(value) => onContextWeightChange(context, value)}
+                        fillColor={VECTOR_INFLUENCE_COLORS[context].fill}
+                        thumbColor={VECTOR_INFLUENCE_COLORS[context].fill}
+                      />
+                    ))}
+                  </div>
+                </div>
+                <div className="hidden xl:block">
+                  <SummaryVectorBar weights={weights.context} />
+                </div>
               </div>
-              <div>
-                <div className="mb-2 text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+              <div className="hidden xl:block">
+                <div className="mb-2 text-xs uppercase tracking-[0.22em] text-muted-foreground">
                   Active Tags
                 </div>
                 {activeSignalTags.length > 0 ? (
@@ -620,14 +642,14 @@ export function ControlPanel({
                     {activeSignalTags.map((tag) => (
                       <span
                         key={tag}
-                        className="rounded-full border border-sky-200/70 bg-sky-300/20 px-3 py-1.5 text-[11px] font-semibold text-sky-50 shadow-[0_0_18px_rgba(56,189,248,0.24)]"
+                        className="rounded-full border border-sky-200/70 bg-sky-300/20 px-3 py-1.5 text-xs font-semibold text-sky-50 shadow-[0_0_18px_rgba(56,189,248,0.24)]"
                       >
                         + {tag}
                       </span>
                     ))}
                   </div>
                 ) : (
-                  <div className="rounded-2xl border border-white/10 bg-white/[0.035] px-3 py-2 text-[11px] text-slate-300/72">
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.035] px-3 py-2 text-xs text-slate-300/72">
                     No tags selected yet.
                   </div>
                 )}
@@ -639,14 +661,14 @@ export function ControlPanel({
               <div className="h-px bg-border my-3" />
               <div className="space-y-2">
                 {genrePathSummary && (
-                  <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                  <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
                     Genre Path: <span className="text-foreground">{genrePathSummary}</span>
                   </div>
                 )}
                 {weights.genres.traits.length > 0 && (
                   <div className="flex flex-wrap gap-1">
                     {weights.genres.traits.map((trait) => (
-                      <span key={trait} className="tag-chip text-[9px]">
+                      <span key={trait} className="tag-chip text-xs">
                         {trait}
                       </span>
                     ))}
@@ -660,12 +682,12 @@ export function ControlPanel({
               <div className="h-px bg-border my-3" />
               <div className="grid gap-3 md:grid-cols-2">
                 <div>
-                  <div className="mb-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                  <div className="mb-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">
                     What Matters Most
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {(Object.keys(weights.match) as (keyof Weights["match"])[]).map((key) => (
-                      <div key={key} className="flex items-center gap-1.5 rounded-full border border-white/8 bg-white/[0.03] px-2.5 py-1 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                      <div key={key} className="flex items-center gap-1.5 rounded-full border border-white/8 bg-white/[0.03] px-2.5 py-1 text-xs uppercase tracking-[0.14em] text-muted-foreground">
                         <span
                           className="h-2.5 w-2.5 rounded-full"
                           style={{ backgroundColor: MATCH_VISUALS[key].fill, boxShadow: `0 0 10px ${MATCH_VISUALS[key].glow}` }}
@@ -677,12 +699,12 @@ export function ControlPanel({
                   </div>
                 </div>
                 <div>
-                  <div className="mb-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                  <div className="mb-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">
                     How It Plays
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {VECTOR_CONTEXT_KEYS.map((key) => (
-                      <div key={key} className="flex items-center gap-1.5 rounded-full border border-white/8 bg-white/[0.03] px-2.5 py-1 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                      <div key={key} className="flex items-center gap-1.5 rounded-full border border-white/8 bg-white/[0.03] px-2.5 py-1 text-xs uppercase tracking-[0.14em] text-muted-foreground">
                         <span
                           className="h-2.5 w-2.5 rounded-full"
                           style={{
@@ -709,12 +731,12 @@ export function ControlPanel({
           defaultOpen={true}
         >
           <div className="space-y-4">
-            <p className="text-[11px] leading-5 text-slate-100/88">
+            <p className="text-xs leading-5 text-slate-100/88">
               Use a few broad presets to push the match in clearly different directions.
             </p>
             <div className="space-y-3">
               <div>
-                <div className="mb-2 text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+                <div className="mb-2 text-xs uppercase tracking-[0.22em] text-muted-foreground">
                   How It Plays
                 </div>
                 <div className="grid grid-cols-2 gap-2">
@@ -725,14 +747,14 @@ export function ControlPanel({
                       className="rounded-2xl border border-white/12 bg-white/[0.06] px-3 py-2.5 text-left transition-colors hover:border-primary/60 hover:bg-white/[0.10]"
                     >
                       <div className="text-[13px] font-medium text-slate-50">{intent.label}</div>
-                      <div className="mt-1 text-[11px] leading-5 text-slate-200/82">{intent.hint}</div>
+                      <div className="mt-1 text-xs leading-5 text-slate-200/82">{intent.hint}</div>
                     </button>
                   ))}
                 </div>
               </div>
 
               <div>
-                  <div className="mb-2 text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+                  <div className="mb-2 text-xs uppercase tracking-[0.22em] text-muted-foreground">
                     Broader Direction
                   </div>
                 <div className="grid grid-cols-2 gap-2">
@@ -743,7 +765,7 @@ export function ControlPanel({
                       className="rounded-2xl border border-white/12 bg-white/[0.06] px-3 py-2.5 text-left transition-colors hover:border-primary/60 hover:bg-white/[0.10]"
                     >
                       <div className="text-[13px] font-medium text-slate-50">{intent.label}</div>
-                      <div className="mt-1 text-[11px] leading-5 text-slate-200/82">{intent.hint}</div>
+                      <div className="mt-1 text-xs leading-5 text-slate-200/82">{intent.hint}</div>
                     </button>
                   ))}
                 </div>
@@ -756,7 +778,7 @@ export function ControlPanel({
       {!resultsCompact && mode === "simple" && (
         <>
           <div className="space-y-4 xl:hidden">
-            <div className="panel overflow-hidden glow-box-subtle">
+            <div className="hidden">
               <div className="panel-header">
                 <div className="text-primary">
                   <Zap className="h-3.5 w-3.5" />
@@ -776,50 +798,10 @@ export function ControlPanel({
                         className="rounded-2xl border border-sky-300/22 bg-sky-400/10 px-4 py-3.5 text-left shadow-[0_0_18px_rgba(56,189,248,0.08)] transition-colors hover:border-sky-300/55 hover:bg-sky-400/16"
                       >
                         <div className="text-[13px] font-semibold text-slate-50">{intent.label}</div>
-                        <div className="mt-1 text-[11px] leading-5 text-slate-200/82">{intent.hint}</div>
+                        <div className="mt-1 text-xs leading-5 text-slate-200/82">{intent.hint}</div>
                       </button>
                     ))}
                   </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="panel overflow-hidden glow-box-subtle">
-              <div className="panel-header">
-                <div className="text-primary">
-                  <Puzzle className="h-3.5 w-3.5" />
-                </div>
-                <span className="text-xs font-medium text-foreground">Gameplay Tags</span>
-              </div>
-              <div className="border-t border-border/50 p-3">
-                <div className="space-y-4">
-                  {vectorFeaturedGroups.map((group) => (
-                    <div key={`${group.context}-${group.label}`}>
-                      <div className="mb-2 flex items-center justify-between gap-2">
-                        <div className="text-[11px] uppercase tracking-[0.2em] text-slate-200/78">
-                          {group.label}
-                        </div>
-                        <div className="text-[10px] uppercase tracking-[0.16em] text-slate-400/80">
-                          Tap to add
-                        </div>
-                      </div>
-                      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
-                        {group.tags.map((tag) => {
-                          const selectionKey = `${group.context}:${tag}`
-                          const isSelected = selectedSimpleTags.includes(selectionKey)
-                          return (
-                            <PreferenceTagButton
-                              key={selectionKey}
-                              context={group.context}
-                              tag={tag}
-                              selected={isSelected}
-                              onClick={() => onSimpleTagToggle(group.context, tag)}
-                            />
-                          )
-                        })}
-                      </div>
-                    </div>
-                  ))}
                 </div>
               </div>
             </div>
@@ -848,8 +830,8 @@ export function ControlPanel({
                   <Puzzle className="h-4 w-4 text-primary" />
                   <span className="terminal-label text-primary">Base Gameplay Shape</span>
                 </div>
-                <p className="mt-3 text-[12px] leading-6 text-slate-100/90">
-                  This is the starting shape from the game you picked. Use it as the baseline, then add tags below for what you want more of.
+                <p className="mt-3 text-base leading-7 text-slate-100/90">
+                  These are the default settings from the game you picked. Slide a bar if those are the reasons you like it, or keep scrolling for theme, world, and music signals.
                 </p>
               </div>
               <div className="grid gap-5 2xl:grid-cols-2">
@@ -870,42 +852,7 @@ export function ControlPanel({
               </div>
             </div>
 
-            <div className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
-              <div className="panel overflow-hidden glow-box-subtle">
-                <div className="panel-header">
-                  <div className="text-primary">
-                    <Puzzle className="h-3.5 w-3.5" />
-                  </div>
-                  <span className="text-xs font-medium text-foreground">Gameplay Tag Boosts</span>
-                </div>
-                <div className="border-t border-border/50 p-3">
-                  <div className="space-y-4">
-                    {vectorFeaturedGroups.map((group) => (
-                      <div key={`${group.context}-${group.label}`}>
-                        <div className="mb-2 text-[11px] uppercase tracking-[0.2em] text-slate-200/78">
-                          {group.label}
-                        </div>
-                        <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-                          {group.tags.map((tag) => {
-                            const selectionKey = `${group.context}:${tag}`
-                            const isSelected = selectedSimpleTags.includes(selectionKey)
-                            return (
-                              <PreferenceTagButton
-                                key={selectionKey}
-                                context={group.context}
-                                tag={tag}
-                                selected={isSelected}
-                                onClick={() => onSimpleTagToggle(group.context, tag)}
-                              />
-                            )
-                          })}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
+            <div>
               <div className="panel overflow-hidden glow-box-subtle">
                 <div className="panel-header">
                   <div className="text-primary">
@@ -954,12 +901,12 @@ export function ControlPanel({
                   {activeSignalTags.length > 0 ? activeSignalTags.map((tag) => (
                     <span
                       key={tag}
-                      className="rounded-full border border-sky-300/30 bg-sky-400/12 px-3 py-1.5 text-[11px] font-medium text-sky-50 shadow-[0_0_14px_rgba(56,189,248,0.16)]"
+                      className="rounded-full border border-sky-300/30 bg-sky-400/12 px-3 py-1.5 text-xs font-medium text-sky-50 shadow-[0_0_14px_rgba(56,189,248,0.16)]"
                     >
                       {tag}
                     </span>
                   )) : (
-                    <p className="text-[11px] text-muted-foreground">
+                    <p className="text-xs text-muted-foreground">
                       No active tags yet. Adjust weights below to shape the match.
                     </p>
                   )}
@@ -997,7 +944,7 @@ export function ControlPanel({
 
             <div className="space-y-4">
             <div className="panel p-4 glow-box-subtle">
-              <div className="text-[10px] uppercase tracking-[0.3em] text-primary">How Influence Works</div>
+              <div className="text-xs uppercase tracking-[0.3em] text-primary">How Influence Works</div>
               <p className="mt-3 text-sm leading-7 text-foreground/88">
                 `Mechanics influence` means how much the mechanics vector contributes to the final recommendation score.
                 Raise it when you want system feel, verbs, combat texture, and interaction style to matter more.
@@ -1011,11 +958,11 @@ export function ControlPanel({
                   <Zap className="h-3.5 w-3.5" />
                 </div>
                 <span className="text-xs font-medium text-foreground">What Matters Most</span>
-                <span className="ml-auto data-value text-[10px]">Direct Control</span>
+                <span className="ml-auto data-value text-xs">Direct Control</span>
               </div>
               <div className="border-t border-border/50 p-3">
                 <div className="space-y-3">
-                  <p className="mb-2 text-[10px] text-muted-foreground">
+                  <p className="mb-2 text-xs text-muted-foreground">
                     This changes how much each ranking component contributes to the final recommendation score.
                   </p>
                   {(Object.keys(weights.match) as (keyof Weights["match"])[]).map((key) => (
@@ -1038,11 +985,11 @@ export function ControlPanel({
                   <Sparkles className="h-3.5 w-3.5" />
                 </div>
                 <span className="text-xs font-medium text-foreground">Play Style</span>
-                <span className="ml-auto data-value text-[10px]">Preference</span>
+                <span className="ml-auto data-value text-xs">Preference</span>
               </div>
               <div className="border-t border-border/50 p-3">
                 <div className="space-y-3">
-                  <p className="mb-2 text-[10px] text-muted-foreground">
+                  <p className="mb-2 text-xs text-muted-foreground">
                     Preference intensity on each axis (0-100)
                   </p>
                   {(Object.keys(weights.appeal) as (keyof Weights["appeal"])[]).map((key) => (
@@ -1064,14 +1011,14 @@ export function ControlPanel({
                     <Grid3X3 className="h-3.5 w-3.5" />
                   </div>
                   <span className="text-xs font-medium text-foreground">Active Reasons</span>
-                  <span className="ml-auto data-value text-[10px]">Active Reasons</span>
+                  <span className="ml-auto data-value text-xs">Active Reasons</span>
                 </div>
                 <div className="border-t border-border/50 p-3">
                   <div className="flex flex-wrap gap-2">
                     {activeSignalTags.map((tag) => (
                       <span
                         key={tag}
-                        className="rounded-full border border-sky-300/30 bg-sky-400/12 px-3 py-1.5 text-[11px] font-medium text-sky-50 shadow-[0_0_14px_rgba(56,189,248,0.16)]"
+                        className="rounded-full border border-sky-300/30 bg-sky-400/12 px-3 py-1.5 text-xs font-medium text-sky-50 shadow-[0_0_14px_rgba(56,189,248,0.16)]"
                       >
                         {tag}
                       </span>
@@ -1087,7 +1034,7 @@ export function ControlPanel({
                   <Grid3X3 className="h-3.5 w-3.5" />
                 </div>
                 <span className="text-xs font-medium text-foreground">How Strong Each Theme Is</span>
-                <span className="ml-auto data-value text-[10px]">Theme / World / Music</span>
+                <span className="ml-auto data-value text-xs">Theme / World / Music</span>
               </div>
               <div className="border-t border-border/50 p-3 space-y-5">
                 {TAG_SIGNAL_CONTEXT_KEYS.map((context) => {
@@ -1115,7 +1062,7 @@ export function ControlPanel({
                           ))}
                         </div>
                       ) : (
-                        <p className="text-[10px] text-muted-foreground">
+                        <p className="text-xs text-muted-foreground">
                           No active {context.replace(/_/g, " ")} tags on the selected game.
                         </p>
                       )}

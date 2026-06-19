@@ -827,7 +827,7 @@ export default function NextSteamGamePage() {
               <div className="inline-flex rounded-full border border-border bg-secondary/40 p-0.5 shadow-[0_10px_28px_rgba(0,0,0,0.18)]">
                 <button
                   onClick={() => setControlMode("simple")}
-                  className={`rounded-full px-3 py-1.5 text-[11px] transition-colors ${
+                  className={`rounded-full px-3 py-1.5 text-xs transition-colors ${
                     controlMode === "simple" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
@@ -841,7 +841,7 @@ export default function NextSteamGamePage() {
                       advanced: false,
                     }))
                   }}
-                  className={`rounded-full px-3 py-1.5 text-[11px] transition-colors ${
+                  className={`rounded-full px-3 py-1.5 text-xs transition-colors ${
                     controlMode === "advanced" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
@@ -852,7 +852,7 @@ export default function NextSteamGamePage() {
 
             {controlMode === "advanced" && showModeHint ? (
               <div
-                className="pointer-events-auto absolute left-3 right-3 top-[58px] z-[70] rounded-[22px] border border-black/10 bg-white px-4 py-3 text-[11px] leading-5 text-slate-950 shadow-[0_18px_42px_rgba(0,0,0,0.28)] sm:left-[92px] sm:right-auto sm:w-[240px]"
+                className="pointer-events-auto absolute left-3 right-3 top-[58px] z-[70] rounded-[22px] border border-black/10 bg-white px-4 py-3 text-xs leading-5 text-slate-950 shadow-[0_18px_42px_rgba(0,0,0,0.28)] sm:left-[92px] sm:right-auto sm:w-[240px]"
               >
                 <div className="absolute -top-2 left-10 h-4 w-4 rotate-45 border-l border-t border-black/10 bg-white sm:left-[118px]" />
                 <div className="flex items-start gap-3">
@@ -884,7 +884,7 @@ export default function NextSteamGamePage() {
 
       <main className={screen === "search" ? "" : "mx-auto max-w-[1800px] px-3 py-8 md:px-4 xl:px-5"}>
         {screen === "search" && (
-          <div className="relative min-h-[calc(100dvh-77px)] overflow-hidden">
+          <div className="relative min-h-[calc(100dvh-77px)] overflow-x-hidden sm:overflow-hidden">
             <img
               src={gameShelfBackground.src}
               alt=""
@@ -898,7 +898,7 @@ export default function NextSteamGamePage() {
               className="absolute right-4 top-4 z-20 inline-flex items-center gap-2 rounded-full border border-white/18 bg-black/40 px-3 py-2 text-sm font-medium text-white shadow-[0_12px_30px_rgba(0,0,0,0.28)] backdrop-blur transition hover:bg-black/55 sm:right-6 sm:top-6"
             >
               <Github className="h-4 w-4" />
-              <span>Star on GitHub</span>
+              <span>GitHub</span>
               {githubStarCount !== null ? (
                 <span className="rounded-full bg-white/12 px-2 py-0.5 text-xs font-semibold tabular-nums text-white/90">
                   {githubStarCount.toLocaleString()}
@@ -910,44 +910,44 @@ export default function NextSteamGamePage() {
               href={SNEAKY_FISHY_URL}
               target="_blank"
               rel="noreferrer"
-              className="fixed bottom-4 right-4 z-[80] flex w-[min(20rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-lg border border-white/20 bg-black/72 text-left text-white shadow-[0_18px_46px_rgba(0,0,0,0.42)] backdrop-blur transition hover:-translate-y-0.5 hover:border-cyan-200/55 hover:bg-black/82 sm:bottom-6 sm:right-6"
+              className="fixed bottom-6 right-6 z-[80] hidden w-[min(20rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-lg border border-white/20 bg-black/72 text-left text-white shadow-[0_18px_46px_rgba(0,0,0,0.42)] backdrop-blur transition hover:-translate-y-0.5 hover:border-cyan-200/55 hover:bg-black/82 sm:flex"
             >
               <img
                 src={SNEAKY_FISHY_IMAGE_URL}
                 alt="Sneaky Fishy"
                 className="aspect-video w-full object-cover"
               />
-              <span className="flex min-w-0 flex-col gap-1 px-3 py-2.5">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-cyan-200/90">
+              <span className="flex min-w-0 flex-col gap-1 px-2.5 py-2 sm:px-3 sm:py-2.5">
+                <span className="text-xs font-semibold uppercase tracking-[0.12em] text-cyan-200/90 sm:text-xs sm:tracking-[0.16em]">
                   Support my sister&apos;s new game
                 </span>
-                <span className="flex items-center gap-1.5 text-sm font-semibold leading-tight">
+                <span className="flex items-center gap-1.5 text-xs font-semibold leading-tight sm:text-sm">
                   Sneaky Fishy
                   <ExternalLink className="h-3.5 w-3.5 shrink-0" />
                 </span>
               </span>
             </a>
-            <div className="relative z-10 flex min-h-[calc(100dvh-77px)] items-center justify-center px-4 pb-12 pt-6 sm:px-8 sm:pt-8 md:px-12 md:pt-10">
+            <div className="relative z-10 flex min-h-[calc(100dvh-77px)] items-start justify-center px-4 pb-40 pt-14 sm:items-center sm:px-8 sm:pb-12 sm:pt-8 md:px-12 md:pt-10">
               <div className="w-full max-w-5xl text-center">
-                <div className="flex flex-col items-center justify-center gap-4 sm:flex-row sm:gap-6">
-                  <div className="space-y-2 text-center sm:text-left">
-                    <h1 className="text-4xl font-semibold tracking-tight text-white sm:text-[2.85rem] md:text-[3.5rem] xl:text-[3.9rem]">
-                      Find Similar Steam Games
-                    </h1>
-                    <div className="text-sm font-medium uppercase tracking-[0.24em] text-slate-300/88">
-                      NextSteamGame
-                    </div>
-                  </div>
+                <div className="flex items-center justify-center gap-4 sm:gap-6">
                   <img
                     src={steamLogo.src}
                     alt="Steam"
-                    className="h-28 w-28 object-contain sm:h-32 sm:w-32 md:h-40 md:w-40"
+                    className="h-16 w-16 shrink-0 object-contain sm:h-32 sm:w-32 md:h-40 md:w-40"
                   />
+                  <div className="min-w-0 space-y-2 text-left">
+                    <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-[2.85rem] md:text-[3.5rem] xl:text-[3.9rem]">
+                      Find Similar Steam Games
+                    </h1>
+                    <div className="text-xs font-medium uppercase tracking-[0.22em] text-slate-300/88 sm:text-sm sm:tracking-[0.24em]">
+                      NextSteamGame
+                    </div>
+                  </div>
                 </div>
-                <p className="mx-auto mt-5 max-w-2xl text-base text-slate-200 md:text-lg">
-                  A Steam recommendation engine that finds similar games and shows exactly why they match.
+                <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-200 sm:mt-5 md:text-lg">
+                  This site turns Steam reviews into usable tags and vectors, so games here represent the community&apos;s voice instead of only store categories.
                 </p>
-                <div className="mx-auto mt-8 max-w-4xl sm:mt-10">
+                <div className="mx-auto mt-6 max-w-4xl sm:mt-10">
                   <SearchBar
                     games={searchResults}
                     isLoading={searchLoading}
@@ -995,7 +995,7 @@ export default function NextSteamGamePage() {
                     <div className="space-y-4">
                       <button
                         onClick={() => setScreen("search")}
-                        className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/88 backdrop-blur hover:bg-white/10"
+                        className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-base text-white/88 backdrop-blur hover:bg-white/10"
                       >
                         <ArrowLeft className="h-4 w-4" />
                         Back to Search
@@ -1061,21 +1061,21 @@ export default function NextSteamGamePage() {
                         {selectedGame?.genres.primary.slice(0, 2).map((genre) => (
                           <span
                             key={genre}
-                            className="rounded-full border border-white/22 bg-white/12 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-white/95"
+                            className="rounded-full border border-white/22 bg-white/12 px-3 py-1 text-xs uppercase tracking-[0.18em] text-white/95"
                           >
                             {genre}
                           </span>
                         ))}
                         {selectedGame?.category ? (
-                          <span className="rounded-full border border-sky-300/32 bg-sky-400/18 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-sky-50">
+                          <span className="rounded-full border border-sky-300/32 bg-sky-400/18 px-3 py-1 text-xs uppercase tracking-[0.18em] text-sky-50">
                             {selectedGame.category}
                           </span>
                         ) : null}
-                        <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-white/85">
+                        <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs uppercase tracking-[0.18em] text-white/85">
                           AppID {selectedGame?.id}
                         </span>
                       </div>
-                      <p className="mt-5 max-w-3xl text-sm leading-7 text-slate-300 md:text-[15px]">
+                      <p className="mt-5 max-w-3xl text-base leading-8 text-slate-300">
                         Choose what you like. Start with the traits that make this game click, then switch to advanced mode when you want full control over vectors, match weighting, and detailed profile shaping.
                       </p>
 

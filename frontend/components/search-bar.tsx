@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, type CSSProperties } from "react"
 import { Search, X } from "lucide-react"
 import type { Game } from "@/lib/types"
 import Image from "next/image"
@@ -20,10 +20,19 @@ export function SearchBar({ games, isLoading = false, onQueryChange, onSelect, s
   const [query, setQuery] = useState("")
   const [isOpen, setIsOpen] = useState(false)
   const [focusedIndex, setFocusedIndex] = useState(-1)
+  const [dropdownTop, setDropdownTop] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   const filteredGames = query.length > 0 ? games.slice(0, MAX_SEARCH_RESULTS) : []
+  const mobileDropdownStyle = { "--mobile-dropdown-top": `${dropdownTop}px` } as CSSProperties
+
+  const updateDropdownTop = () => {
+    const rect = inputRef.current?.getBoundingClientRect()
+    if (rect) {
+      setDropdownTop(rect.bottom + 8)
+    }
+  }
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -34,6 +43,20 @@ export function SearchBar({ games, isLoading = false, onQueryChange, onSelect, s
     document.addEventListener("mousedown", handleClickOutside)
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [])
+
+  useEffect(() => {
+    if (!isOpen) {
+      return
+    }
+
+    updateDropdownTop()
+    window.addEventListener("resize", updateDropdownTop)
+    window.addEventListener("scroll", updateDropdownTop, true)
+    return () => {
+      window.removeEventListener("resize", updateDropdownTop)
+      window.removeEventListener("scroll", updateDropdownTop, true)
+    }
+  }, [isOpen, query])
 
   const handleSelect = (game: Game) => {
     onSelect(game)
@@ -71,12 +94,18 @@ export function SearchBar({ games, isLoading = false, onQueryChange, onSelect, s
             setQuery(nextQuery)
             onQueryChange?.(nextQuery)
             setIsOpen(true)
+            updateDropdownTop()
             setFocusedIndex(-1)
           }}
-          onFocus={() => query.length > 0 && setIsOpen(true)}
+          onFocus={() => {
+            updateDropdownTop()
+            if (query.length > 0) {
+              setIsOpen(true)
+            }
+          }}
           onKeyDown={handleKeyDown}
           placeholder="Search games..."
-          className="w-full h-16 rounded-2xl border border-border bg-card pl-14 pr-12 text-base text-foreground shadow-[0_18px_42px_rgba(0,0,0,0.18)] placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-foreground/20 transition-all sm:h-18 sm:text-lg"
+          className="h-14 w-full rounded-xl border border-border bg-card pl-12 pr-11 text-base text-foreground shadow-[0_18px_42px_rgba(0,0,0,0.18)] transition-all placeholder:text-muted-foreground focus:border-foreground/20 focus:outline-none focus:ring-2 focus:ring-ring/20 sm:h-18 sm:rounded-2xl sm:pl-14 sm:pr-12 sm:text-lg"
         />
         {query && (
           <button
@@ -93,20 +122,23 @@ export function SearchBar({ games, isLoading = false, onQueryChange, onSelect, s
       </div>
 
       {isOpen && filteredGames.length > 0 && (
-        <div className="absolute top-full left-0 right-0 z-50 mt-3 overflow-hidden rounded-2xl border border-border bg-card shadow-[0_24px_60px_rgba(0,0,0,0.28)]">
-          <div className="max-h-72 overflow-y-auto custom-scrollbar">
+        <div
+          className="fixed left-4 right-4 top-[var(--mobile-dropdown-top)] z-[90] max-h-[45dvh] overflow-hidden rounded-xl border border-border bg-card shadow-[0_24px_60px_rgba(0,0,0,0.38)] sm:absolute sm:left-0 sm:right-0 sm:top-full sm:z-50 sm:mt-3 sm:max-h-none sm:rounded-2xl"
+          style={mobileDropdownStyle}
+        >
+          <div className="max-h-[48dvh] overflow-y-auto custom-scrollbar sm:max-h-72">
             {filteredGames.map((game, index) => (
               <button
                 key={game.id}
                 onClick={() => handleSelect(game)}
                 onMouseEnter={() => setFocusedIndex(index)}
-                className={`w-full flex items-center gap-4 px-4 py-4 text-left transition-colors ${
+                className={`flex w-full items-center gap-3 px-3 py-3 text-left transition-colors sm:gap-4 sm:px-4 sm:py-4 ${
                   focusedIndex === index 
                     ? "bg-secondary" 
                     : "hover:bg-secondary/50"
                 } ${selectedGame?.id === game.id ? "bg-secondary/30" : ""}`}
               >
-                <div className="relative h-12 w-20 flex-shrink-0 overflow-hidden rounded bg-muted">
+                <div className="relative h-10 w-16 flex-shrink-0 overflow-hidden rounded bg-muted sm:h-12 sm:w-20">
                   <Image
                     src={game.assets.libraryCapsule || game.assets.capsuleV5 || game.image || IMAGE_FALLBACK}
                     alt={game.title}
@@ -117,14 +149,14 @@ export function SearchBar({ games, isLoading = false, onQueryChange, onSelect, s
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="truncate text-base font-medium text-foreground">{game.title}</span>
+                    <span className="truncate text-sm font-medium text-foreground sm:text-base">{game.title}</span>
                     {selectedGame?.id === game.id && (
-                      <span className="flex-shrink-0 px-1.5 py-0.5 text-[10px] bg-foreground text-background rounded">
+                      <span className="flex-shrink-0 px-1.5 py-0.5 text-xs bg-foreground text-background rounded">
                         Selected
                       </span>
                     )}
                   </div>
-                  <span className="text-sm text-muted-foreground">{game.category}</span>
+                  <span className="truncate text-xs text-muted-foreground sm:text-sm">{game.category}</span>
                 </div>
               </button>
             ))}
@@ -133,7 +165,10 @@ export function SearchBar({ games, isLoading = false, onQueryChange, onSelect, s
       )}
 
       {isOpen && query.length > 0 && filteredGames.length === 0 && (
-        <div className="absolute top-full left-0 right-0 z-50 mt-3 rounded-2xl border border-border bg-card p-5 text-center shadow-[0_24px_60px_rgba(0,0,0,0.28)]">
+        <div
+          className="fixed left-4 right-4 top-[var(--mobile-dropdown-top)] z-[90] rounded-xl border border-border bg-card p-5 text-center shadow-[0_24px_60px_rgba(0,0,0,0.38)] sm:absolute sm:left-0 sm:right-0 sm:top-full sm:z-50 sm:mt-3 sm:rounded-2xl"
+          style={mobileDropdownStyle}
+        >
           <Search className="mx-auto mb-2 h-5 w-5 text-muted-foreground" />
           <p className="text-sm text-muted-foreground">{isLoading ? "Searching..." : "No games found"}</p>
         </div>
