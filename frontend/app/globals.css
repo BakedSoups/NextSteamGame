@@ -66,6 +66,12 @@
       radial-gradient(circle at top left, rgba(86, 182, 255, 0.11), transparent 24rem),
       radial-gradient(circle at bottom right, rgba(44, 114, 255, 0.10), transparent 26rem);
   }
+
+  @media (min-width: 768px) {
+    body {
+      zoom: 0.8;
+    }
+  }
 }
 
 @layer components {

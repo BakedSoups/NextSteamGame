@@ -571,6 +571,13 @@ export default function NextSteamGamePage() {
 
   const simpleFeaturedTags = useMemo(() => featuredTagGroups(selectedGame), [selectedGame])
 
+  const goToScreen = (nextScreen: Screen) => {
+    setScreen(nextScreen)
+    window.requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" })
+    })
+  }
+
   const handleSelectGame = async (game: Game) => {
     try {
       const fullGame = await fetchJson<Game>(`/api/games/${game.id}`)
@@ -579,7 +586,7 @@ export default function NextSteamGamePage() {
         query: searchQuery.trim(),
       })
       setSelectedGame(fullGame)
-      setScreen("profile")
+      goToScreen("profile")
       setSearchError(null)
     } catch (error) {
       setSearchError(error instanceof Error ? error.message : "Failed to load game")
@@ -747,23 +754,51 @@ export default function NextSteamGamePage() {
     }
   }
 
-  const updateTagWeight = (context: keyof Weights["tags"], tag: string, value: number) => {
+  const updateTagWeight = (
+    context: keyof Weights["tags"],
+    tag: string,
+    value: number,
+    groupTags?: string[],
+  ) => {
     setWeights((prev) => {
       const currentContext = prev.tags[context]
-      const others = Object.keys(currentContext).filter((key) => key !== tag)
-      const remaining = 100 - value
-      const otherTotal = others.reduce((sum, key) => sum + currentContext[key], 0)
+      const activeTags = groupTags?.length
+        ? Array.from(new Set(groupTags))
+        : Object.keys(currentContext)
+      const boundedValue = Math.max(0, Math.min(100, value))
+      const others = activeTags.filter((key) => key !== tag)
+      const remaining = 100 - boundedValue
+      const otherTotal = others.reduce((sum, key) => sum + (currentContext[key] ?? 0), 0)
 
-      const nextContext = { ...currentContext, [tag]: value }
-      if (others.length > 0 && otherTotal > 0) {
-        for (const key of others) {
-          nextContext[key] = Math.max(0, Math.round((currentContext[key] / otherTotal) * remaining))
+      const nextContext = { ...currentContext }
+      if (groupTags?.length) {
+        for (const key of Object.keys(nextContext)) {
+          if (!activeTags.includes(key)) {
+            nextContext[key] = 0
+          }
         }
       }
 
-      const total = Object.values(nextContext).reduce((sum, item) => sum + item, 0)
-      if (total !== 100 && others.length > 0) {
-        const largestKey = others.reduce((a, b) => (nextContext[a] > nextContext[b] ? a : b))
+      nextContext[tag] = boundedValue
+      if (others.length > 0) {
+        if (otherTotal > 0) {
+          for (const key of others) {
+            nextContext[key] = Math.max(0, Math.round(((currentContext[key] ?? 0) / otherTotal) * remaining))
+          }
+        } else {
+          const base = Math.floor(remaining / others.length)
+          const remainder = remaining - base * others.length
+          for (const [index, key] of others.entries()) {
+            nextContext[key] = base + (index < remainder ? 1 : 0)
+          }
+        }
+      }
+
+      const totalKeys = activeTags.length > 0 ? activeTags : Object.keys(nextContext)
+      const total = totalKeys.reduce((sum, key) => sum + (nextContext[key] ?? 0), 0)
+      if (total !== 100 && totalKeys.length > 0) {
+        const adjustableKeys = others.length > 0 ? others : totalKeys
+        const largestKey = adjustableKeys.reduce((a, b) => ((nextContext[a] ?? 0) > (nextContext[b] ?? 0) ? a : b))
         nextContext[largestKey] += 100 - total
       }
 
@@ -813,7 +848,7 @@ export default function NextSteamGamePage() {
           <div className="relative flex items-start justify-between gap-6">
             <div className="flex items-center gap-3">
               <button
-                onClick={() => setScreen("search")}
+                onClick={() => goToScreen("search")}
                 className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-border bg-background/60 p-2 text-sm text-foreground shadow-[0_10px_28px_rgba(0,0,0,0.18)] transition hover:bg-secondary/40"
                 aria-label="Home"
                 title="Home"
@@ -884,11 +919,11 @@ export default function NextSteamGamePage() {
 
       <main className={screen === "search" ? "" : "mx-auto max-w-[1800px] px-3 py-8 md:px-4 xl:px-5"}>
         {screen === "search" && (
-          <div className="relative min-h-[calc(100dvh-77px)] overflow-x-hidden sm:overflow-hidden">
+          <div className="relative min-h-[calc(100dvh-77px)] overflow-x-hidden sm:overflow-hidden md:min-h-[calc(125dvh-77px)]">
             <img
               src={gameShelfBackground.src}
               alt=""
-              className="absolute inset-0 h-full w-full object-cover"
+              className="absolute inset-0 h-full w-full object-cover object-center md:object-[center_42%]"
             />
             <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(8,13,19,0.58),rgba(8,13,19,0.78)),linear-gradient(90deg,rgba(8,13,19,0.30),rgba(8,13,19,0.42))]" />
             <a
@@ -930,7 +965,7 @@ export default function NextSteamGamePage() {
                 </span>
               </span>
             </a>
-            <div className="relative z-10 flex min-h-[calc(100dvh-77px)] items-start justify-center px-4 pb-40 pt-14 sm:items-center sm:px-8 sm:pb-12 sm:pt-8 md:px-12 md:pt-10">
+            <div className="relative z-10 flex min-h-[calc(100dvh-77px)] items-start justify-center px-4 pb-40 pt-14 sm:items-center sm:px-8 sm:pb-12 sm:pt-8 md:min-h-[calc(125dvh-77px)] md:px-12 md:pt-10">
               <div className="w-full max-w-5xl text-center">
                 <div className="flex items-center justify-center gap-4 sm:gap-6">
                   <img
@@ -997,7 +1032,7 @@ export default function NextSteamGamePage() {
                   <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
                     <div className="space-y-4">
                       <button
-                        onClick={() => setScreen("search")}
+                        onClick={() => goToScreen("search")}
                         className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-base text-white/88 backdrop-blur hover:bg-white/10"
                       >
                         <ArrowLeft className="h-4 w-4" />
@@ -1197,7 +1232,7 @@ export default function NextSteamGamePage() {
 
                   <div className="flex justify-end pb-6">
                     <button
-                      onClick={() => setScreen("results")}
+                      onClick={() => goToScreen("results")}
                       disabled={!selectedGameHasSemanticProfile}
                       className={`inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-semibold shadow-[0_20px_40px_rgba(26,159,255,0.24)] transition ${
                         selectedGameHasSemanticProfile
@@ -1218,7 +1253,7 @@ export default function NextSteamGamePage() {
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-[340px_1fr_360px] xl:gap-8">
             <div className="space-y-6 xl:sticky xl:top-24 xl:h-fit xl:max-h-[calc(100vh-7rem)] xl:overflow-y-auto custom-scrollbar pr-2">
               <button
-                onClick={() => setScreen("profile")}
+                onClick={() => goToScreen("profile")}
                 className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm text-foreground hover:bg-secondary/30"
               >
                 <ArrowLeft className="h-4 w-4" />

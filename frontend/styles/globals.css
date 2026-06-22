@@ -122,4 +122,10 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  @media (min-width: 768px) {
+    body {
+      zoom: 0.8;
+    }
+  }
 }

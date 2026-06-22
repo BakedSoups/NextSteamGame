@@ -32,7 +32,7 @@ interface ControlPanelProps {
   onMatchWeightChange: (key: keyof Weights["match"], value: number) => void
   onContextWeightChange: (key: keyof Weights["context"], value: number) => void
   onAppealWeightChange: (key: keyof Weights["appeal"], value: number) => void
-  onTagWeightChange: (context: keyof Weights["tags"], tag: string, value: number) => void
+  onTagWeightChange: (context: keyof Weights["tags"], tag: string, value: number, groupTags?: string[]) => void
   onSimpleIntentBoost?: (intent: SimpleIntent) => void
   onTuningSectionFeedback?: (section: "vectors" | "tags", feedback: "up" | "down") => void
   selectedSimpleTags: string[]
@@ -356,7 +356,7 @@ interface VectorControlCardProps {
   weights: Weights
   visibleTags?: string[]
   onContextWeightChange: (key: keyof Weights["context"], value: number) => void
-  onTagWeightChange: (context: keyof Weights["tags"], tag: string, value: number) => void
+  onTagWeightChange: (context: keyof Weights["tags"], tag: string, value: number, groupTags?: string[]) => void
   interactive?: boolean
   highlighted?: boolean
 }
@@ -396,13 +396,16 @@ function VectorControlCard({
       : Array.from(new Set([...selectedTags, ...fallbackTags])).slice(0, radarAxisLimit)
   const axisLabels = axes.length > 0 ? axes : ["signal", "profile", "tone", "focus", "identity"]
   const contextWeight = weights.context[context]
+  const liveVisibleTotal = axisLabels.reduce((sum, axis) => sum + (weights.tags[context][axis] ?? 0), 0)
   const values = axisLabels.map((axis) =>
     Math.max(
       0,
       interactive
         ? (weights.tags[context][axis] ?? 0)
         : allowSimpleTagShape
-          ? Math.min(100, Math.max(weights.tags[context][axis] ?? 0, baselineTagWeights[axis] ?? 0))
+          ? liveVisibleTotal > 0
+            ? Math.round(((weights.tags[context][axis] ?? 0) / liveVisibleTotal) * 100)
+            : Math.min(100, baselineTagWeights[axis] ?? 0)
           : Math.min(100, baselineTagWeights[axis] ?? 0),
     ),
   )
@@ -451,7 +454,7 @@ function VectorControlCard({
                     background: `linear-gradient(90deg, ${visual.accent}40, ${visual.accent}14)`,
                   }}
                 />
-                <div className="relative flex min-w-0 items-center justify-between gap-3">
+                <div className="relative z-10 flex min-w-0 items-center justify-between gap-3">
                   <div className="min-w-0 truncate text-sm font-semibold text-slate-50">
                     {tag.replace(/_/g, " ")}
                   </div>
@@ -468,7 +471,7 @@ function VectorControlCard({
                   </div>
                 </div>
                 <div
-                  className="pointer-events-none absolute top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full border bg-slate-950/80 shadow-[0_0_18px_rgba(255,255,255,0.18)] transition-[left] duration-500 ease-out"
+                  className="pointer-events-none absolute top-1/2 z-[1] flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full border bg-slate-950/80 shadow-[0_0_18px_rgba(255,255,255,0.18)] transition-[left] duration-500 ease-out"
                   style={{
                     left: `calc(${strength}% - 14px)`,
                     borderColor: `${visual.accent}80`,
@@ -482,8 +485,8 @@ function VectorControlCard({
                   min={0}
                   max={100}
                   value={Math.round(value)}
-                  onChange={(event) => onTagWeightChange(context, tag, Number(event.target.value))}
-                  className="absolute inset-0 h-full w-full cursor-ew-resize opacity-0"
+                  onChange={(event) => onTagWeightChange(context, tag, Number(event.target.value), axisLabels)}
+                  className="absolute inset-0 z-20 h-full w-full cursor-ew-resize opacity-0"
                   aria-label={`${tag.replace(/_/g, " ")} weight`}
                 />
               </label>
@@ -839,7 +842,7 @@ export function ControlPanel({
                   />
                 </div>
                 <p className="mt-3 text-base leading-7 text-slate-100/90">
-                  Choose what you like. These are the default settings from the game you picked. Slide a bar if those are the reasons you like it, or keep scrolling for theme, world, and music signals.
+                  These are the game&apos;s main focuses shown as vectors. If you want recommendations that focus on something else, slide that reason up; the other reasons will move down so the three sliders always stay at 100 total.
                 </p>
               </div>
               <div className="grid gap-4">
@@ -895,7 +898,7 @@ export function ControlPanel({
                   />
                 </div>
                 <p className="mt-3 text-base leading-7 text-slate-100/90">
-                  Choose what you like. These are the default settings from the game you picked. Slide a bar if those are the reasons you like it, or keep scrolling for theme, world, and music signals.
+                  These are the game&apos;s main focuses shown as vectors. If you want recommendations that focus on something else, slide that reason up; the other reasons will move down so the three sliders always stay at 100 total.
                 </p>
               </div>
               <div className="grid gap-5 2xl:grid-cols-2">
