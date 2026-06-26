@@ -270,6 +270,24 @@ async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>
 }
 
+function caughtErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message
+  }
+  if (typeof error === "string" && error.trim()) {
+    return error
+  }
+  return fallback
+}
+
+function captureCaughtError(eventName: string, error: unknown, details: Record<string, unknown> = {}) {
+  posthog.capture(eventName, {
+    error_message: caughtErrorMessage(error, "Unknown error"),
+    error_type: error instanceof Error ? error.name : typeof error,
+    ...details,
+  })
+}
+
 function logUiActivity(
   game: Game | null,
   eventType: string,
@@ -430,7 +448,11 @@ export default function NextSteamGamePage() {
           results_count: payload.results.length,
         })
       } catch (error) {
-        setSearchError(error instanceof Error ? error.message : "Search failed")
+        captureCaughtError("search_load_failed", error, {
+          query,
+          query_length: query.length,
+        })
+        setSearchError(caughtErrorMessage(error, "Search failed"))
       } finally {
         setSearchLoading(false)
       }
@@ -482,7 +504,11 @@ export default function NextSteamGamePage() {
         }
       } catch (error) {
         if (!cancelled) {
-          setResultsError(error instanceof Error ? error.message : "Recommendation load failed")
+          captureCaughtError("recommendations_load_failed", error, {
+            source_appid: selectedGame.id,
+            source_game_name: selectedGame.title,
+          })
+          setResultsError(caughtErrorMessage(error, "Recommendation load failed"))
         }
       } finally {
         if (!cancelled) {
@@ -589,7 +615,11 @@ export default function NextSteamGamePage() {
       goToScreen("profile")
       setSearchError(null)
     } catch (error) {
-      setSearchError(error instanceof Error ? error.message : "Failed to load game")
+      captureCaughtError("game_load_failed", error, {
+        appid: game.id,
+        game_name: game.title,
+      })
+      setSearchError(caughtErrorMessage(error, "Failed to load game"))
     }
   }
 

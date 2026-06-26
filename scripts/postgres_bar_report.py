@@ -43,11 +43,20 @@ def connect(dsn: str):
     return psycopg.connect(dsn, row_factory=dict_row)
 
 
+def postgres_error_type() -> type[Exception]:
+    try:
+        from psycopg import Error as PsycopgError
+    except ImportError:
+        return RuntimeError
+    return PsycopgError
+
+
 def fetch_rows(connection: Any, sql: str, params: tuple[Any, ...] = ()) -> list[dict[str, Any]]:
+    database_error = postgres_error_type()
     with connection.cursor() as cursor:
         try:
             cursor.execute(sql, params)
-        except Exception as exc:
+        except database_error as exc:
             compact_sql = " ".join(sql.split())
             raise RuntimeError(f"Postgres report query failed: {compact_sql}") from exc
         return [dict(row) for row in cursor.fetchall()]

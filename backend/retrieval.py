@@ -14,6 +14,22 @@ from backend.recommender import default_context_percentages
 logger = logging.getLogger(__name__)
 
 
+def _chroma_exception_types(chromadb_module: Any) -> tuple[type[Exception], ...]:
+    error_types: list[type[Exception]] = [RuntimeError, ValueError, OSError]
+    error_module = getattr(chromadb_module, "errors", None)
+    for name in (
+        "ChromaError",
+        "InvalidCollectionException",
+        "NotFoundError",
+        "NoIndexException",
+        "UniqueConstraintError",
+    ):
+        error_type = getattr(error_module, name, None)
+        if isinstance(error_type, type) and issubclass(error_type, Exception):
+            error_types.append(error_type)
+    return tuple(dict.fromkeys(error_types))
+
+
 def _timed_call(func, *args, **kwargs):
     started = time.perf_counter()
     result = func(*args, **kwargs)
@@ -24,6 +40,7 @@ class CandidateRetriever:
     def __init__(self, *, chroma_dir: Path, store: Any | None = None) -> None:
         self.chroma_dir = chroma_dir
         self.store = store
+        self._chroma_errors: tuple[type[Exception], ...] = (RuntimeError, ValueError, OSError)
         self._collection = self._load_collection()
         self._default_context_percentages = {
             key: float(value) for key, value in default_context_percentages().items()
@@ -59,6 +76,7 @@ class CandidateRetriever:
             import chromadb
         except ImportError:
             return None
+        self._chroma_errors = _chroma_exception_types(chromadb)
 
         if not self.chroma_dir.exists():
             return None
@@ -66,7 +84,7 @@ class CandidateRetriever:
         try:
             client = chromadb.PersistentClient(path=str(self.chroma_dir))
             return client.get_collection("steam_final_canon")
-        except Exception as exc:
+        except self._chroma_errors as exc:
             raise RuntimeError(
                 f"Failed to load Chroma collection 'steam_final_canon' from {self.chroma_dir}"
             ) from exc
@@ -112,7 +130,7 @@ class CandidateRetriever:
                     ],
                     n_results=chroma_limit,
                 )
-        except Exception as exc:
+        except self._chroma_errors as exc:
             appid = game.get("appid", "unknown")
             name = str(game.get("name", "")).strip() or "unknown"
             raise RuntimeError(
