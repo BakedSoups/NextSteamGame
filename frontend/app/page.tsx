@@ -17,6 +17,9 @@ const SITE_URL = "https://nextsteamgame.com"
 const SNEAKY_FISHY_URL = "https://store.steampowered.com/app/4582530/Sneaky_Fishy/"
 const SNEAKY_FISHY_IMAGE_URL =
   "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4582530/9304a73e47cea4c5a053e9c041135ac3175fa657/ss_9304a73e47cea4c5a053e9c041135ac3175fa657.1920x1080.jpg?t=1781654447"
+const API_REQUEST_TIMEOUT_MS = 12_000
+const DIAGNOSTIC_REQUEST_TIMEOUT_MS = 5_000
+const GITHUB_REQUEST_TIMEOUT_MS = 5_000
 
 const DEFAULT_MATCH_WEIGHTS: Weights["match"] = {
   vector: 34,
@@ -254,14 +257,43 @@ function captureProductEvent(
   })
 }
 
+async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit = {}, timeoutMs: number): Promise<Response> {
+  const callerSignal = init.signal
+  const controller = new AbortController()
+  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs)
+
+  if (callerSignal?.aborted) {
+    window.clearTimeout(timeoutId)
+    throw new DOMException("Request was cancelled", "AbortError")
+  }
+
+  const abortFromCaller = () => controller.abort()
+  callerSignal?.addEventListener("abort", abortFromCaller, { once: true })
+
+  try {
+    return await fetch(input, {
+      ...init,
+      signal: controller.signal,
+    })
+  } catch (error) {
+    if (controller.signal.aborted && !callerSignal?.aborted) {
+      throw new Error(`Request timed out after ${Math.round(timeoutMs / 1000)}s`)
+    }
+    throw error
+  } finally {
+    window.clearTimeout(timeoutId)
+    callerSignal?.removeEventListener("abort", abortFromCaller)
+  }
+}
+
 async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`, {
+  const response = await fetchWithTimeout(`${API_BASE}${path}`, {
     ...init,
     headers: {
       "Content-Type": "application/json",
       ...(init?.headers ?? {}),
     },
-  })
+  }, API_REQUEST_TIMEOUT_MS)
 
   if (!response.ok) {
     throw new Error(`Request failed: ${response.status}`)
@@ -312,14 +344,14 @@ function logUiActivity(
     return
   }
 
-  void fetch(`${API_BASE}/api/diagnostics/activity`, {
+  void fetchWithTimeout(`${API_BASE}/api/diagnostics/activity`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: payload,
     keepalive: true,
-  }).catch(() => undefined)
+  }, DIAGNOSTIC_REQUEST_TIMEOUT_MS).catch(() => undefined)
 }
 
 export default function NextSteamGamePage() {
@@ -404,12 +436,12 @@ export default function NextSteamGamePage() {
 
     async function loadGithubStars() {
       try {
-        const response = await fetch("https://api.github.com/repos/BakedSoups/NextSteamGame", {
+        const response = await fetchWithTimeout("https://api.github.com/repos/BakedSoups/NextSteamGame", {
           signal: controller.signal,
           headers: {
             Accept: "application/vnd.github+json",
           },
-        })
+        }, GITHUB_REQUEST_TIMEOUT_MS)
         if (!response.ok) {
           return
         }
