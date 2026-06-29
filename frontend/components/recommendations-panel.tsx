@@ -1,6 +1,6 @@
 "use client"
 
-import { memo, useState } from "react"
+import { memo, useEffect, useRef, useState } from "react"
 import Image from "next/image"
 import { ChevronDown, ChevronUp, Radar, Target, AudioLines, ThumbsDown, ThumbsUp } from "lucide-react"
 import type { Game, RecommendedGame, Weights } from "@/lib/types"
@@ -812,6 +812,7 @@ export function RecommendationsPanel({
 }: RecommendationsPanelProps) {
   const [visibleCount, setVisibleCount] = useState(8)
   const [showFeedbackToast, setShowFeedbackToast] = useState(false)
+  const feedbackToastTimerRef = useRef<number | null>(null)
   const visibleRecommendations = recommendations.slice(0, visibleCount)
   const topOverallId = recommendations[0]?.id ?? null
   const topStructureId =
@@ -839,9 +840,23 @@ export function RecommendationsPanel({
         : -1
       return matchedTagCount > bestCount ? game : best
     }, null)?.id ?? null
+  useEffect(() => {
+    return () => {
+      if (feedbackToastTimerRef.current !== null) {
+        window.clearTimeout(feedbackToastTimerRef.current)
+      }
+    }
+  }, [])
+
   const handleFeedback = (game: RecommendedGame, rank: number, feedback: "up" | "down") => {
     setShowFeedbackToast(true)
-    window.setTimeout(() => setShowFeedbackToast(false), 1600)
+    if (feedbackToastTimerRef.current !== null) {
+      window.clearTimeout(feedbackToastTimerRef.current)
+    }
+    feedbackToastTimerRef.current = window.setTimeout(() => {
+      setShowFeedbackToast(false)
+      feedbackToastTimerRef.current = null
+    }, 1600)
     onRecommendationFeedback?.(game, rank, feedback)
   }
 

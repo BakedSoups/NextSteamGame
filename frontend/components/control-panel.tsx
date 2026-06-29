@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { ArrowRight, Check, ChevronDown, ChevronRight, Puzzle, Sparkles, Grid3X3, Activity, Zap, ThumbsDown, ThumbsUp } from "lucide-react"
 import type { Game, Weights } from "@/lib/types"
 import { MATCH_LABELS } from "@/lib/score-labels"
@@ -626,6 +626,7 @@ export function ControlPanel({
     tags: null,
   })
   const [showFeedbackToast, setShowFeedbackToast] = useState(false)
+  const feedbackToastTimerRef = useRef<number | null>(null)
   const signalFeaturedGroups = featuredTags.filter((group) => TAG_SIGNAL_CONTEXT_KEYS.includes(group.context))
   const activeSignalTags = Object.entries(weights.tags)
     .flatMap(([context, tagMap]) =>
@@ -646,10 +647,24 @@ export function ControlPanel({
   const genrePathSummary = [weights.genres.primary[0], weights.genres.sub[0], weights.genres.sub_sub[0]]
     .filter(Boolean)
     .join(" → ")
+  useEffect(() => {
+    return () => {
+      if (feedbackToastTimerRef.current !== null) {
+        window.clearTimeout(feedbackToastTimerRef.current)
+      }
+    }
+  }, [])
+
   const saveSectionFeedback = (section: "vectors" | "tags", feedback: "up" | "down") => {
     setSectionFeedback((current) => ({ ...current, [section]: feedback }))
     setShowFeedbackToast(true)
-    window.setTimeout(() => setShowFeedbackToast(false), 1600)
+    if (feedbackToastTimerRef.current !== null) {
+      window.clearTimeout(feedbackToastTimerRef.current)
+    }
+    feedbackToastTimerRef.current = window.setTimeout(() => {
+      setShowFeedbackToast(false)
+      feedbackToastTimerRef.current = null
+    }, 1600)
     onTuningSectionFeedback?.(section, feedback)
   }
 
