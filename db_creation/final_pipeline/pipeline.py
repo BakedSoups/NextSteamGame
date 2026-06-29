@@ -17,6 +17,14 @@ OUTPUT_DB_PATH = final_canon_db_path()
 ANALYSIS_DIR = analysis_dir()
 CANON_GROUPS_CSV_PATH = ANALYSIS_DIR / "canon_groups_v6.csv"
 VECTOR_CONTEXTS = {"mechanics", "narrative", "vibe", "structure_loop"}
+FINAL_PIPELINE_ERROR_TYPES = (
+    sqlite3.Error,
+    json.JSONDecodeError,
+    RuntimeError,
+    ValueError,
+    KeyError,
+    TypeError,
+)
 
 
 def utcnow_iso() -> str:
@@ -421,7 +429,7 @@ def run_final_db_build(
                 loaded_groups["mapping"],
                 progress=progress,
             )
-        except Exception:
+        except FINAL_PIPELINE_ERROR_TYPES:
             status = "failed"
             raise
         finally:

@@ -181,5 +181,5 @@ def _stop_progress() -> None:
     with _lock:
         try:
             _live.stop()
-        except Exception:
+        except RuntimeError:
             pass

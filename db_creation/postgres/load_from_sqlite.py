@@ -10,6 +10,15 @@ from pathlib import Path
 
 from db_creation.paths import final_canon_db_path, metadata_db_path
 
+POSTGRES_IMPORT_ERROR_TYPES = (
+    sqlite3.Error,
+    RuntimeError,
+    ValueError,
+    KeyError,
+    TypeError,
+    OSError,
+)
+
 
 def log(message: str) -> None:
     print(message, flush=True)
@@ -397,6 +406,7 @@ def main(*, reset_all: bool = False) -> int:
         raise RuntimeError(
             "Postgres support requires psycopg. Install dependencies from requirements.txt."
         ) from exc
+    postgres_import_errors = (*POSTGRES_IMPORT_ERROR_TYPES, psycopg.Error)
 
     log("Starting SQLite -> Postgres import")
     log(f"Metadata DB: {metadata_db_path()}")
@@ -571,7 +581,7 @@ def main(*, reset_all: bool = False) -> int:
                 )
             pg_connection.commit()
             log("Postgres import committed")
-    except Exception:
+    except postgres_import_errors:
         log("Import failed; attempting to mark pipeline run as failed")
         with psycopg.connect(postgres_dsn()) as pg_connection:
             with pg_connection.cursor() as cursor:

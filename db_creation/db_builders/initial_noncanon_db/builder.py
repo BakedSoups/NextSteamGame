@@ -28,6 +28,17 @@ from noncanon_pipeline.llm.errors import CreditsExhaustedError, NoReviewsError
 from noncanon_pipeline.llm.game_semantics import get_semantics_retry_stats, reset_semantics_retry_stats
 from noncanon_pipeline.progress import advance_appid, complete_appid, fail_appid, log_banner, log_stage, update_status
 
+WORKER_BUILD_ERROR_TYPES = (
+    RuntimeError,
+    ValueError,
+    KeyError,
+    TypeError,
+    json.JSONDecodeError,
+    sqlite3.Error,
+)
+WRITER_ERROR_TYPES = (RuntimeError, ValueError, KeyError, TypeError, sqlite3.Error)
+BUILD_RUN_ERROR_TYPES = (*WORKER_BUILD_ERROR_TYPES, *WRITER_ERROR_TYPES)
+
 
 def utcnow_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
@@ -308,7 +319,7 @@ class InitialNoncanonDbBuilder:
                         },
                     }
                 )
-            except Exception as exc:
+            except WORKER_BUILD_ERROR_TYPES as exc:
                 result_queue.put(
                     {
                         "kind": "error",
@@ -431,7 +442,7 @@ class InitialNoncanonDbBuilder:
                     self.record_error(writer_summary["run_id"], appid, game_name, str(result["error"]))
                 finally:
                     result_queue.task_done()
-        except BaseException as exc:
+        except WRITER_ERROR_TYPES as exc:
             writer_errors.append(exc)
 
     def _build_with_workers(self, rows: List[sqlite3.Row], insightful_words: Dict, run_id: int) -> Dict[str, int | str]:
@@ -572,7 +583,7 @@ class InitialNoncanonDbBuilder:
             completed_games = int(summary["completed_games"])
             error_count = int(summary["error_count"])
             status = str(summary["status"])
-        except Exception:
+        except BUILD_RUN_ERROR_TYPES:
             status = "failed"
             raise
         finally:

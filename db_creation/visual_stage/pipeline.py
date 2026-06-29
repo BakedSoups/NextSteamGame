@@ -22,6 +22,7 @@ DEFAULT_GAME_NAME = "ABZU"
 DEFAULT_CLEANUP_MODEL = "gpt-4o-mini"
 REQUEST_TIMEOUT = (10, 20)
 MAX_SCREENSHOTS = 4
+IMAGE_DOWNLOAD_ERROR_TYPES = (requests.RequestException, OSError, RuntimeError, ValueError)
 
 
 def _styles_config_path() -> Path:
@@ -309,7 +310,7 @@ def run_visual_probe(
         try:
             loaded_images.append(_download_image(session, source))
             successful_sources.append(source)
-        except Exception as exc:  # pragma: no cover
+        except IMAGE_DOWNLOAD_ERROR_TYPES as exc:  # pragma: no cover
             failed_sources.append({"kind": source.kind, "url": source.url, "error": str(exc)})
 
     if not loaded_images:

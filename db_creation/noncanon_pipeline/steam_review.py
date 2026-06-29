@@ -33,6 +33,12 @@ STEAM_REVIEW_RETRIES = 3
 STEAM_REVIEW_RETRY_DELAY = 2.0
 STEAM_REVIEW_BACKOFF_MULTIPLIER = 2.0
 STEAM_REVIEW_MAX_RETRY_DELAY = 20.0
+STEAM_REVIEW_RETRY_ERRORS = (
+    requests.RequestException,
+    requests.exceptions.JSONDecodeError,
+    SteamReviewsUnavailableError,
+    ValueError,
+)
 STEAM_REVIEW_RETRY_JITTER = 0.75
 STEAM_EMPTY_PAGE_RETRIES = 2
 STEAM_CURSOR_STALL_RETRIES = 2
@@ -313,7 +319,7 @@ def fetch_steam_reviews(APP_ID):
                     break
                 except KeyboardInterrupt:
                     raise
-                except Exception as exc:
+                except STEAM_REVIEW_RETRY_ERRORS as exc:
                     retry_after = None
                     status_code = None
                     if isinstance(exc, requests.HTTPError) and exc.response is not None:

@@ -66,6 +66,14 @@ def run_postgres_load(*, reset_all: bool) -> int:
     return load_main(reset_all=reset_all)
 
 
+def postgres_load_error_types() -> tuple[type[Exception], ...]:
+    try:
+        import psycopg
+    except ImportError:
+        return (RuntimeError, OSError)
+    return (RuntimeError, OSError, psycopg.Error)
+
+
 def main() -> int:
     print_run_configuration()
     reset_all = confirm_postgres_reset()
@@ -75,7 +83,7 @@ def main() -> int:
     )
     try:
         return run_postgres_load(reset_all=reset_all)
-    except Exception as exc:
+    except postgres_load_error_types() as exc:
         message = str(exc).lower()
         if "connection refused" in message or "connection failed" in message:
             print_connection_hint(postgres_dsn())

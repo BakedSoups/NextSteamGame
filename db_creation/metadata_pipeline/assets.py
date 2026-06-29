@@ -11,6 +11,7 @@ import requests
 
 
 LOGGER = logging.getLogger("steam_store_asset_enrichment")
+ASSET_ENRICHMENT_ERROR_TYPES = (requests.RequestException, RuntimeError, ValueError, sqlite3.Error)
 
 ASSET_COLUMNS = (
     "logo_image",
@@ -386,7 +387,7 @@ class SteamStoreAssetEnricher:
                             result["updated"],
                             [name for name, value in result["assets"].items() if value],
                         )
-                    except Exception as exc:
+                    except ASSET_ENRICHMENT_ERROR_TYPES as exc:
                         failures += 1
                         self.mark_state(appid, "failed", str(exc))
                         LOGGER.error("Asset enrichment failed for appid %s: %s", appid, exc)

@@ -9,7 +9,7 @@ from typing import Any, Dict, List
 
 from openai import OpenAI
 from openai import RateLimitError
-from pydantic import BaseModel, field_validator, model_validator
+from pydantic import BaseModel, ValidationError, field_validator, model_validator
 
 from .errors import CreditsExhaustedError
 from ..progress import log_stage
@@ -21,6 +21,7 @@ _SEMANTICS_RETRY_LOCK = threading.Lock()
 _SEMANTICS_RETRY_TOTAL = 0
 _SEMANTICS_RETRY_REASONS: Counter[str] = Counter()
 WEIGHT_NUMBER_RE = re.compile(r"-?\d+")
+LLM_RESPONSE_VALIDATION_ERRORS = (json.JSONDecodeError, ValidationError, ValueError)
 
 APPEAL_AXIS_KEYS = (
     "challenge",
@@ -541,7 +542,7 @@ def _extract_evidence_signals(sampled_reviews: List[str], appid: str | int | Non
             return evidence.model_dump()
         except KeyboardInterrupt:
             raise
-        except Exception as exc:
+        except LLM_RESPONSE_VALIDATION_ERRORS as exc:
             log_stage("evidence", appid=appid, detail=f"retrying evidence ({attempt}/{MAX_EVIDENCE_RETRIES})")
             if attempt >= MAX_EVIDENCE_RETRIES:
                 raise RuntimeError(
@@ -992,7 +993,7 @@ def _generate_semantics(sampled_reviews: List[str], appid: str | int | None = No
             return dumped
         except KeyboardInterrupt:
             raise
-        except Exception as exc:
+        except LLM_RESPONSE_VALIDATION_ERRORS as exc:
             reason = _classify_semantics_retry_reason(exc)
             _record_semantics_retry(reason)
             log_stage(

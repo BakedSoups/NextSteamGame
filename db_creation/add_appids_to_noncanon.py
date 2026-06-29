@@ -20,6 +20,7 @@ METADATA_DB_PATH = metadata_db_path()
 NONCANON_DB_PATH = initial_noncanon_db_path()
 DEFAULT_NONCANON_WORKERS = 2
 LOGGER = logging.getLogger('add_appids_to_noncanon')
+STORE_SYNC_ERROR_TYPES = (RuntimeError, ValueError, sqlite3.Error)
 
 
 def utcnow_iso() -> str:
@@ -144,7 +145,7 @@ def fetch_store_metadata_for_appids(builder: SteamMetadataBuilder, appids: list[
                 if success:
                     succeeded += 1
                 LOGGER.info('Targeted store sync appid=%s success=%s', appid, success)
-            except Exception as exc:
+            except STORE_SYNC_ERROR_TYPES as exc:
                 error_count += 1
                 builder.mark_store_failure(appid, str(exc))
                 builder.record_error(sync_run_id, source='steam_store', error_message=str(exc), appid=appid)

@@ -31,6 +31,24 @@ from paths import metadata_db_path
 
 
 LOGGER = logging.getLogger("steam_metadata_builder")
+STORE_ENRICHMENT_ERROR_TYPES = (
+    requests.RequestException,
+    sqlite3.Error,
+    json.JSONDecodeError,
+    RuntimeError,
+    ValueError,
+    KeyError,
+    TypeError,
+)
+METADATA_BUILD_ERROR_TYPES = (
+    requests.RequestException,
+    sqlite3.Error,
+    json.JSONDecodeError,
+    RuntimeError,
+    ValueError,
+    KeyError,
+    TypeError,
+)
 
 
 def utcnow_iso() -> str:
@@ -1112,7 +1130,7 @@ class SteamMetadataBuilder:
                         if success:
                             succeeded += 1
                         LOGGER.info("Store %s/%s appid=%s success=%s", processed, total, appid, success)
-                    except Exception as exc:
+                    except STORE_ENRICHMENT_ERROR_TYPES as exc:
                         errors += 1
                         self.mark_store_failure(appid, str(exc))
                         self.record_error(sync_run_id, source="steam_store", error_message=str(exc), appid=appid)
@@ -1166,7 +1184,7 @@ class SteamMetadataBuilder:
             status = "interrupted"
             LOGGER.warning("Interrupted by user")
             return 130
-        except Exception as exc:
+        except METADATA_BUILD_ERROR_TYPES as exc:
             status = "failed"
             error_count += 1
             self.record_error(sync_run_id, source="builder", error_message=str(exc))
