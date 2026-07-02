@@ -1,5 +1,9 @@
 .git
 .gitignore
+.env
+.env.local
+.env.*.local
+scripts/server_deploy/.env
 .next
 __pycache__
 *.pyc
@@ -9,8 +13,17 @@ __pycache__
 .mypy_cache
 .ruff_cache
 .DS_Store
+.venv
 venv
+env
+ENV
+logs
+*.log
 frontend/node_modules
 frontend/.next
+frontend/out
+frontend/.turbo
+frontend/.npm
+frontend/.yarn
 data
 steam_backup
