@@ -9,6 +9,7 @@ from typing import Any
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from backend.pg_store import PostgresGameStore, postgres_dsn_from_env
 from backend.recommender import (
@@ -75,6 +76,37 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+class RecommendationWeights(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    match: dict[str, Any] | None = None
+    context: dict[str, Any] | None = None
+    appeal: dict[str, Any] | None = None
+    tags: dict[str, dict[str, float]] | None = None
+    genres: dict[str, Any] | None = None
+
+    @field_validator("tags")
+    @classmethod
+    def clamp_tag_weights(cls, tags: dict[str, dict[str, float]] | None) -> dict[str, dict[str, float]] | None:
+        if tags is None:
+            return None
+        return {
+            context: {
+                tag: max(0.0, weight)
+                for tag, weight in entries.items()
+            }
+            for context, entries in tags.items()
+        }
+
+
+class RecommendationRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    appid: int
+    limit: int = Field(default=20, ge=1, le=50)
+    weights: RecommendationWeights = Field(default_factory=RecommendationWeights)
 
 
 def _vector_tag_names(raw: Any) -> list[str]:
@@ -338,15 +370,13 @@ def _serialize_recommendation(item: dict) -> dict[str, Any]:
     }
 
 
-def _normalize_tag_weight_map(payload: Any) -> tuple[dict[str, dict[str, float]], dict[str, float]]:
-    payload = _optional_dict(payload, "weights.tags")
+def _normalize_tag_weight_map(payload: dict[str, dict[str, float]] | None) -> tuple[dict[str, dict[str, float]], dict[str, float]]:
+    payload = payload or {}
     vector_weights: dict[str, dict[str, float]] = {}
     soundtrack_weights: dict[str, float] = {}
     for context, entries in payload.items():
-        if not isinstance(entries, dict):
-            continue
         cleaned = {
-            str(tag).replace("_", " "): _nonnegative_float(value, f"weights.tags.{context}.{tag}")
+            str(tag).replace("_", " "): value
             for tag, value in entries.items()
         }
         if context == "music":
@@ -354,35 +384,6 @@ def _normalize_tag_weight_map(payload: Any) -> tuple[dict[str, dict[str, float]]
         else:
             vector_weights[context] = cleaned
     return vector_weights, soundtrack_weights
-
-
-def _nonnegative_float(value: Any, field_name: str) -> float:
-    try:
-        return max(0.0, float(value))
-    except (TypeError, ValueError) as exc:
-        raise HTTPException(status_code=400, detail=f"Invalid {field_name}") from exc
-
-
-def _require_int(value: Any, field_name: str) -> int:
-    try:
-        return int(value)
-    except (TypeError, ValueError) as exc:
-        raise HTTPException(status_code=400, detail=f"Invalid {field_name}") from exc
-
-
-def _recommendation_limit(raw_limit: Any) -> int:
-    limit = _require_int(raw_limit, "limit")
-    if limit < 1 or limit > 50:
-        raise HTTPException(status_code=400, detail="limit must be between 1 and 50")
-    return limit
-
-
-def _optional_dict(value: Any, field_name: str) -> dict[str, Any]:
-    if value is None:
-        return {}
-    if not isinstance(value, dict):
-        raise HTTPException(status_code=400, detail=f"{field_name} must be an object")
-    return value
 
 
 @app.get("/api/health")
@@ -419,22 +420,18 @@ def get_game(appid: int) -> dict[str, Any]:
 
 
 @app.post("/api/recommendations")
-def get_recommendations(payload: dict[str, Any]) -> JSONResponse:
-    appid = payload.get("appid")
-    if appid is None:
-        raise HTTPException(status_code=400, detail="Missing appid")
-    limit = _recommendation_limit(payload.get("limit", 20))
-    weights = _optional_dict(payload.get("weights"), "weights")
+def get_recommendations(payload: RecommendationRequest) -> JSONResponse:
+    weights = payload.weights
 
-    game = store.get_game(_require_int(appid, "appid"))
+    game = store.get_game(payload.appid)
     if game is None:
         raise HTTPException(status_code=404, detail="Game not found")
 
-    component_percentages = weights.get("match") or default_component_percentages()
-    context_percentages = weights.get("context") or default_context_percentages()
-    appeal_axes = weights.get("appeal") or default_appeal_axes(game["metadata"])
-    tag_weights, soundtrack_weights = _normalize_tag_weight_map(weights.get("tags"))
-    genres = weights.get("genres") or game["metadata"].get("genre_tree", {})
+    component_percentages = weights.match or default_component_percentages()
+    context_percentages = weights.context or default_context_percentages()
+    appeal_axes = weights.appeal or default_appeal_axes(game["metadata"])
+    tag_weights, soundtrack_weights = _normalize_tag_weight_map(weights.tags)
+    genres = weights.genres or game["metadata"].get("genre_tree", {})
 
     base_tree = game["metadata"].get("genre_tree", {})
     added_genres = {
@@ -465,7 +462,7 @@ def get_recommendations(payload: dict[str, Any]) -> JSONResponse:
         appeal_axes=appeal_axes,
         added_genres=added_genres,
         removed_genres=removed_genres,
-        limit=limit,
+        limit=payload.limit,
     )
 
     return JSONResponse(
