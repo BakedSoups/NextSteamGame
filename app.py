@@ -356,6 +356,13 @@ def _require_int(value: Any, field_name: str) -> int:
         raise HTTPException(status_code=400, detail=f"Invalid {field_name}") from exc
 
 
+def _recommendation_limit(raw_limit: Any) -> int:
+    limit = _require_int(raw_limit, "limit")
+    if limit < 1 or limit > 50:
+        raise HTTPException(status_code=400, detail="limit must be between 1 and 50")
+    return limit
+
+
 @app.get("/api/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
@@ -394,6 +401,7 @@ def get_recommendations(payload: dict[str, Any]) -> JSONResponse:
     appid = payload.get("appid")
     if appid is None:
         raise HTTPException(status_code=400, detail="Missing appid")
+    limit = _recommendation_limit(payload.get("limit", 20))
 
     game = store.get_game(_require_int(appid, "appid"))
     if game is None:
@@ -434,7 +442,7 @@ def get_recommendations(payload: dict[str, Any]) -> JSONResponse:
         appeal_axes=appeal_axes,
         added_genres=added_genres,
         removed_genres=removed_genres,
-        limit=int(payload.get("limit", 20)),
+        limit=limit,
     )
 
     return JSONResponse(
