@@ -349,6 +349,13 @@ def _normalize_tag_weight_map(payload: dict[str, Any] | None) -> tuple[dict[str,
     return vector_weights, soundtrack_weights
 
 
+def _nonnegative_float(value: Any, field_name: str) -> float:
+    try:
+        return max(0.0, float(value))
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=f"Invalid {field_name}") from exc
+
+
 def _require_int(value: Any, field_name: str) -> int:
     try:
         return int(value)
