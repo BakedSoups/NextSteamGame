@@ -331,15 +331,15 @@ def _serialize_recommendation(item: dict) -> dict[str, Any]:
     }
 
 
-def _normalize_tag_weight_map(payload: dict[str, Any] | None) -> tuple[dict[str, dict[str, float]], dict[str, float]]:
-    payload = payload or {}
+def _normalize_tag_weight_map(payload: Any) -> tuple[dict[str, dict[str, float]], dict[str, float]]:
+    payload = _optional_dict(payload, "weights.tags")
     vector_weights: dict[str, dict[str, float]] = {}
     soundtrack_weights: dict[str, float] = {}
     for context, entries in payload.items():
         if not isinstance(entries, dict):
             continue
         cleaned = {
-            str(tag).replace("_", " "): max(0.0, float(value))
+            str(tag).replace("_", " "): _nonnegative_float(value, f"weights.tags.{context}.{tag}")
             for tag, value in entries.items()
         }
         if context == "music":
