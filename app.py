@@ -395,7 +395,7 @@ def get_recommendations(payload: dict[str, Any]) -> JSONResponse:
     if appid is None:
         raise HTTPException(status_code=400, detail="Missing appid")
 
-    game = store.get_game(int(appid))
+    game = store.get_game(_require_int(appid, "appid"))
     if game is None:
         raise HTTPException(status_code=404, detail="Game not found")
 
