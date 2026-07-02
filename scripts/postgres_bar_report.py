@@ -37,7 +37,7 @@ def connect(dsn: str):
         from psycopg.rows import dict_row
     except ImportError as exc:
         raise SystemExit(
-            "Missing psycopg. Run this inside the api container or install requirements.txt."
+            "Missing psycopg. Run this inside the api container or install requirements.docker.txt."
         ) from exc
 
     return psycopg.connect(dsn, row_factory=dict_row)

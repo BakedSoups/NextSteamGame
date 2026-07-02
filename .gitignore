@@ -40,6 +40,7 @@ Thumbs.db
 
 # Local databases and SQLite sidecar files
 data/
+steam_backup/
 temp/
 *.db
 *.sqlite

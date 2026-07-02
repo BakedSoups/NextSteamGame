@@ -404,7 +404,7 @@ def main(*, reset_all: bool = False) -> int:
         from psycopg.types.json import Jsonb
     except ImportError as exc:
         raise RuntimeError(
-            "Postgres support requires psycopg. Install dependencies from requirements.txt."
+            "Postgres support requires psycopg. Install API dependencies from requirements.docker.txt."
         ) from exc
     postgres_import_errors = (*POSTGRES_IMPORT_ERROR_TYPES, psycopg.Error)
 

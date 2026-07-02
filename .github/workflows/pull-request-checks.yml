@@ -42,7 +42,7 @@ jobs:
         run: npm run build
 
   python:
-    name: Python Compile Check
+    name: Python Compile And Unit Tests
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

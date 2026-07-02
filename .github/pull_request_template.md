@@ -4,7 +4,7 @@
 
 ## Checks
 
-- [ ] Frontend changes pass `npm run typecheck` and `npm run build` from `frontend/`.
+- [ ] Frontend changes pass `npm run typecheck`, `npm run lint`, and `npm run build` from `frontend/`.
 - [ ] Python changes pass `python -m compileall -q app.py backend db_creation tests`.
 - [ ] Python unit tests pass `python -m unittest discover -s tests -p "test_*.py"`.
 - [ ] UI changes keep gameplay/vector controls separate from theme, world, identity, and music signals.

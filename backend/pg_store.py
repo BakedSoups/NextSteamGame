@@ -14,7 +14,7 @@ class PostgresGameStore:
             from psycopg.rows import dict_row
         except ImportError as exc:
             raise RuntimeError(
-                "Postgres support requires psycopg. Install dependencies from requirements.txt."
+                "Postgres support requires psycopg. Install API dependencies from requirements.docker.txt."
             ) from exc
 
         self._psycopg = psycopg
