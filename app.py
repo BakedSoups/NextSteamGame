@@ -363,6 +363,14 @@ def _recommendation_limit(raw_limit: Any) -> int:
     return limit
 
 
+def _optional_dict(value: Any, field_name: str) -> dict[str, Any]:
+    if value is None:
+        return {}
+    if not isinstance(value, dict):
+        raise HTTPException(status_code=400, detail=f"{field_name} must be an object")
+    return value
+
+
 @app.get("/api/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
@@ -402,16 +410,17 @@ def get_recommendations(payload: dict[str, Any]) -> JSONResponse:
     if appid is None:
         raise HTTPException(status_code=400, detail="Missing appid")
     limit = _recommendation_limit(payload.get("limit", 20))
+    weights = _optional_dict(payload.get("weights"), "weights")
 
     game = store.get_game(_require_int(appid, "appid"))
     if game is None:
         raise HTTPException(status_code=404, detail="Game not found")
 
-    component_percentages = payload.get("weights", {}).get("match") or default_component_percentages()
-    context_percentages = payload.get("weights", {}).get("context") or default_context_percentages()
-    appeal_axes = payload.get("weights", {}).get("appeal") or default_appeal_axes(game["metadata"])
-    tag_weights, soundtrack_weights = _normalize_tag_weight_map((payload.get("weights") or {}).get("tags"))
-    genres = (payload.get("weights") or {}).get("genres") or game["metadata"].get("genre_tree", {})
+    component_percentages = weights.get("match") or default_component_percentages()
+    context_percentages = weights.get("context") or default_context_percentages()
+    appeal_axes = weights.get("appeal") or default_appeal_axes(game["metadata"])
+    tag_weights, soundtrack_weights = _normalize_tag_weight_map(weights.get("tags"))
+    genres = weights.get("genres") or game["metadata"].get("genre_tree", {})
 
     base_tree = game["metadata"].get("genre_tree", {})
     added_genres = {
