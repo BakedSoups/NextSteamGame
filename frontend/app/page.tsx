@@ -257,6 +257,10 @@ function captureProductEvent(
   })
 }
 
+function jsonLdScriptValue(payload: Record<string, unknown>): string {
+  return JSON.stringify(payload).replace(/</g, "\\u003c")
+}
+
 async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit = {}, timeoutMs: number): Promise<Response> {
   const callerSignal = init.signal
   const controller = new AbortController()
@@ -903,7 +907,7 @@ export default function NextSteamGamePage() {
     <div className="min-h-screen bg-background">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteStructuredData) }}
+        dangerouslySetInnerHTML={{ __html: jsonLdScriptValue(websiteStructuredData) }}
       />
       <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur-sm">
         <div className="mx-auto max-w-[1800px] px-6 py-4">
