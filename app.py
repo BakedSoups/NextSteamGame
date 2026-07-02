@@ -45,6 +45,13 @@ def load_project_env() -> None:
         os.environ[key] = value.strip().strip("\"'")
 
 
+def cors_allowed_origins() -> list[str]:
+    raw_origins = os.getenv("STEAM_REC_CORS_ORIGINS", "").strip()
+    if not raw_origins:
+        return ["*"]
+    return [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
+
+
 load_project_env()
 
 postgres_dsn = postgres_dsn_from_env()
@@ -63,7 +70,7 @@ retriever = CandidateRetriever(
 app = FastAPI(title="Steam Recommendation API", version="0.1.0")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=cors_allowed_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
