@@ -218,35 +218,6 @@ class PostgresGameStore:
                 tags.append(value)
         return tags
 
-    @staticmethod
-    def _identity_signal_weights(metadata: dict[str, Any]) -> dict[str, float]:
-        weighted: dict[str, float] = {}
-        signature_tag = str(metadata.get("signature_tag", "")).strip()
-        if signature_tag:
-            weighted[signature_tag] = max(weighted.get(signature_tag, 0.0), 8.5)
-        for tag in metadata.get("niche_anchors", []) or []:
-            text = str(tag).strip()
-            if text:
-                weighted[text] = max(weighted.get(text, 0.0), 5.8)
-        for tag in metadata.get("identity_tags", []) or []:
-            text = str(tag).strip()
-            if text:
-                weighted[text] = max(weighted.get(text, 0.0), 3.0)
-        for tag in metadata.get("micro_tags", []) or []:
-            text = str(tag).strip()
-            if text:
-                weighted[text] = max(weighted.get(text, 0.0), 1.4)
-        return weighted
-
-    @staticmethod
-    def _setting_signal_weights(metadata: dict[str, Any]) -> dict[str, float]:
-        weighted: dict[str, float] = {}
-        for tag in metadata.get("setting_tags", []) or []:
-            text = str(tag).strip()
-            if text:
-                weighted[text] = max(weighted.get(text, 0.0), 2.8)
-        return weighted
-
     def prescreen_candidate_appids(
         self,
         base_game: dict[str, Any],
@@ -424,7 +395,6 @@ class PostgresGameStore:
 
     def _row_to_game(self, row: dict[str, Any], screenshots: list[str] | None = None) -> dict[str, Any]:
         metadata = self._coerce_json(row.get("canonical_metadata"))
-        music_tags = self._metadata_music_tags(metadata)
         return {
             "appid": int(row["appid"]),
             "name": row.get("name"),
@@ -545,7 +515,6 @@ class PostgresGameStore:
         results = []
         for row in rows:
             metadata = self._coerce_json(row.get("canonical_metadata"))
-            music_tags = self._metadata_music_tags(metadata)
             results.append(
                 {
                     "appid": int(row["appid"]),
