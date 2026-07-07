@@ -209,15 +209,6 @@ class PostgresGameStore:
                 return [str(item) for item in parsed if str(item).strip()]
         return []
 
-    @staticmethod
-    def _metadata_music_tags(metadata: dict[str, Any]) -> list[str]:
-        tags: list[str] = []
-        for field in ("music_primary", "music_secondary"):
-            value = str(metadata.get(field, "")).strip()
-            if value and value not in tags:
-                tags.append(value)
-        return tags
-
     def prescreen_candidate_appids(
         self,
         base_game: dict[str, Any],
@@ -629,47 +620,6 @@ class PostgresGameStore:
             for row in rows
         }
         return [row_by_appid[appid] for appid in normalized_appids if appid in row_by_appid]
-
-    def load_all_games(self) -> list[dict[str, Any]]:
-        sql = """
-            SELECT
-                appid,
-                name,
-                canonical_vectors,
-                canonical_metadata,
-                metacritic_score,
-                recommendations_total,
-                steamspy_owner_estimate,
-                steamspy_ccu,
-                positive,
-                negative,
-                estimated_review_count,
-                release_date_parsed,
-                short_description,
-                header_image,
-                capsule_image,
-                capsule_imagev5,
-                background_image,
-                background_image_raw,
-                logo_image,
-                library_hero_image,
-                library_capsule_image,
-                developers,
-                publishers,
-                release_date_text
-            FROM games
-            ORDER BY appid
-        """
-        with self._connect() as connection:
-            with connection.cursor() as cursor:
-                cursor.execute(sql)
-                rows = cursor.fetchall()
-            appids = [int(row["appid"]) for row in rows]
-            screenshots_by_appid = self._load_screenshots_for_appids(appids, connection=connection)
-            return [
-                self._row_to_game(row, screenshots_by_appid.get(int(row["appid"]), []))
-                for row in rows
-            ]
 
     def record_ui_diagnostic(
         self,
