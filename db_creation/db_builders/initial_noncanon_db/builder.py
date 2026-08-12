@@ -19,7 +19,6 @@ import queue
 import sqlite3
 import threading
 import time
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -27,6 +26,11 @@ from noncanon_pipeline.pipeline import build_game_output, build_skipped_profile,
 from noncanon_pipeline.llm.errors import CreditsExhaustedError, NoReviewsError
 from noncanon_pipeline.llm.game_semantics import get_semantics_retry_stats, reset_semantics_retry_stats
 from noncanon_pipeline.progress import advance_appid, complete_appid, fail_appid, log_banner, log_stage, update_status
+
+try:
+    from db_creation.paths import utcnow_iso
+except ImportError:  # pragma: no cover - direct db_creation script execution
+    from paths import utcnow_iso
 
 WORKER_BUILD_ERROR_TYPES = (
     RuntimeError,
@@ -38,10 +42,6 @@ WORKER_BUILD_ERROR_TYPES = (
 )
 WRITER_ERROR_TYPES = (RuntimeError, ValueError, KeyError, TypeError, sqlite3.Error)
 BUILD_RUN_ERROR_TYPES = (*WORKER_BUILD_ERROR_TYPES, *WRITER_ERROR_TYPES)
-
-
-def utcnow_iso() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
 
 class InitialNoncanonDbBuilder:

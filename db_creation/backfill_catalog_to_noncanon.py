@@ -8,7 +8,6 @@ import logging
 import os
 import sqlite3
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
 import requests
@@ -21,7 +20,7 @@ if str(PROJECT_ROOT) not in sys.path:
 load_dotenv(PROJECT_ROOT / '.env')
 
 from db_creation.metadata_pipeline.pipeline import RetryConfig, SteamMetadataBuilder, configure_logging
-from db_creation.paths import initial_noncanon_db_path, metadata_db_path
+from db_creation.paths import initial_noncanon_db_path, metadata_db_path, utcnow_iso
 
 METADATA_DB_PATH = metadata_db_path()
 NONCANON_DB_PATH = initial_noncanon_db_path()
@@ -31,10 +30,6 @@ DEFAULT_SEED_LIMIT = 100
 DEFAULT_NONCANON_WORKERS = 2
 LOGGER = logging.getLogger('backfill_catalog_to_noncanon')
 STORE_SYNC_ERROR_TYPES = (RuntimeError, ValueError, sqlite3.Error)
-
-
-def utcnow_iso() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
 
 def connect(db_path: Path) -> sqlite3.Connection:

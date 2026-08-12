@@ -6,7 +6,6 @@ import argparse
 import logging
 import sqlite3
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -14,17 +13,13 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from db_creation.metadata_pipeline.pipeline import RetryConfig, SteamMetadataBuilder, configure_logging
-from db_creation.paths import initial_noncanon_db_path, metadata_db_path
+from db_creation.paths import initial_noncanon_db_path, metadata_db_path, utcnow_iso
 
 METADATA_DB_PATH = metadata_db_path()
 NONCANON_DB_PATH = initial_noncanon_db_path()
 DEFAULT_NONCANON_WORKERS = 2
 LOGGER = logging.getLogger('add_appids_to_noncanon')
 STORE_SYNC_ERROR_TYPES = (RuntimeError, ValueError, sqlite3.Error)
-
-
-def utcnow_iso() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
 
 def connect(db_path: Path) -> sqlite3.Connection:

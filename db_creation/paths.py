@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from datetime import datetime, timezone
 from pathlib import Path
 
 
@@ -44,3 +45,7 @@ def chroma_dir_path() -> Path:
 
 def insightful_words_path() -> Path:
     return DB_CREATION_ROOT / "noncanon_pipeline" / "insightful_words.json"
+
+
+def utcnow_iso() -> str:
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()

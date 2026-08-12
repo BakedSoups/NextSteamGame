@@ -21,13 +21,13 @@ import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Sequence
 
 import requests
 
-from paths import metadata_db_path
+from paths import metadata_db_path, utcnow_iso
 
 
 LOGGER = logging.getLogger("steam_metadata_builder")
@@ -49,10 +49,6 @@ METADATA_BUILD_ERROR_TYPES = (
     KeyError,
     TypeError,
 )
-
-
-def utcnow_iso() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
 
 def json_dumps(value: Any) -> str:

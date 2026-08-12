@@ -3,12 +3,11 @@ from __future__ import annotations
 import csv
 import json
 import sqlite3
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Dict
 
 from db_creation.canon_pipeline.layer_1_normalization import normalize_tag
-from db_creation.paths import analysis_dir, final_canon_db_path, initial_noncanon_db_path
+from db_creation.paths import analysis_dir, final_canon_db_path, initial_noncanon_db_path, utcnow_iso
 
 
 BATCH_SIZE = 500
@@ -25,10 +24,6 @@ FINAL_PIPELINE_ERROR_TYPES = (
     KeyError,
     TypeError,
 )
-
-
-def utcnow_iso() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
 
 def _count_rows(db_path: Path) -> int:

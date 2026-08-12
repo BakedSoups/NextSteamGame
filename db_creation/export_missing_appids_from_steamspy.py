@@ -7,7 +7,6 @@ import time
 import json
 import sqlite3
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
 import requests
@@ -17,17 +16,13 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 
-from db_creation.paths import metadata_db_path
+from db_creation.paths import metadata_db_path, utcnow_iso
 
 METADATA_DB_PATH = metadata_db_path()
 STEAMSPY_ALL_URL = 'https://steamspy.com/api.php?request=all&page={page}'
 DEFAULT_MAX_PAGES = 200
 DEFAULT_SAMPLE_SIZE = 25
 OUTPUT_PATH = PROJECT_ROOT / 'data' / 'missing_catalog_appids_from_steamspy.json'
-
-
-def utcnow_iso() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
 
 def connect(db_path: Path) -> sqlite3.Connection:
