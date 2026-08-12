@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import json
 import os
-import re
 from contextlib import nullcontext
 from typing import Any
+
+from backend.coercion import coerce_json_dict, coerce_json_list, normalize_search_text
 
 
 class PostgresGameStore:
@@ -177,37 +178,6 @@ class PostgresGameStore:
                 cursor.execute(sql)
                 rows = cursor.fetchall()
         return [int(row["appid"]) for row in rows if row.get("appid") is not None]
-
-    @staticmethod
-    def _normalize_search_text(text: str) -> str:
-        lowered = text.lower()
-        lowered = re.sub(r"[^a-z0-9]+", " ", lowered)
-        return " ".join(lowered.split())
-
-    @staticmethod
-    def _coerce_json(raw: Any) -> dict:
-        if isinstance(raw, dict):
-            return raw
-        if isinstance(raw, str):
-            try:
-                parsed = json.loads(raw)
-            except (TypeError, ValueError, json.JSONDecodeError):
-                return {}
-            return parsed if isinstance(parsed, dict) else {}
-        return {}
-
-    @staticmethod
-    def _coerce_list(raw: Any) -> list[str]:
-        if isinstance(raw, list):
-            return [str(item) for item in raw if str(item).strip()]
-        if isinstance(raw, str):
-            try:
-                parsed = json.loads(raw)
-            except (TypeError, ValueError, json.JSONDecodeError):
-                return []
-            if isinstance(parsed, list):
-                return [str(item) for item in parsed if str(item).strip()]
-        return []
 
     def prescreen_candidate_appids(
         self,
@@ -385,11 +355,11 @@ class PostgresGameStore:
         return [int(row["appid"]) for row in rows if row.get("appid") is not None]
 
     def _row_to_game(self, row: dict[str, Any], screenshots: list[str] | None = None) -> dict[str, Any]:
-        metadata = self._coerce_json(row.get("canonical_metadata"))
+        metadata = coerce_json_dict(row.get("canonical_metadata"))
         return {
             "appid": int(row["appid"]),
             "name": row.get("name"),
-            "vectors": self._coerce_json(row.get("canonical_vectors")),
+            "vectors": coerce_json_dict(row.get("canonical_vectors")),
             "metadata": metadata,
             "signals": {
                 "metacritic_score": row.get("metacritic_score"),
@@ -411,8 +381,8 @@ class PostgresGameStore:
             "library_hero_image": row.get("library_hero_image") or "",
             "library_capsule_image": row.get("library_capsule_image") or "",
             "screenshots": list(screenshots or []),
-            "developers": self._coerce_list(row.get("developers")),
-            "publishers": self._coerce_list(row.get("publishers")),
+            "developers": coerce_json_list(row.get("developers")),
+            "publishers": coerce_json_list(row.get("publishers")),
             "release_date_text": row.get("release_date_text") or "",
             "signature_tag": metadata.get("signature_tag", ""),
             "music_primary": str(metadata.get("music_primary", "")).strip(),
@@ -423,7 +393,7 @@ class PostgresGameStore:
         query = query.strip()
         if not query:
             return []
-        normalized_query = self._normalize_search_text(query)
+        normalized_query = normalize_search_text(query)
         if not normalized_query:
             return []
 
@@ -505,7 +475,7 @@ class PostgresGameStore:
 
         results = []
         for row in rows:
-            metadata = self._coerce_json(row.get("canonical_metadata"))
+            metadata = coerce_json_dict(row.get("canonical_metadata"))
             results.append(
                 {
                     "appid": int(row["appid"]),
