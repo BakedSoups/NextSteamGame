@@ -4,6 +4,7 @@ import { memo, useState } from "react"
 import Image from "next/image"
 import { ChevronDown, ChevronUp, Radar, Target, AudioLines, ThumbsDown, ThumbsUp } from "lucide-react"
 import type { Game, RecommendedGame, Weights } from "@/lib/types"
+import { unique } from "@/lib/collections"
 import { MATCH_LABELS } from "@/lib/score-labels"
 import { useTimedToast } from "@/lib/use-timed-toast"
 
@@ -351,13 +352,13 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
   const showStructureMatches = (matchedTags.structure_loop.length + matchedTags.mechanics.length) >= 3
   const showMusicMatches = matchedTags.music.length >= 3
   const hasVectorOverlap = VECTOR_CONTEXT_KEYS.some((key) => game.contextScores[key] > 0)
-  const reasonChips = [
+  const reasonChips = unique([
     ...(showIdentityMatches ? matchedTags.identity : []),
     ...(showSettingMatches ? matchedTags.setting : []),
     ...(showStructureMatches ? [...matchedTags.structure_loop, ...matchedTags.mechanics] : []),
     ...(showMusicMatches ? matchedTags.music : []),
-  ].filter((tag, index, array) => array.indexOf(tag) === index).slice(0, 6)
-  const offerChips = [
+  ]).slice(0, 6)
+  const offerChips = unique([
     ...game.tags.identity,
     ...game.tags.setting,
     ...game.tags.music,
@@ -365,8 +366,7 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
     ...game.tags.vibe,
     ...game.tags.structure_loop,
     ...game.tags.mechanics,
-  ]
-    .filter((tag, index, array) => array.indexOf(tag) === index)
+  ])
     .filter((tag) => !reasonChips.includes(tag))
     .slice(0, 6)
   const resultMixSegments: DonutSegment[] = [

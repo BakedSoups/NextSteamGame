@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { ArrowRight, Check, ChevronDown, ChevronRight, Puzzle, Sparkles, Grid3X3, Activity, Zap, ThumbsDown, ThumbsUp } from "lucide-react"
 import type { Game, Weights } from "@/lib/types"
+import { unique } from "@/lib/collections"
 import { MATCH_LABELS } from "@/lib/score-labels"
 import { useTimedToast } from "@/lib/use-timed-toast"
 
@@ -391,10 +392,10 @@ function VectorControlCard({
   const radarAxisLimit = 3
   const simpleVisibleAxes = visibleTags.slice(0, radarAxisLimit)
   const axes = interactive
-    ? Array.from(new Set([...selectedTags, ...fallbackTags])).slice(0, radarAxisLimit)
+    ? unique([...selectedTags, ...fallbackTags]).slice(0, radarAxisLimit)
     : simpleVisibleAxes.length > 0
-      ? Array.from(new Set([...simpleVisibleAxes, ...selectedTags, ...fallbackTags])).slice(0, radarAxisLimit)
-      : Array.from(new Set([...selectedTags, ...fallbackTags])).slice(0, radarAxisLimit)
+      ? unique([...simpleVisibleAxes, ...selectedTags, ...fallbackTags]).slice(0, radarAxisLimit)
+      : unique([...selectedTags, ...fallbackTags]).slice(0, radarAxisLimit)
   const axisLabels = axes.length > 0 ? axes : ["signal", "profile", "tone", "focus", "identity"]
   const contextWeight = weights.context[context]
   const liveVisibleTotal = axisLabels.reduce((sum, axis) => sum + (weights.tags[context][axis] ?? 0), 0)

@@ -10,6 +10,8 @@ import { SelectedGamePanel } from "@/components/selected-game-panel"
 import { ControlPanel } from "@/components/control-panel"
 import { RecommendationsPanel } from "@/components/recommendations-panel"
 import { TagFilterPanel } from "@/components/tag-filter-panel"
+import { unique } from "@/lib/collections"
+import { clampPercent } from "@/lib/number"
 import type { Game, RecommendedGame, TagFilters, Weights } from "@/lib/types"
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000"
@@ -829,9 +831,9 @@ export default function NextSteamGamePage() {
     setWeights((prev) => {
       const currentContext = prev.tags[context]
       const activeTags = groupTags?.length
-        ? Array.from(new Set(groupTags))
+        ? unique(groupTags)
         : Object.keys(currentContext)
-      const boundedValue = Math.max(0, Math.min(100, value))
+      const boundedValue = clampPercent(value)
       const others = activeTags.filter((key) => key !== tag)
       const remaining = 100 - boundedValue
       const otherTotal = others.reduce((sum, key) => sum + (currentContext[key] ?? 0), 0)
