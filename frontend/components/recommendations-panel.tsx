@@ -146,45 +146,77 @@ function topRequestedTagMatch(game: RecommendedGame, weights: Weights) {
     music: [],
   }
 
-  const matches = (Object.keys(weights.tags) as TagContextKey[])
-    .flatMap((context) => {
-      const matchedByKey = new Map(
-        (matchedTags[context] ?? []).map((tag) => [normalizeTagMatchKey(tag), tag]),
-      )
-      return Object.entries(weights.tags[context] ?? {})
-        .map(([tag, requestedWeight]) => {
-          const matchedTag = matchedByKey.get(normalizeTagMatchKey(tag))
-          if (!matchedTag || requestedWeight <= 0) {
-            return null
-          }
-          const component = TAG_CONTEXT_COMPONENT[context]
-          return {
-            context,
-            component,
-            tag: matchedTag,
-            requestedWeight,
-            contextHit: game.contextScores[context] ?? 0,
-            componentShare: game.scorePercentages?.[component] ?? game.scores[component] ?? 0,
-          }
+  const requestedByContext = (Object.keys(weights.tags) as TagContextKey[])
+    .map((context) => {
+      const maxRequestedWeight = Math.max(0, ...Object.values(weights.tags[context] ?? {}))
+      return { context, requestedWeight: maxRequestedWeight }
+    })
+    .filter((item) => item.requestedWeight > 0)
+
+  const exactMatches = requestedByContext
+    .flatMap(({ context }) => {
+      const matchedByKey = new Map((matchedTags[context] ?? []).map((tag) => [normalizeTagMatchKey(tag), tag]))
+      const matches: Array<{
+        context: TagContextKey
+        component: MatchComponentKey
+        tag: string
+        requestedWeight: number
+        contextHit: number
+        componentShare: number
+        exact: boolean
+      }> = []
+
+      for (const [tag, requestedWeight] of Object.entries(weights.tags[context] ?? {})) {
+        if (requestedWeight <= 0) {
+          continue
+        }
+        const matchedTag = matchedByKey.get(normalizeTagMatchKey(tag))
+        if (!matchedTag) {
+          continue
+        }
+        const component = TAG_CONTEXT_COMPONENT[context]
+        matches.push({
+          context,
+          component,
+          tag: matchedTag,
+          requestedWeight,
+          contextHit: game.contextScores[context] ?? 0,
+          componentShare: game.scorePercentages?.[component] ?? game.scores[component] ?? 0,
+          exact: true,
         })
-        .filter(Boolean)
+      }
+      return matches
     })
     .sort((a, b) => {
-      if (b!.requestedWeight !== a!.requestedWeight) {
-        return b!.requestedWeight - a!.requestedWeight
+      if (b.requestedWeight !== a.requestedWeight) {
+        return b.requestedWeight - a.requestedWeight
       }
-      return b!.contextHit - a!.contextHit
+      return b.contextHit - a.contextHit
     })
-    .filter(Boolean) as Array<{
-      context: TagContextKey
-      component: MatchComponentKey
-      tag: string
-      requestedWeight: number
-      contextHit: number
-      componentShare: number
-    }>
 
-  return matches[0] ?? null
+  if (exactMatches[0]) {
+    return exactMatches[0]
+  }
+
+  for (const { context, requestedWeight } of requestedByContext.sort((a, b) => b.requestedWeight - a.requestedWeight)) {
+    const matchedTag = matchedTags[context]?.[0]
+    const contextHit = game.contextScores[context] ?? 0
+    if (!matchedTag || contextHit <= 0) {
+      continue
+    }
+    const component = TAG_CONTEXT_COMPONENT[context]
+    return {
+      context,
+      component,
+      tag: matchedTag,
+      requestedWeight,
+      contextHit,
+      componentShare: game.scorePercentages?.[component] ?? game.scores[component] ?? 0,
+      exact: false,
+    }
+  }
+
+  return null
 }
 
 function structuredIdentityTags(game: RecommendedGame) {
@@ -624,7 +656,7 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
                     {requestedTagMatch.tag}
                   </span>
                   <span className="rounded-full border border-cyan-200/25 bg-cyan-200/12 px-2 py-0.5 text-xs font-semibold text-cyan-50">
-                    {Math.round(requestedTagMatch.requestedWeight)}% asked
+                    {requestedTagMatch.exact ? `${Math.round(requestedTagMatch.requestedWeight)}% asked` : "closest hit"}
                   </span>
                 </div>
               </div>
