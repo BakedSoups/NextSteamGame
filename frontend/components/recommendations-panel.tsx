@@ -135,7 +135,7 @@ function normalizeTagMatchKey(tag: string) {
   return tag.trim().replace(/[_-]+/g, " ").replace(/\s+/g, " ").toLowerCase()
 }
 
-function topRequestedTagMatches(game: RecommendedGame, weights: Weights) {
+function topRequestedTagMatch(game: RecommendedGame, weights: Weights) {
   const matchedTags = game.matchedTags ?? {
     mechanics: [],
     narrative: [],
@@ -146,7 +146,7 @@ function topRequestedTagMatches(game: RecommendedGame, weights: Weights) {
     music: [],
   }
 
-  return (Object.keys(weights.tags) as TagContextKey[])
+  const matches = (Object.keys(weights.tags) as TagContextKey[])
     .flatMap((context) => {
       const matchedByKey = new Map(
         (matchedTags[context] ?? []).map((tag) => [normalizeTagMatchKey(tag), tag]),
@@ -175,7 +175,7 @@ function topRequestedTagMatches(game: RecommendedGame, weights: Weights) {
       }
       return b!.contextHit - a!.contextHit
     })
-    .slice(0, 4) as Array<{
+    .filter(Boolean) as Array<{
       context: TagContextKey
       component: MatchComponentKey
       tag: string
@@ -183,6 +183,8 @@ function topRequestedTagMatches(game: RecommendedGame, weights: Weights) {
       contextHit: number
       componentShare: number
     }>
+
+  return matches[0] ?? null
 }
 
 function structuredIdentityTags(game: RecommendedGame) {
@@ -428,7 +430,7 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
   const showStructureMatches = (matchedTags.structure_loop.length + matchedTags.mechanics.length) >= 3
   const showMusicMatches = matchedTags.music.length >= 3
   const hasVectorOverlap = VECTOR_CONTEXT_KEYS.some((key) => game.contextScores[key] > 0)
-  const requestedTagMatches = topRequestedTagMatches(game, weights)
+  const requestedTagMatch = topRequestedTagMatch(game, weights)
   const reasonChips = unique([
     ...(showIdentityMatches ? matchedTags.identity : []),
     ...(showSettingMatches ? matchedTags.setting : []),
@@ -610,37 +612,27 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
           </>
         )}
 
-        {requestedTagMatches.length > 0 && (
+        {requestedTagMatch && (
           <div className="mb-3 rounded-2xl border border-cyan-200/22 bg-cyan-300/[0.075] px-3.5 py-3 shadow-[0_0_22px_rgba(34,211,238,0.08)]">
-            <div className="mb-2 flex items-center justify-between gap-3">
-              <div className="text-sm uppercase tracking-[0.18em] text-cyan-100">
-                Your Tuning Hit
-              </div>
-              <div className="text-xs font-semibold uppercase tracking-[0.14em] text-cyan-100/72">
-                score influence
-              </div>
-            </div>
-            <div className="grid gap-2 md:grid-cols-2">
-              {requestedTagMatches.map((match) => (
-                <div
-                  key={`${match.context}-${match.tag}`}
-                  className="rounded-xl border border-white/12 bg-black/18 px-3 py-2"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="min-w-0 truncate text-sm font-semibold text-cyan-50">
-                      {match.tag}
-                    </span>
-                    <span className="shrink-0 rounded-full border border-cyan-200/25 bg-cyan-200/12 px-2 py-0.5 text-xs font-semibold text-cyan-50">
-                      {Math.round(match.requestedWeight)}% asked
-                    </span>
-                  </div>
-                  <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-medium uppercase tracking-[0.12em] text-cyan-100/72">
-                    <span>{TAG_CONTEXT_LABELS[match.context]}</span>
-                    <span>hit {match.contextHit.toFixed(1)}%</span>
-                    <span>{MATCH_LABELS[match.component]} {match.componentShare.toFixed(0)}%</span>
-                  </div>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <div className="text-sm uppercase tracking-[0.18em] text-cyan-100">
+                  Main Tuning Hit
                 </div>
-              ))}
+                <div className="mt-1 flex min-w-0 flex-wrap items-center gap-2">
+                  <span className="min-w-0 truncate text-base font-semibold text-cyan-50">
+                    {requestedTagMatch.tag}
+                  </span>
+                  <span className="rounded-full border border-cyan-200/25 bg-cyan-200/12 px-2 py-0.5 text-xs font-semibold text-cyan-50">
+                    {Math.round(requestedTagMatch.requestedWeight)}% asked
+                  </span>
+                </div>
+              </div>
+              <div className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs font-semibold uppercase tracking-[0.12em] text-cyan-100/72 sm:justify-end">
+                <span>{TAG_CONTEXT_LABELS[requestedTagMatch.context]}</span>
+                <span>hit {requestedTagMatch.contextHit.toFixed(1)}%</span>
+                <span>{MATCH_LABELS[requestedTagMatch.component]} {requestedTagMatch.componentShare.toFixed(0)}%</span>
+              </div>
             </div>
           </div>
         )}
