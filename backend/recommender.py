@@ -638,7 +638,7 @@ def recommend_games(
             "appeal": appeal_score * component_weights["appeal"],
             "music": soundtrack_score * component_weights["music"],
         }
-        component_percentages = _percent_breakdown(weighted_components)
+        weighted_component_percentages = _percent_breakdown(weighted_components)
         vector_component_weights = {
             context: value * context_multipliers.get(context, 1.0)
             for context, value in vector_breakdown.items()
@@ -671,7 +671,7 @@ def recommend_games(
                 "soundtrack_score": soundtrack_score,
                 "vector_context_breakdown": vector_breakdown,
                 "signal_context_breakdown": signal_scores,
-                "weighted_component_percentages": component_percentages,
+                "weighted_component_percentages": weighted_component_percentages,
                 "vector_context_percentages": vector_component_percentages,
                 "signal_context_percentages": signal_component_percentages,
                 "weighted_components": weighted_components,
