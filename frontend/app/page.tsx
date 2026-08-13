@@ -5,6 +5,7 @@ import posthog from "posthog-js"
 import { ArrowLeft, ArrowRight, ExternalLink, Github, MessageCircleMore, Star, X } from "lucide-react"
 import steamLogo from "@/art_assets/Steam-Logo.png"
 import gameShelfBackground from "@/art_assets/game_collection_background.webp"
+import sneakyFishyImage from "@/art_assets/skating-wooper-wallpaper-v0-t8vfyet9lhw91.jpg"
 import { SearchBar } from "@/components/search-bar"
 import { SelectedGamePanel } from "@/components/selected-game-panel"
 import { ControlPanel } from "@/components/control-panel"
@@ -17,8 +18,6 @@ import type { Game, RecommendedGame, TagFilters, Weights } from "@/lib/types"
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000"
 const SITE_URL = "https://nextsteamgame.com"
 const SNEAKY_FISHY_URL = "https://store.steampowered.com/app/4582530/Sneaky_Fishy/"
-const SNEAKY_FISHY_IMAGE_URL =
-  "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4582530/9304a73e47cea4c5a053e9c041135ac3175fa657/ss_9304a73e47cea4c5a053e9c041135ac3175fa657.1920x1080.jpg?t=1781654447"
 const API_REQUEST_TIMEOUT_MS = 12_000
 const DIAGNOSTIC_REQUEST_TIMEOUT_MS = 5_000
 const GITHUB_REQUEST_TIMEOUT_MS = 5_000
@@ -1018,7 +1017,7 @@ export default function NextSteamGamePage() {
               <span
                 aria-hidden="true"
                 className="block h-40 w-full bg-cover bg-center"
-                style={{ backgroundImage: `linear-gradient(180deg, rgba(0,0,0,0.08), rgba(0,0,0,0.18)), url(${SNEAKY_FISHY_IMAGE_URL})` }}
+                style={{ backgroundImage: `linear-gradient(180deg, rgba(0,0,0,0.08), rgba(0,0,0,0.18)), url(${sneakyFishyImage.src})` }}
               />
               <span className="flex min-w-0 flex-col gap-1.5 px-4 py-3">
                 <span className="text-sm font-semibold uppercase tracking-[0.14em] text-cyan-200/90">
