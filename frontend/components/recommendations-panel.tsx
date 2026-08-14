@@ -135,7 +135,21 @@ function normalizeTagMatchKey(tag: string) {
   return tag.trim().replace(/[_-]+/g, " ").replace(/\s+/g, " ").toLowerCase()
 }
 
-function topRequestedTagMatch(game: RecommendedGame, weights: Weights) {
+function changedTagWeight(context: TagContextKey, tag: string, weights: Weights, selectedGame: Game | null) {
+  const requestedWeight = weights.tags[context]?.[tag] ?? 0
+  const baselineEntries = selectedGame?.weights?.tags?.[context] ?? {}
+  const normalizedKey = normalizeTagMatchKey(tag).replace(/\s+/g, "_")
+  const legacyKey = tag.replace(/[\s-]+/g, "_").toLowerCase()
+  const baselineWeight = baselineEntries[tag] ?? baselineEntries[normalizedKey] ?? baselineEntries[legacyKey] ?? 0
+  const delta = requestedWeight - baselineWeight
+  return delta > 1 ? { requestedWeight, delta } : null
+}
+
+function topRequestedTagMatch(game: RecommendedGame, weights: Weights, selectedGame: Game | null) {
+  if (!selectedGame) {
+    return null
+  }
+
   const matchedTags = game.matchedTags ?? {
     mechanics: [],
     narrative: [],
@@ -148,10 +162,14 @@ function topRequestedTagMatch(game: RecommendedGame, weights: Weights) {
 
   const requestedByContext = (Object.keys(weights.tags) as TagContextKey[])
     .map((context) => {
-      const maxRequestedWeight = Math.max(0, ...Object.values(weights.tags[context] ?? {}))
-      return { context, requestedWeight: maxRequestedWeight }
+      const changedWeights = Object.keys(weights.tags[context] ?? {})
+        .map((tag) => changedTagWeight(context, tag, weights, selectedGame))
+        .filter(Boolean)
+      const maxRequestedWeight = Math.max(0, ...changedWeights.map((entry) => entry!.requestedWeight))
+      const maxDelta = Math.max(0, ...changedWeights.map((entry) => entry!.delta))
+      return { context, requestedWeight: maxRequestedWeight, delta: maxDelta }
     })
-    .filter((item) => item.requestedWeight > 0)
+    .filter((item) => item.delta > 1)
 
   const exactMatches = requestedByContext
     .flatMap(({ context }) => {
@@ -166,8 +184,9 @@ function topRequestedTagMatch(game: RecommendedGame, weights: Weights) {
         exact: boolean
       }> = []
 
-      for (const [tag, requestedWeight] of Object.entries(weights.tags[context] ?? {})) {
-        if (requestedWeight <= 0) {
+      for (const [tag] of Object.entries(weights.tags[context] ?? {})) {
+        const changed = changedTagWeight(context, tag, weights, selectedGame)
+        if (!changed) {
           continue
         }
         const matchedTag = matchedByKey.get(normalizeTagMatchKey(tag))
@@ -179,7 +198,7 @@ function topRequestedTagMatch(game: RecommendedGame, weights: Weights) {
           context,
           component,
           tag: matchedTag,
-          requestedWeight,
+          requestedWeight: changed.requestedWeight,
           contextHit: game.contextScores[context] ?? 0,
           componentShare: game.scorePercentages?.[component] ?? game.scores[component] ?? 0,
           exact: true,
@@ -198,7 +217,7 @@ function topRequestedTagMatch(game: RecommendedGame, weights: Weights) {
     return exactMatches[0]
   }
 
-  for (const { context, requestedWeight } of requestedByContext.sort((a, b) => b.requestedWeight - a.requestedWeight)) {
+  for (const { context, requestedWeight } of requestedByContext.sort((a, b) => b.delta - a.delta)) {
     const matchedTag = matchedTags[context]?.[0]
     const contextHit = game.contextScores[context] ?? 0
     if (!matchedTag || contextHit <= 0) {
@@ -462,7 +481,7 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
   const showStructureMatches = (matchedTags.structure_loop.length + matchedTags.mechanics.length) >= 3
   const showMusicMatches = matchedTags.music.length >= 3
   const hasVectorOverlap = VECTOR_CONTEXT_KEYS.some((key) => game.contextScores[key] > 0)
-  const requestedTagMatch = topRequestedTagMatch(game, weights)
+  const requestedTagMatch = topRequestedTagMatch(game, weights, selectedGame)
   const reasonChips = unique([
     ...(showIdentityMatches ? matchedTags.identity : []),
     ...(showSettingMatches ? matchedTags.setting : []),
