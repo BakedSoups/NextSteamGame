@@ -30,6 +30,35 @@ HOST = "127.0.0.1"
 PORT = 8000
 
 
+_NOISE_TAGS = frozenset({
+    "bad story", "terrible story", "poor story", "worst story",
+    "bad gameplay", "terrible gameplay", "poor gameplay",
+    "bad controls", "terrible controls", "poor controls",
+    "bad optimization", "terrible optimization", "poor optimization",
+    "bad performance", "terrible performance", "poor performance",
+    "awful", "terrible", "horrible", "worst", "boring", "repetitive",
+    "buggy", "broken", "unplayable", "trash", "garbage", "scam",
+    "ripoff", "money grab", "cash grab", "pay to win", "grindy",
+    "unfun", "sucks", "hate this", "love this", "must buy", "avoid",
+    "not recommended", "highly recommended", "masterpiece", "overrated",
+    "overpriced", "too hard", "too easy", "not worth it",
+})
+
+
+def _is_noise_tag(tag: str) -> bool:
+    t = tag.strip().lower()
+    if not t:
+        return True
+    if t in _NOISE_TAGS:
+        return True
+    neg_prefixes = (
+        "bad", "terrible", "awful", "poor", "worst", "boring", "repetitive",
+        "buggy", "broken", "unplayable", "trash", "garbage", "scam",
+        "ripoff", "grindy", "unfun", "sucks",
+    )
+    return t.startswith(neg_prefixes)
+
+
 def load_project_env() -> None:
     env_path = ROOT / ".env"
     if not env_path.exists():
@@ -80,12 +109,14 @@ app.add_middleware(
 
 def _vector_tag_names(raw: Any) -> list[str]:
     if isinstance(raw, dict):
-        return [str(tag) for tag in raw.keys()]
-    if isinstance(raw, list):
-        return [str(tag) for tag in raw]
-    if isinstance(raw, str):
-        return [raw]
-    return []
+        candidates = [str(tag) for tag in raw.keys()]
+    elif isinstance(raw, list):
+        candidates = [str(tag) for tag in raw]
+    elif isinstance(raw, str):
+        candidates = [raw]
+    else:
+        candidates = []
+    return [t for t in candidates if not _is_noise_tag(t)]
 
 
 def _vector_weight_map(raw: Any) -> dict[str, int]:
@@ -131,7 +162,7 @@ def _music_tags(metadata: dict[str, Any]) -> list[str]:
     tags: list[str] = []
     for field in ("music_primary", "music_secondary"):
         value = str(metadata.get(field, "")).strip()
-        if value and value not in tags:
+        if value and value not in tags and not _is_noise_tag(value):
             tags.append(value)
     return tags
 
@@ -139,12 +170,12 @@ def _music_tags(metadata: dict[str, Any]) -> list[str]:
 def _identity_tags(metadata: dict[str, Any]) -> list[str]:
     tags: list[str] = []
     signature_tag = str(metadata.get("signature_tag", "")).strip()
-    if signature_tag:
+    if signature_tag and not _is_noise_tag(signature_tag):
         tags.append(signature_tag)
     for field in ("niche_anchors", "identity_tags", "micro_tags"):
         for tag in metadata.get(field, []) or []:
             text = str(tag).strip()
-            if text and text not in tags:
+            if text and text not in tags and not _is_noise_tag(text):
                 tags.append(text)
     return tags
 
@@ -153,7 +184,7 @@ def _setting_tags(metadata: dict[str, Any]) -> list[str]:
     tags: list[str] = []
     for tag in metadata.get("setting_tags", []) or []:
         text = str(tag).strip()
-        if text and text not in tags:
+        if text and text not in tags and not _is_noise_tag(text):
             tags.append(text)
     return tags
 
@@ -178,9 +209,9 @@ def _serialize_focus_vectors(game: dict) -> dict[str, dict[str, int]]:
 def _serialize_identity(metadata: dict[str, Any]) -> dict[str, Any]:
     return {
         "signatureTag": str(metadata.get("signature_tag", "")).strip(),
-        "nicheAnchors": [str(tag).strip() for tag in metadata.get("niche_anchors", []) or [] if str(tag).strip()],
-        "identityTags": [str(tag).strip() for tag in metadata.get("identity_tags", []) or [] if str(tag).strip()],
-        "microTags": [str(tag).strip() for tag in metadata.get("micro_tags", []) or [] if str(tag).strip()],
+        "nicheAnchors": [str(tag).strip() for tag in metadata.get("niche_anchors", []) or [] if str(tag).strip() and not _is_noise_tag(str(tag).strip())],
+        "identityTags": [str(tag).strip() for tag in metadata.get("identity_tags", []) or [] if str(tag).strip() and not _is_noise_tag(str(tag).strip())],
+        "microTags": [str(tag).strip() for tag in metadata.get("micro_tags", []) or [] if str(tag).strip() and not _is_noise_tag(str(tag).strip())],
         "settingTags": _setting_tags(metadata),
         "musicPrimary": str(metadata.get("music_primary", "")).strip(),
         "musicSecondary": str(metadata.get("music_secondary", "")).strip(),
