@@ -1317,8 +1317,8 @@ export default function NextSteamGamePage() {
         )}
 
         {screen === "results" && (
-          <div className="grid grid-cols-1 gap-6 xl:grid-cols-[340px_1fr_360px] xl:gap-8">
-            <div className="space-y-6 xl:sticky xl:top-24 xl:h-fit xl:max-h-[calc(100vh-7rem)] xl:overflow-y-auto custom-scrollbar pr-2">
+          <div className="grid grid-cols-1 gap-5 xl:grid-cols-[300px_minmax(0,1fr)] xl:gap-6">
+            <div className="space-y-4 xl:sticky xl:top-24 xl:h-fit xl:max-h-[calc(100vh-7rem)] xl:overflow-y-auto custom-scrollbar xl:pr-1">
               <button
                 onClick={() => goToScreen("profile")}
                 className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm text-foreground hover:bg-secondary/30"
@@ -1377,6 +1377,21 @@ export default function NextSteamGamePage() {
                 </div>
               ) : (
                 <>
+                  <ControlPanel
+                    selectedGame={selectedGame}
+                    weights={weights}
+                    highlightedContexts={simpleHighlightedContexts}
+                    resultsCompact={true}
+                    featuredTags={simpleFeaturedTags}
+                    mode={controlMode}
+                    onMatchWeightChange={updateMatchWeight}
+                    onContextWeightChange={updateContextWeight}
+                    onAppealWeightChange={updateAppealWeight}
+                    onTagWeightChange={updateTagWeight}
+                    onSimpleIntentBoost={handleSimpleIntentBoost}
+                    selectedSimpleTags={selectedSimpleTags}
+                    onSimpleTagToggle={toggleSimpleTag}
+                  />
                   {resultsError && <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">{resultsError}</div>}
                   {resultsLoading && (
                     <div className="rounded-[24px] border border-border bg-card/70 p-8 text-center shadow-[0_18px_42px_rgba(0,0,0,0.18)]">
@@ -1421,30 +1436,6 @@ export default function NextSteamGamePage() {
                     />
                   )}
                 </>
-              )}
-            </div>
-
-            <div className="xl:sticky xl:top-24 xl:h-fit xl:max-h-[calc(100vh-7rem)] xl:overflow-y-auto custom-scrollbar pl-2">
-              {selectedGameHasSemanticProfile ? (
-                <ControlPanel
-                  selectedGame={selectedGame}
-                  weights={weights}
-                  highlightedContexts={simpleHighlightedContexts}
-                  resultsCompact={true}
-                  featuredTags={simpleFeaturedTags}
-                  mode={controlMode}
-                  onMatchWeightChange={updateMatchWeight}
-                  onContextWeightChange={updateContextWeight}
-                  onAppealWeightChange={updateAppealWeight}
-                  onTagWeightChange={updateTagWeight}
-                  onSimpleIntentBoost={handleSimpleIntentBoost}
-                  selectedSimpleTags={selectedSimpleTags}
-                  onSimpleTagToggle={toggleSimpleTag}
-                />
-              ) : (
-                <div className="rounded-[28px] border border-white/10 bg-card/70 p-5 text-sm leading-7 text-muted-foreground">
-                  No semantic profile was built for this game, so advanced tuning and result analysis are unavailable until it has more insightful reviews.
-                </div>
               )}
             </div>
           </div>

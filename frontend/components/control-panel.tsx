@@ -663,29 +663,25 @@ export function ControlPanel({
       ) : null}
 
       {resultsCompact && mode === "simple" && onSimpleIntentBoost && (
-        <div className="panel overflow-hidden glow-box-subtle">
-          <div className="panel-header">
-            <div className="text-primary">
+        <div className="panel overflow-hidden p-3 glow-box-subtle">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+            <div className="flex shrink-0 items-center gap-2">
               <Zap className="h-3.5 w-3.5" />
+              <span className="text-sm font-semibold text-foreground">Quick Taste Shaping</span>
             </div>
-            <span className="text-sm font-medium text-foreground">Quick Taste Shaping</span>
-          </div>
-          <div className="border-t border-border/50 p-3">
-            <p className="mb-3 text-sm leading-6 text-muted-foreground">
-              Use a broad preset to push the current result list in a clearer direction.
-            </p>
-            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+            <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] lg:pb-0 [&::-webkit-scrollbar]:hidden">
               {SIMPLE_INTENTS.map((intent) => (
                 <button
                   key={intent.key}
                   type="button"
                   onClick={() => onSimpleIntentBoost(intent.key)}
-                  className="rounded-xl border border-white/10 bg-white/[0.045] px-3 py-3 text-left transition hover:border-primary/45 hover:bg-primary/10"
+                  title={intent.hint}
+                  className="min-w-[142px] rounded-lg border border-white/10 bg-white/[0.045] px-3 py-2 text-left transition hover:border-primary/45 hover:bg-primary/10"
                 >
-                  <span className="block text-sm font-semibold text-foreground">
+                  <span className="block text-sm font-semibold leading-5 text-foreground">
                     {intent.label}
                   </span>
-                  <span className="mt-1 block text-sm leading-5 text-muted-foreground">
+                  <span className="mt-0.5 block truncate text-xs leading-5 text-muted-foreground">
                     {intent.hint}
                   </span>
                 </button>
