@@ -29,6 +29,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 export function TagFilterPanel({ filters, tagOptions, onFiltersChange }: TagFilterPanelProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const [expandedCategories, setExpandedCategories] = useState<string[]>(["mechanics", "vibe"])
+  const [isOpen, setIsOpen] = useState(false)
   
   const toggleCategory = (category: string) => {
     setExpandedCategories(prev => 
@@ -84,43 +85,74 @@ export function TagFilterPanel({ filters, tagOptions, onFiltersChange }: TagFilt
   return (
     <div className="panel overflow-hidden glow-box-subtle">
       {/* Header */}
-      <div className="panel-header">
+      <button
+        type="button"
+        onClick={() => setIsOpen((current) => !current)}
+        className="panel-header w-full text-left transition-colors hover:bg-secondary/30"
+      >
         <Crosshair className="w-3.5 h-3.5 text-primary" />
         <span className="text-sm font-medium text-foreground">Micro Tag Filters</span>
-        {activeFilterCount > 0 && (
-          <>
-            <span className="ml-auto data-value">{activeFilterCount} active</span>
-            <button
-              onClick={clearAllFilters}
-              className="text-sm text-muted-foreground hover:text-destructive transition-colors ml-2"
-            >
-              CLEAR
-            </button>
-          </>
+        {activeFilterCount > 0 ? <span className="ml-auto data-value">{activeFilterCount} active</span> : <span className="ml-auto" />}
+        {isOpen ? (
+          <ChevronDown className="h-3.5 w-3.5 text-primary" />
+        ) : (
+          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
         )}
-      </div>
-      
-      {/* Search Input */}
-      <div className="p-3 border-b border-border">
-        <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="filter --tag [query]"
-            className="w-full pl-8 pr-8 py-1.5 text-sm font-mono bg-input border border-border rounded text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary transition-all"
-          />
-          {searchQuery && (
+      </button>
+
+      {filters.include.length > 0 ? (
+        <div className="border-t border-border/50 px-3 py-2">
+          <div className="flex flex-wrap gap-1.5">
+            {filters.include.slice(0, 5).map((tag) => (
+              <button
+                key={tag}
+                type="button"
+                onClick={() => toggleIncludeTag(tag)}
+                className="rounded-full border border-sky-300/35 bg-sky-400/12 px-2.5 py-1 text-sm font-medium text-sky-50 transition hover:border-destructive/50 hover:text-destructive"
+                title={`Remove ${tag}`}
+              >
+                {tag}
+              </button>
+            ))}
+            {filters.include.length > 5 ? (
+              <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-sm text-muted-foreground">
+                +{filters.include.length - 5}
+              </span>
+            ) : null}
             <button
-              onClick={() => setSearchQuery("")}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary"
+              type="button"
+              onClick={clearAllFilters}
+              className="rounded-full border border-white/10 px-2.5 py-1 text-sm text-muted-foreground transition hover:border-destructive/50 hover:text-destructive"
             >
-              <X className="w-3 h-3" />
+              Clear
             </button>
-          )}
+          </div>
         </div>
-      </div>
+      ) : null}
+
+      {isOpen ? (
+        <>
+          {/* Search Input */}
+          <div className="border-b border-border p-3">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="filter --tag [query]"
+                className="w-full rounded border border-border bg-input py-1.5 pl-8 pr-8 font-mono text-sm text-foreground transition-all placeholder:text-muted-foreground/50 focus:border-primary focus:outline-none"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+          </div>
 
       {/* Tag Categories */}
       <div className="max-h-64 overflow-y-auto custom-scrollbar">
@@ -226,6 +258,8 @@ export function TagFilterPanel({ filters, tagOptions, onFiltersChange }: TagFilt
           </p>
         </div>
       </div>
+        </>
+      ) : null}
     </div>
   )
 }
