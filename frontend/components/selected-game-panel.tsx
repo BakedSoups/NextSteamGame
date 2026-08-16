@@ -18,7 +18,6 @@ export function SelectedGamePanel({ game }: SelectedGamePanelProps) {
     )
   }
 
-  const heroImage = game.assets.libraryHero || game.assets.background || game.headerImage || IMAGE_FALLBACK
   const capsuleImage = game.assets.libraryCapsule || game.assets.capsuleV5 || game.image || IMAGE_FALLBACK
   const primaryGenres = game.genres.primary.slice(0, 2)
   const hasSemanticProfile = Object.values(game.tags).some((tags) => tags.length > 0)
