@@ -984,7 +984,7 @@ export default function NextSteamGamePage() {
         </div>
       </header>
 
-      <main className={screen === "search" ? "" : "mx-auto max-w-[1800px] px-3 py-8 md:px-4 xl:px-5"}>
+      <main className={screen === "search" ? "" : "mx-auto max-w-[1920px] px-3 py-8 md:px-4 xl:px-5"}>
         {screen === "search" && (
           <div className="relative min-h-[calc(100dvh-77px)] overflow-x-hidden sm:overflow-hidden md:min-h-[calc(125dvh-77px)]">
             <img
@@ -1317,7 +1317,7 @@ export default function NextSteamGamePage() {
         )}
 
         {screen === "results" && (
-          <div className="grid grid-cols-1 gap-5 xl:grid-cols-[300px_minmax(0,1fr)] xl:gap-6">
+          <div className="grid grid-cols-1 gap-5 xl:grid-cols-[270px_minmax(0,1fr)] xl:gap-5">
             <div className="space-y-4 xl:sticky xl:top-24 xl:h-fit xl:max-h-[calc(100vh-7rem)] xl:overflow-y-auto custom-scrollbar xl:pr-1">
               <button
                 onClick={() => goToScreen("profile")}
