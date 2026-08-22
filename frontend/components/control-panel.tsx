@@ -663,25 +663,25 @@ export function ControlPanel({
       ) : null}
 
       {resultsCompact && mode === "simple" && onSimpleIntentBoost && (
-        <div className="panel overflow-hidden p-3 glow-box-subtle">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-            <div className="flex shrink-0 items-center gap-2">
+        <div className="panel p-3 glow-box-subtle">
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-2">
               <Zap className="h-3.5 w-3.5" />
               <span className="text-sm font-semibold text-foreground">Quick Taste Shaping</span>
             </div>
-            <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] lg:pb-0 [&::-webkit-scrollbar]:hidden">
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
               {SIMPLE_INTENTS.map((intent) => (
                 <button
                   key={intent.key}
                   type="button"
                   onClick={() => onSimpleIntentBoost(intent.key)}
                   title={intent.hint}
-                  className="min-w-[142px] rounded-lg border border-white/10 bg-white/[0.045] px-3 py-2 text-left transition hover:border-primary/45 hover:bg-primary/10"
+                  className="min-h-[64px] rounded-lg border border-white/10 bg-white/[0.045] px-3 py-2 text-left transition hover:border-primary/45 hover:bg-primary/10"
                 >
                   <span className="block text-sm font-semibold leading-5 text-foreground">
                     {intent.label}
                   </span>
-                  <span className="mt-0.5 block truncate text-xs leading-5 text-muted-foreground">
+                  <span className="mt-0.5 block text-xs leading-4 text-muted-foreground">
                     {intent.hint}
                   </span>
                 </button>
