@@ -148,6 +148,16 @@ function genreTokens(game: Pick<Game, "category" | "genres"> | null) {
   ].filter(Boolean))
 }
 
+function evidenceTags(influencedTags: string[], fallbackTags: string[], limit = 3) {
+  const influencedKeys = new Set(influencedTags.map(normalizeTagMatchKey))
+  return unique([...influencedTags, ...fallbackTags])
+    .slice(0, limit)
+    .map((label) => ({
+      label,
+      influenced: influencedKeys.has(normalizeTagMatchKey(label)),
+    }))
+}
+
 function changedTagWeight(context: TagContextKey, tag: string, weights: Weights, selectedGame: Game | null) {
   const requestedWeight = weights.tags[context]?.[tag] ?? 0
   const baselineEntries = selectedGame?.weights?.tags?.[context] ?? {}
@@ -511,8 +521,24 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
     .filter((genre) => !baseGenreKeys.has(normalizeTagMatchKey(genre)))
     .slice(0, 4)
   const evidenceRows = [
-    { label: "Structure", tags: unique([...matchedTags.structure_loop, ...matchedTags.mechanics, ...game.tags.structure_loop, ...game.tags.mechanics]).slice(0, 3), tone: "primary" },
-    { label: "Theme", tags: unique([...matchedTags.identity, ...matchedTags.setting, ...game.tags.identity, ...game.tags.setting]).slice(0, 3), tone: "muted" },
+    {
+      label: "Structure",
+      tags: evidenceTags(
+        [...matchedTags.structure_loop, ...matchedTags.mechanics],
+        [...game.tags.structure_loop, ...game.tags.mechanics],
+      ),
+    },
+    {
+      label: "Theme",
+      tags: evidenceTags(
+        [...matchedTags.identity, ...matchedTags.setting],
+        [...game.tags.identity, ...game.tags.setting],
+      ),
+    },
+    {
+      label: "Music",
+      tags: evidenceTags(matchedTags.music, game.tags.music),
+    },
   ].filter((row) => row.tags.length > 0)
   const resultMixSegments: DonutSegment[] = [
     { label: MATCH_LABELS.vector, value: scorePercentages.vector ?? game.scores.vector, color: MATCH_COLORS.vector },
@@ -743,14 +769,14 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
                     <div className="flex flex-wrap gap-1.5">
                       {row.tags.map((tag) => (
                         <span
-                          key={`${row.label}-${tag}`}
-                          className={
-                            row.tone === "primary"
-                              ? "rounded-full border border-sky-300/45 bg-sky-400/16 px-2.5 py-1 text-sm font-semibold leading-5 text-sky-50"
-                              : "rounded-full border border-white/14 bg-white/[0.075] px-2.5 py-1 text-sm font-medium leading-5 text-slate-100/94"
+                          key={`${row.label}-${tag.label}`}
+                          className={tag.influenced
+                            ? "rounded-full border border-sky-300/55 bg-sky-400/18 px-2.5 py-1 text-sm font-semibold leading-5 text-sky-50 shadow-[0_0_12px_rgba(56,189,248,0.14)]"
+                            : "rounded-full border border-white/14 bg-white/[0.075] px-2.5 py-1 text-sm font-medium leading-5 text-slate-100/88"
                           }
+                          title={tag.influenced ? "Influenced this match" : "Result tag"}
                         >
-                          {tag}
+                          {tag.label}
                         </span>
                       ))}
                     </div>
