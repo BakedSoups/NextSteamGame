@@ -135,6 +135,19 @@ function normalizeTagMatchKey(tag: string) {
   return tag.trim().replace(/[_-]+/g, " ").replace(/\s+/g, " ").toLowerCase()
 }
 
+function genreTokens(game: Pick<Game, "category" | "genres"> | null) {
+  if (!game) {
+    return []
+  }
+  return unique([
+    game.category,
+    ...game.genres.primary,
+    ...game.genres.sub,
+    ...game.genres.sub_sub,
+    ...game.genres.traits,
+  ].filter(Boolean))
+}
+
 function changedTagWeight(context: TagContextKey, tag: string, weights: Weights, selectedGame: Game | null) {
   const requestedWeight = weights.tags[context]?.[tag] ?? 0
   const baselineEntries = selectedGame?.weights?.tags?.[context] ?? {}
@@ -490,10 +503,16 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
     { label: MATCH_LABELS.genre, value: scorePercentages.genre ?? game.scores.genre, color: MATCH_COLORS.genre },
     { label: MATCH_LABELS.music, value: scorePercentages.music ?? game.scores.music, color: MATCH_COLORS.music },
   ].sort((a, b) => b.value - a.value)
+  const baseGenres = genreTokens(selectedGame)
+  const resultGenres = genreTokens(game)
+  const baseGenreKeys = new Set(baseGenres.map(normalizeTagMatchKey))
+  const sharedGenres = resultGenres.filter((genre) => baseGenreKeys.has(normalizeTagMatchKey(genre))).slice(0, 4)
+  const resultOnlyGenres = resultGenres
+    .filter((genre) => !baseGenreKeys.has(normalizeTagMatchKey(genre)))
+    .slice(0, 4)
   const evidenceRows = [
     { label: "Structure", tags: unique([...matchedTags.structure_loop, ...matchedTags.mechanics, ...game.tags.structure_loop, ...game.tags.mechanics]).slice(0, 3), tone: "primary" },
     { label: "Theme", tags: unique([...matchedTags.identity, ...matchedTags.setting, ...game.tags.identity, ...game.tags.setting]).slice(0, 3), tone: "muted" },
-    { label: "Genre", tags: unique([game.category, ...game.genres.primary, ...game.genres.sub]).slice(0, 3), tone: "muted" },
   ].filter((row) => row.tags.length > 0)
   const resultMixSegments: DonutSegment[] = [
     { label: MATCH_LABELS.vector, value: scorePercentages.vector ?? game.scores.vector, color: MATCH_COLORS.vector },
@@ -715,7 +734,7 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
                 </div>
               </div>
 
-              <div className="grid gap-2 md:grid-cols-3">
+              <div className="grid gap-2 md:grid-cols-2 2xl:grid-cols-3">
                 {evidenceRows.map((row) => (
                   <div key={row.label} className="min-w-0 rounded-lg border border-white/10 bg-white/[0.035] px-3 py-2">
                     <div className="mb-1 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
@@ -737,6 +756,56 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
                     </div>
                   </div>
                 ))}
+                <div className="min-w-0 rounded-lg border border-emerald-300/18 bg-emerald-300/[0.045] px-3 py-2 md:col-span-2 2xl:col-span-1">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <div className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                      Genre Comparison
+                    </div>
+                    <span className="text-xs font-semibold text-emerald-100/80">
+                      {sharedGenres.length} shared
+                    </span>
+                  </div>
+                  <div className="space-y-2">
+                    <div>
+                      <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-emerald-100/64">
+                        Base
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {baseGenres.slice(0, 4).map((genre) => (
+                          <span key={`base-${genre}`} className="rounded-full border border-white/14 bg-white/[0.06] px-2 py-0.5 text-xs font-medium text-slate-100/86">
+                            {genre}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-emerald-100/64">
+                        Matched
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {(sharedGenres.length > 0 ? sharedGenres : resultGenres.slice(0, 3)).map((genre) => (
+                          <span key={`shared-${genre}`} className="rounded-full border border-emerald-300/45 bg-emerald-300/14 px-2 py-0.5 text-xs font-semibold text-emerald-50">
+                            {genre}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    {resultOnlyGenres.length > 0 ? (
+                      <div>
+                        <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-emerald-100/64">
+                          Result Adds
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {resultOnlyGenres.slice(0, 3).map((genre) => (
+                            <span key={`result-${genre}`} className="rounded-full border border-white/14 bg-white/[0.06] px-2 py-0.5 text-xs font-medium text-slate-100/86">
+                              {genre}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
