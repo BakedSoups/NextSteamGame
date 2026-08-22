@@ -729,8 +729,8 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
             <div className="mb-2 text-sm uppercase tracking-[0.18em] text-muted-foreground">
               Match Receipt
             </div>
-            <div className="grid gap-2 xl:grid-cols-[minmax(180px,0.8fr)_minmax(0,1.2fr)]">
-              <div className="rounded-lg border border-white/10 bg-white/[0.035] px-3 py-2">
+            <div className="grid items-start gap-2 xl:grid-cols-[minmax(180px,0.8fr)_minmax(0,1.2fr)]">
+              <div className="self-start rounded-lg border border-white/10 bg-white/[0.035] px-3 py-2">
                 <div className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                   Score Recipe
                 </div>
