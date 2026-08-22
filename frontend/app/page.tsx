@@ -1317,7 +1317,7 @@ export default function NextSteamGamePage() {
         )}
 
         {screen === "results" && (
-          <div className="grid grid-cols-1 gap-5 xl:grid-cols-[270px_minmax(0,1fr)] xl:gap-5">
+          <div className="grid grid-cols-1 gap-5 xl:grid-cols-[270px_minmax(0,1fr)_340px] xl:gap-5">
             <div className="space-y-4 xl:sticky xl:top-24 xl:h-fit xl:max-h-[calc(100vh-7rem)] xl:overflow-y-auto custom-scrollbar xl:pr-1">
               <button
                 onClick={() => goToScreen("profile")}
@@ -1377,21 +1377,6 @@ export default function NextSteamGamePage() {
                 </div>
               ) : (
                 <>
-                  <ControlPanel
-                    selectedGame={selectedGame}
-                    weights={weights}
-                    highlightedContexts={simpleHighlightedContexts}
-                    resultsCompact={true}
-                    featuredTags={simpleFeaturedTags}
-                    mode={controlMode}
-                    onMatchWeightChange={updateMatchWeight}
-                    onContextWeightChange={updateContextWeight}
-                    onAppealWeightChange={updateAppealWeight}
-                    onTagWeightChange={updateTagWeight}
-                    onSimpleIntentBoost={handleSimpleIntentBoost}
-                    selectedSimpleTags={selectedSimpleTags}
-                    onSimpleTagToggle={toggleSimpleTag}
-                  />
                   {resultsError && <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">{resultsError}</div>}
                   {resultsLoading && (
                     <div className="rounded-[24px] border border-border bg-card/70 p-8 text-center shadow-[0_18px_42px_rgba(0,0,0,0.18)]">
@@ -1436,6 +1421,30 @@ export default function NextSteamGamePage() {
                     />
                   )}
                 </>
+              )}
+            </div>
+
+            <div className="xl:sticky xl:top-24 xl:h-fit xl:max-h-[calc(100vh-7rem)] xl:overflow-y-auto custom-scrollbar xl:pl-1">
+              {selectedGameHasSemanticProfile ? (
+                <ControlPanel
+                  selectedGame={selectedGame}
+                  weights={weights}
+                  highlightedContexts={simpleHighlightedContexts}
+                  resultsCompact={true}
+                  featuredTags={simpleFeaturedTags}
+                  mode={controlMode}
+                  onMatchWeightChange={updateMatchWeight}
+                  onContextWeightChange={updateContextWeight}
+                  onAppealWeightChange={updateAppealWeight}
+                  onTagWeightChange={updateTagWeight}
+                  onSimpleIntentBoost={handleSimpleIntentBoost}
+                  selectedSimpleTags={selectedSimpleTags}
+                  onSimpleTagToggle={toggleSimpleTag}
+                />
+              ) : (
+                <div className="rounded-lg border border-white/10 bg-card/70 p-4 text-sm leading-6 text-muted-foreground">
+                  No semantic profile was built for this game, so tuning is unavailable until it has more insightful reviews.
+                </div>
               )}
             </div>
           </div>

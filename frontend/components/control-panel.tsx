@@ -669,7 +669,7 @@ export function ControlPanel({
               <Zap className="h-3.5 w-3.5" />
               <span className="text-sm font-semibold text-foreground">Quick Taste Shaping</span>
             </div>
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
               {SIMPLE_INTENTS.map((intent) => (
                 <button
                   key={intent.key}
