@@ -484,45 +484,16 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
   const requestedTagMatch = topRequestedTagMatch(game, weights, selectedGame)
   const visibleHighlights = highlights.slice(0, 3)
   const primaryHighlight = visibleHighlights[0]
-  const reasonChips = unique([
-    ...(showIdentityMatches ? matchedTags.identity : []),
-    ...(showSettingMatches ? matchedTags.setting : []),
-    ...(showStructureMatches ? [...matchedTags.structure_loop, ...matchedTags.mechanics] : []),
-    ...(showMusicMatches ? matchedTags.music : []),
-  ]).slice(0, 5)
-  const offerChips = unique([
-    ...game.tags.identity,
-    ...game.tags.setting,
-    ...game.tags.music,
-    ...game.tags.narrative,
-    ...game.tags.vibe,
-    ...game.tags.structure_loop,
-    ...game.tags.mechanics,
-  ])
-    .filter((tag) => !reasonChips.includes(tag))
-    .slice(0, 4)
-  const closestMatchTags = unique([
-    requestedTagMatch?.tag,
-    reasonChips[0],
-    game.category,
-  ].filter(Boolean) as string[]).slice(0, 1)
-  const sharedFeelTags = unique([
-    ...reasonChips.filter((tag) => !closestMatchTags.includes(tag)),
-    ...game.tags.vibe,
-    ...game.tags.narrative,
-  ]).slice(0, 3)
-  const extraSignalTags = unique([
-    ...offerChips,
-    ...game.tags.identity,
-    ...game.tags.setting,
-    ...game.tags.mechanics,
-  ])
-    .filter((tag) => !closestMatchTags.includes(tag) && !sharedFeelTags.includes(tag))
-    .slice(0, 4)
-  const reasonRows = [
-    { label: "Closest Match", tags: closestMatchTags, tone: "primary" },
-    { label: "Shared Feel", tags: sharedFeelTags, tone: "primary" },
-    { label: "Extra Signals", tags: extraSignalTags, tone: "muted" },
+  const receiptRows = [
+    { label: MATCH_LABELS.vector, value: scorePercentages.vector ?? game.scores.vector, color: MATCH_COLORS.vector },
+    { label: MATCH_LABELS.appeal, value: scorePercentages.appeal ?? game.scores.appeal, color: MATCH_COLORS.appeal },
+    { label: MATCH_LABELS.genre, value: scorePercentages.genre ?? game.scores.genre, color: MATCH_COLORS.genre },
+    { label: MATCH_LABELS.music, value: scorePercentages.music ?? game.scores.music, color: MATCH_COLORS.music },
+  ].sort((a, b) => b.value - a.value)
+  const evidenceRows = [
+    { label: "Structure", tags: unique([...matchedTags.structure_loop, ...matchedTags.mechanics, ...game.tags.structure_loop, ...game.tags.mechanics]).slice(0, 3), tone: "primary" },
+    { label: "Theme", tags: unique([...matchedTags.identity, ...matchedTags.setting, ...game.tags.identity, ...game.tags.setting]).slice(0, 3), tone: "muted" },
+    { label: "Genre", tags: unique([game.category, ...game.genres.primary, ...game.genres.sub]).slice(0, 3), tone: "muted" },
   ].filter((row) => row.tags.length > 0)
   const resultMixSegments: DonutSegment[] = [
     { label: MATCH_LABELS.vector, value: scorePercentages.vector ?? game.scores.vector, color: MATCH_COLORS.vector },
@@ -708,33 +679,65 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
           </div>
         )}
 
-        {reasonRows.length > 0 && (
+        {(receiptRows.length > 0 || evidenceRows.length > 0) && (
           <div className="mb-3">
             <div className="mb-2 text-sm uppercase tracking-[0.18em] text-muted-foreground">
-              Why It Matches
+              Match Receipt
             </div>
-            <div className="grid gap-2 md:grid-cols-3">
-              {reasonRows.map((row) => (
-                <div key={row.label} className="min-w-0 rounded-lg border border-white/10 bg-white/[0.035] px-3 py-2">
-                  <div className="mb-1 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                    {row.label}
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {row.tags.map((tag) => (
-                      <span
-                        key={`${row.label}-${tag}`}
-                        className={
-                          row.tone === "primary"
-                            ? "rounded-full border border-sky-300/45 bg-sky-400/16 px-2.5 py-1 text-sm font-semibold leading-5 text-sky-50"
-                            : "rounded-full border border-white/14 bg-white/[0.075] px-2.5 py-1 text-sm font-medium leading-5 text-slate-100/94"
-                        }
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
+            <div className="grid gap-2 xl:grid-cols-[minmax(180px,0.8fr)_minmax(0,1.2fr)]">
+              <div className="rounded-lg border border-white/10 bg-white/[0.035] px-3 py-2">
+                <div className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                  Score Recipe
                 </div>
-              ))}
+                <div className="space-y-1.5">
+                  {receiptRows.map((row) => (
+                    <div key={row.label} className="grid grid-cols-[minmax(0,1fr)_44px] items-center gap-2 text-xs">
+                      <div className="min-w-0">
+                        <div className="mb-1 flex items-center gap-1.5 text-slate-200/90">
+                          <span
+                            className="h-2 w-2 shrink-0 rounded-full"
+                            style={{ backgroundColor: row.color, boxShadow: `0 0 8px ${row.color}` }}
+                          />
+                          <span className="truncate">{row.label}</span>
+                        </div>
+                        <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.08]">
+                          <div
+                            className="h-full rounded-full"
+                            style={{ width: `${Math.min(Math.max(row.value, 0), 100)}%`, backgroundColor: row.color }}
+                          />
+                        </div>
+                      </div>
+                      <span className="text-right text-sm font-semibold text-slate-100">
+                        {row.value.toFixed(0)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid gap-2 md:grid-cols-3">
+                {evidenceRows.map((row) => (
+                  <div key={row.label} className="min-w-0 rounded-lg border border-white/10 bg-white/[0.035] px-3 py-2">
+                    <div className="mb-1 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                      {row.label}
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {row.tags.map((tag) => (
+                        <span
+                          key={`${row.label}-${tag}`}
+                          className={
+                            row.tone === "primary"
+                              ? "rounded-full border border-sky-300/45 bg-sky-400/16 px-2.5 py-1 text-sm font-semibold leading-5 text-sky-50"
+                              : "rounded-full border border-white/14 bg-white/[0.075] px-2.5 py-1 text-sm font-medium leading-5 text-slate-100/94"
+                          }
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}
