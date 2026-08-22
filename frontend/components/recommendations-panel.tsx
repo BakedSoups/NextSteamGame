@@ -501,10 +501,28 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
   ])
     .filter((tag) => !reasonChips.includes(tag))
     .slice(0, 4)
+  const closestMatchTags = unique([
+    requestedTagMatch?.tag,
+    reasonChips[0],
+    game.category,
+  ].filter(Boolean) as string[]).slice(0, 1)
+  const sharedFeelTags = unique([
+    ...reasonChips.filter((tag) => !closestMatchTags.includes(tag)),
+    ...game.tags.vibe,
+    ...game.tags.narrative,
+  ]).slice(0, 3)
+  const extraSignalTags = unique([
+    ...offerChips,
+    ...game.tags.identity,
+    ...game.tags.setting,
+    ...game.tags.mechanics,
+  ])
+    .filter((tag) => !closestMatchTags.includes(tag) && !sharedFeelTags.includes(tag))
+    .slice(0, 4)
   const reasonRows = [
-    { label: "Closest Match", tags: reasonChips.slice(0, 1), tone: "primary" },
-    { label: "Shared Feel", tags: reasonChips.slice(1, 3), tone: "primary" },
-    { label: "Extra Signals", tags: [...reasonChips.slice(3), ...offerChips].slice(0, 4), tone: "muted" },
+    { label: "Closest Match", tags: closestMatchTags, tone: "primary" },
+    { label: "Shared Feel", tags: sharedFeelTags, tone: "primary" },
+    { label: "Extra Signals", tags: extraSignalTags, tone: "muted" },
   ].filter((row) => row.tags.length > 0)
   const resultMixSegments: DonutSegment[] = [
     { label: MATCH_LABELS.vector, value: scorePercentages.vector ?? game.scores.vector, color: MATCH_COLORS.vector },
