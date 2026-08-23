@@ -19,12 +19,6 @@ const VECTOR_CONTEXT_KEYS: VectorContextKey[] = [
   "structure_loop",
 ]
 
-const TAG_SIGNAL_KEYS: Array<keyof RecommendedGame["contextScores"]> = [
-  "identity",
-  "setting",
-  "music",
-]
-
 const IMAGE_FALLBACK = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='320' height='180'><rect width='100%' height='100%' fill='%2311161f'/></svg>"
 
 const MATCH_COLORS: Record<keyof Weights["match"], string> = {
@@ -40,10 +34,6 @@ const VECTOR_CONTEXT_COLORS: Record<VectorContextKey, string> = {
   vibe: "#2dd4bf",
   structure_loop: "#f97316",
 }
-
-const TAG_SIGNAL_REQUEST_COLOR = "rgba(248, 113, 113, 0.28)"
-const TAG_SIGNAL_REQUEST_BORDER = "rgba(248, 113, 113, 0.65)"
-const TAG_SIGNAL_HIT_COLOR = "#7dd3fc"
 
 const TAG_CONTEXT_LABELS: Record<TagContextKey, string> = {
   mechanics: "Mechanics",
@@ -63,6 +53,16 @@ const TAG_CONTEXT_COMPONENT: Record<TagContextKey, MatchComponentKey> = {
   identity: "appeal",
   setting: "appeal",
   music: "music",
+}
+
+const TAG_CONTEXT_COLORS: Record<TagContextKey, string> = {
+  mechanics: "#7dd3fc",
+  narrative: "#c084fc",
+  vibe: "#2dd4bf",
+  structure_loop: "#f97316",
+  identity: "#fb7185",
+  setting: "#60a5fa",
+  music: "#fcd34d",
 }
 
 interface RecommendationsPanelProps {
@@ -537,6 +537,24 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
       tags: evidenceTags(matchedTags.music, game.tags.music),
     },
   ].filter((row) => row.tags.length > 0)
+  const contextImpactRows = (Object.keys(weights.context) as TagContextKey[])
+    .map((context) => {
+      const requestedWeight = weights.context[context] ?? 0
+      const contextHit = game.contextScores[context] ?? 0
+      const impact = (requestedWeight * contextHit) / 100
+      return {
+        context,
+        label: TAG_CONTEXT_LABELS[context],
+        requestedWeight,
+        contextHit,
+        impact,
+        color: TAG_CONTEXT_COLORS[context],
+        tags: evidenceTags(matchedTags[context] ?? [], game.tags[context] ?? [], 3),
+      }
+    })
+    .filter((row) => row.requestedWeight > 0 || row.contextHit > 0 || row.tags.length > 0)
+    .sort((a, b) => b.impact - a.impact)
+  const maxContextImpact = Math.max(1, ...contextImpactRows.map((row) => row.impact))
   const resultMixSegments: DonutSegment[] = [
     { label: MATCH_LABELS.vector, value: scorePercentages.vector ?? game.scores.vector, color: MATCH_COLORS.vector },
     { label: MATCH_LABELS.genre, value: scorePercentages.genre ?? game.scores.genre, color: MATCH_COLORS.genre },
@@ -866,47 +884,60 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
               </div>
 
               <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <span className="terminal-label text-accent">Tag Signal Match</span>
-                  <div className="flex items-center gap-3 text-xs uppercase tracking-[0.12em] text-muted-foreground">
-                    <div className="flex items-center gap-1.5">
-                      <span className="h-2 w-2 rounded-full border" style={{ borderColor: TAG_SIGNAL_REQUEST_BORDER, backgroundColor: TAG_SIGNAL_REQUEST_COLOR }} />
-                      <span>Requested</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="h-2 w-2 rounded-full" style={{ backgroundColor: TAG_SIGNAL_HIT_COLOR, boxShadow: `0 0 8px ${TAG_SIGNAL_HIT_COLOR}` }} />
-                      <span>Matched</span>
-                    </div>
-                  </div>
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                  <span className="terminal-label text-accent">Rerank Tag Impact</span>
+                  <span className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                    Weight x hit
+                  </span>
                 </div>
                 <div className="space-y-3">
-                  {TAG_SIGNAL_KEYS.map((key) => (
-                    <div key={key} className="space-y-1.5">
-                      <div className="flex items-center justify-between gap-3 text-sm uppercase tracking-[0.1em] text-muted-foreground">
-                        <span>{key.replace(/_/g, " ")}</span>
-                        <span className="shrink-0 font-semibold text-foreground">
-                          req {weights.context[key]}% / hit {game.contextScores[key].toFixed(1)}%
+                  {contextImpactRows.map((row) => (
+                    <div key={row.context} className="space-y-1.5">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <span
+                            className="h-2.5 w-2.5 shrink-0 rounded-full"
+                            style={{ backgroundColor: row.color, boxShadow: `0 0 8px ${row.color}` }}
+                          />
+                          <span className="truncate text-sm font-semibold text-slate-100">
+                            {row.label}
+                          </span>
+                        </div>
+                        <span className="shrink-0 text-sm font-semibold text-slate-100">
+                          {row.impact.toFixed(1)}
                         </span>
                       </div>
-                      <div className="relative h-2 overflow-hidden rounded-full bg-white/8">
-                        <div
-                          className="absolute inset-y-0 left-0 rounded-full border"
-                          style={{
-                            width: `${Math.min(weights.context[key], 100)}%`,
-                            borderColor: TAG_SIGNAL_REQUEST_BORDER,
-                            backgroundColor: TAG_SIGNAL_REQUEST_COLOR,
-                          }}
-                        />
-                        <div
-                          className="absolute inset-y-0 left-0 rounded-full"
-                          style={{
-                            width: `${Math.min(Math.max(game.contextScores[key], 0), 100)}%`,
-                            backgroundColor: TAG_SIGNAL_HIT_COLOR,
-                            boxShadow: `0 0 10px ${TAG_SIGNAL_HIT_COLOR}`,
-                            opacity: 0.95,
-                          }}
-                        />
+                      <div className="grid grid-cols-[minmax(0,1fr)_92px] items-center gap-3">
+                        <div className="relative h-2.5 overflow-hidden rounded-full bg-white/8">
+                          <div
+                            className="absolute inset-y-0 left-0 rounded-full opacity-95"
+                            style={{
+                              width: `${Math.min((row.impact / maxContextImpact) * 100, 100)}%`,
+                              backgroundColor: row.color,
+                              boxShadow: `0 0 10px ${row.color}`,
+                            }}
+                          />
+                        </div>
+                        <div className="text-right text-xs font-medium text-muted-foreground">
+                          {row.requestedWeight}% x {row.contextHit.toFixed(0)}%
+                        </div>
                       </div>
+                      {row.tags.length > 0 ? (
+                        <div className="flex flex-wrap gap-1.5">
+                          {row.tags.map((tag) => (
+                            <span
+                              key={`${row.context}-${tag.label}`}
+                              className={tag.influenced
+                                ? "max-w-full truncate rounded-full border border-sky-300/45 bg-sky-400/14 px-2 py-0.5 text-xs font-semibold text-sky-50"
+                                : "max-w-full truncate rounded-full border border-white/12 bg-white/[0.06] px-2 py-0.5 text-xs font-medium text-slate-100/80"
+                              }
+                              title={tag.influenced ? "Matched evidence tag" : "Result tag"}
+                            >
+                              {tag.label}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
                     </div>
                   ))}
                 </div>
