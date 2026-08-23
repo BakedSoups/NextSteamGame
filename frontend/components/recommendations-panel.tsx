@@ -517,9 +517,6 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
   const resultGenres = genreTokens(game)
   const baseGenreKeys = new Set(baseGenres.map(normalizeTagMatchKey))
   const sharedGenres = resultGenres.filter((genre) => baseGenreKeys.has(normalizeTagMatchKey(genre))).slice(0, 4)
-  const resultOnlyGenres = resultGenres
-    .filter((genre) => !baseGenreKeys.has(normalizeTagMatchKey(genre)))
-    .slice(0, 4)
   const evidenceRows = [
     {
       label: "Structure",
@@ -771,8 +768,8 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
                         <span
                           key={`${row.label}-${tag.label}`}
                           className={tag.influenced
-                            ? "rounded-full border border-sky-300/55 bg-sky-400/18 px-2.5 py-1 text-sm font-semibold leading-5 text-sky-50 shadow-[0_0_12px_rgba(56,189,248,0.14)]"
-                            : "rounded-full border border-white/14 bg-white/[0.075] px-2.5 py-1 text-sm font-medium leading-5 text-slate-100/88"
+                            ? "max-w-full truncate rounded-full border border-sky-300/55 bg-sky-400/18 px-2.5 py-1 text-sm font-semibold leading-5 text-sky-50 shadow-[0_0_12px_rgba(56,189,248,0.14)]"
+                            : "max-w-full truncate rounded-full border border-white/14 bg-white/[0.075] px-2.5 py-1 text-sm font-medium leading-5 text-slate-100/88"
                           }
                           title={tag.influenced ? "Influenced this match" : "Result tag"}
                         >
@@ -794,21 +791,11 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
                   <div className="space-y-1.5">
                     <div className="flex flex-wrap gap-1.5">
                       {(sharedGenres.length > 0 ? sharedGenres : resultGenres.slice(0, 3)).map((genre) => (
-                        <span key={`shared-${genre}`} className="rounded-full border border-emerald-300/45 bg-emerald-300/14 px-2 py-0.5 text-xs font-semibold text-emerald-50">
+                        <span key={`shared-${genre}`} className="max-w-full truncate rounded-full border border-emerald-300/45 bg-emerald-300/14 px-2 py-0.5 text-xs font-semibold text-emerald-50">
                           {genre}
                         </span>
                       ))}
                     </div>
-                    <div className="text-xs leading-4 text-emerald-50/70">
-                      <span className="font-semibold uppercase tracking-[0.08em]">Base:</span>{" "}
-                      {baseGenres.slice(0, 3).join(", ")}
-                    </div>
-                    {resultOnlyGenres.length > 0 ? (
-                      <div className="text-xs leading-4 text-emerald-50/70">
-                        <span className="font-semibold uppercase tracking-[0.08em]">Adds:</span>{" "}
-                        {resultOnlyGenres.slice(0, 2).join(", ")}
-                      </div>
-                    ) : null}
                   </div>
                 </div>
               </div>
@@ -838,72 +825,66 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
 
       {/* Expanded Details */}
       {isExpanded && (
-        <div className="p-3 border-t border-border bg-secondary/10 space-y-4">
-          {/* Description */}
-          <p className="text-sm text-muted-foreground leading-relaxed">
-            {game.description}
-          </p>
-          {/* Score Contributions */}
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <Radar className="h-3 w-3 text-primary" />
-              <span className="terminal-label text-primary">What Drove This Match</span>
+        <div className="space-y-4 border-t border-border bg-secondary/10 p-3">
+          <div className="rounded-lg border border-white/10 bg-white/[0.03] px-4 py-3">
+            <div className="mb-1 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+              Store Description
             </div>
-            <p className="mb-3 text-sm leading-5 text-muted-foreground">
-              This breaks down what actually carried the recommendation score for this result.
+            <p className="text-sm leading-6 text-slate-200/84">
+              {game.description}
             </p>
-            <DonutChart
-              title="Match Breakdown"
-              segments={resultMixSegments}
-              centerLabel={`${Math.round(game.matchScore * 100)}%`}
-              size={92}
-              strokeWidth={11}
-            />
           </div>
 
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
-            <div className="space-y-4">
-              <div>
-                <div className="flex items-center gap-2 mb-2">
+          <div className="grid gap-3 xl:grid-cols-[minmax(220px,0.7fr)_minmax(0,1.3fr)]">
+            <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+              <div className="mb-3 flex items-center gap-2">
+                <Radar className="h-3 w-3 text-primary" />
+                <span className="terminal-label text-primary">Score Composition</span>
+              </div>
+              <DonutChart
+                title="Match Breakdown"
+                segments={resultMixSegments}
+                centerLabel={`${Math.round(game.matchScore * 100)}%`}
+                size={92}
+                strokeWidth={11}
+              />
+            </div>
+
+            <div className="grid gap-3 2xl:grid-cols-2">
+              <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+                <div className="mb-3 flex items-center gap-2">
                   <AudioLines className="h-3 w-3 text-accent" />
                   <span className="terminal-label text-accent">Gameplay Overlap</span>
                 </div>
                 {hasVectorOverlap ? (
-                  <>
-                    <p className="mb-3 text-sm leading-6 text-muted-foreground">
-                      Pink is what you asked for. Blue is how this game overlaps across mechanics, narrative, vibe, and structure loop.
-                    </p>
-                    {selectedGame ? <StructuralBars game={game} weights={weights} /> : null}
-                  </>
+                  selectedGame ? <StructuralBars game={game} weights={weights} /> : null
                 ) : (
-                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4 text-sm leading-5 text-muted-foreground">
-                    No meaningful 4-vector overlap was found here.
-                    This result is being carried by genre similarity, appeal alignment, or matched identity / setting / music tags instead of core structural similarity.
+                  <div className="rounded-lg border border-white/10 bg-white/[0.03] px-4 py-4 text-sm leading-5 text-muted-foreground">
+                    No meaningful 4-vector overlap was found here. This result is being carried by genre similarity, appeal alignment, or matched identity / setting / music tags instead.
                   </div>
                 )}
               </div>
 
-              <div>
-                <span className="terminal-label block mb-2 text-accent">Tag Match</span>
-                <p className="mb-3 text-sm leading-5 text-muted-foreground">
-                  Red shows how much signal you asked for. Blue shows how much this game actually matched for identity, setting, and music.
-                </p>
-                <div className="mb-3 flex items-center gap-4 text-sm uppercase tracking-[0.14em] text-muted-foreground">
-                  <div className="flex items-center gap-1.5">
-                    <span className="h-2.5 w-2.5 rounded-full border" style={{ borderColor: TAG_SIGNAL_REQUEST_BORDER, backgroundColor: TAG_SIGNAL_REQUEST_COLOR }} />
-                    <span>Requested</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: TAG_SIGNAL_HIT_COLOR, boxShadow: `0 0 8px ${TAG_SIGNAL_HIT_COLOR}` }} />
-                    <span>Matched</span>
+              <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <span className="terminal-label text-accent">Tag Signal Match</span>
+                  <div className="flex items-center gap-3 text-xs uppercase tracking-[0.12em] text-muted-foreground">
+                    <div className="flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-full border" style={{ borderColor: TAG_SIGNAL_REQUEST_BORDER, backgroundColor: TAG_SIGNAL_REQUEST_COLOR }} />
+                      <span>Requested</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-full" style={{ backgroundColor: TAG_SIGNAL_HIT_COLOR, boxShadow: `0 0 8px ${TAG_SIGNAL_HIT_COLOR}` }} />
+                      <span>Matched</span>
+                    </div>
                   </div>
                 </div>
                 <div className="space-y-3">
                   {TAG_SIGNAL_KEYS.map((key) => (
                     <div key={key} className="space-y-1.5">
-                      <div className="flex items-center justify-between text-sm uppercase tracking-[0.1em] text-muted-foreground">
+                      <div className="flex items-center justify-between gap-3 text-sm uppercase tracking-[0.1em] text-muted-foreground">
                         <span>{key.replace(/_/g, " ")}</span>
-                        <span className="font-semibold text-foreground">
+                        <span className="shrink-0 font-semibold text-foreground">
                           req {weights.context[key]}% / hit {game.contextScores[key].toFixed(1)}%
                         </span>
                       </div>
@@ -931,126 +912,114 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
                 </div>
               </div>
             </div>
+          </div>
 
-            <div className="space-y-4">
-              <div>
-                <span className="terminal-label block mb-2 text-accent">Matched Tags</span>
-                <div className="space-y-3">
-                  {showIdentityMatches && (
-                    <div>
-                      <div className="mb-1 text-sm uppercase tracking-[0.16em] text-muted-foreground">Identity</div>
-                      <div className="flex flex-wrap gap-1">
-                        {matchedTags.identity.map((tag) => (
-                          <span key={`identity-${tag}`} className="tag-chip included">{tag}</span>
-                        ))}
-                      </div>
+          <div className="grid gap-3 xl:grid-cols-2">
+            <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+              <span className="terminal-label mb-3 block text-accent">Matched Evidence</span>
+              <div className="grid gap-3 md:grid-cols-2">
+                {showIdentityMatches && (
+                  <div>
+                    <div className="mb-1 text-sm uppercase tracking-[0.16em] text-muted-foreground">Identity</div>
+                    <div className="flex flex-wrap gap-1">
+                      {matchedTags.identity.map((tag) => (
+                        <span key={`identity-${tag}`} className="tag-chip included">{tag}</span>
+                      ))}
                     </div>
-                  )}
-                  {showSettingMatches && (
-                    <div>
-                      <div className="mb-1 text-sm uppercase tracking-[0.16em] text-muted-foreground">Setting</div>
-                      <div className="flex flex-wrap gap-1">
-                        {matchedTags.setting.map((tag) => (
-                          <span key={`setting-${tag}`} className="tag-chip">{tag}</span>
-                        ))}
-                      </div>
+                  </div>
+                )}
+                {showSettingMatches && (
+                  <div>
+                    <div className="mb-1 text-sm uppercase tracking-[0.16em] text-muted-foreground">Setting</div>
+                    <div className="flex flex-wrap gap-1">
+                      {matchedTags.setting.map((tag) => (
+                        <span key={`setting-${tag}`} className="tag-chip">{tag}</span>
+                      ))}
                     </div>
-                  )}
-                  {showStructureMatches && (
-                    <div>
-                      <div className="mb-1 text-sm uppercase tracking-[0.16em] text-muted-foreground">Structure & Mechanics</div>
-                      <div className="flex flex-wrap gap-1">
-                        {[...matchedTags.structure_loop, ...matchedTags.mechanics].map((tag) => (
-                          <span key={`structure-${tag}`} className="tag-chip">{tag}</span>
-                        ))}
-                      </div>
+                  </div>
+                )}
+                {showStructureMatches && (
+                  <div>
+                    <div className="mb-1 text-sm uppercase tracking-[0.16em] text-muted-foreground">Structure & Mechanics</div>
+                    <div className="flex flex-wrap gap-1">
+                      {[...matchedTags.structure_loop, ...matchedTags.mechanics].map((tag) => (
+                        <span key={`structure-${tag}`} className="tag-chip">{tag}</span>
+                      ))}
                     </div>
-                  )}
-                  {showMusicMatches && (
-                    <div>
-                      <div className="mb-1 text-sm uppercase tracking-[0.16em] text-muted-foreground">Music</div>
-                      <div className="flex flex-wrap gap-1">
-                        {matchedTags.music.map((tag) => (
-                          <span key={`music-${tag}`} className="tag-chip">{tag}</span>
-                        ))}
-                      </div>
+                  </div>
+                )}
+                {showMusicMatches && (
+                  <div>
+                    <div className="mb-1 text-sm uppercase tracking-[0.16em] text-muted-foreground">Music</div>
+                    <div className="flex flex-wrap gap-1">
+                      {matchedTags.music.map((tag) => (
+                        <span key={`music-${tag}`} className="tag-chip">{tag}</span>
+                      ))}
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
+            </div>
 
-              {/* Genres */}
-              <div>
-                <span className="terminal-label block mb-2">Genre Match</span>
-                <p className="mb-3 text-sm leading-5 text-muted-foreground">
-                  Genre overlap acts like a strength multiplier. Strong primary and subgenre alignment makes the recommendation more reliable, while weaker genre overlap means the result is being carried more by structure or niche tags.
-                </p>
-                <div className="flex flex-wrap gap-1">
-                  {game.genres.primary.map(g => (
-                    <span key={g} className="tag-chip included">{g}</span>
-                  ))}
-                  {game.genres.sub.map(g => (
-                    <span key={g} className="tag-chip">{g}</span>
-                  ))}
-                  {game.genres.sub_sub.slice(0, 3).map(g => (
-                    <span key={g} className="tag-chip">{g}</span>
-                  ))}
+            <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+              <span className="terminal-label mb-3 block">Profile Details</span>
+              <div className="grid gap-3 md:grid-cols-2">
+                <div>
+                  <div className="mb-1 text-sm uppercase tracking-[0.16em] text-muted-foreground">Genre Match</div>
+                  <div className="flex flex-wrap gap-1">
+                    {game.genres.primary.map(g => (
+                      <span key={g} className="tag-chip included">{g}</span>
+                    ))}
+                    {game.genres.sub.map(g => (
+                      <span key={g} className="tag-chip">{g}</span>
+                    ))}
+                    {game.genres.sub_sub.slice(0, 3).map(g => (
+                      <span key={g} className="tag-chip">{g}</span>
+                    ))}
+                  </div>
                 </div>
-              </div>
 
-              {/* Full Tag Signals */}
-              <div>
-                <span className="terminal-label block mb-2">Signature & World</span>
-                <div className="space-y-3">
-                  {identityParts.signature.length > 0 && (
-                    <div>
-                      <div className="mb-1 text-sm uppercase tracking-[0.16em] text-muted-foreground">Signature Hook</div>
+                <div>
+                  <div className="mb-1 text-sm uppercase tracking-[0.16em] text-muted-foreground">Music Tags</div>
+                  <div className="flex flex-wrap gap-1">
+                    {game.tags.music.map(tag => (
+                      <span key={tag} className="tag-chip">{tag}</span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="md:col-span-2">
+                  <div className="mb-1 text-sm uppercase tracking-[0.16em] text-muted-foreground">Signature & World</div>
+                  <div className="grid gap-2 md:grid-cols-2">
+                    {identityParts.signature.length > 0 && (
                       <div className="flex flex-wrap gap-1">
                         {identityParts.signature.map((tag) => (
                           <span key={`signature-${tag}`} className="tag-chip included">{tag}</span>
                         ))}
                       </div>
-                    </div>
-                  )}
-                  {identityParts.anchors.length > 0 && (
-                    <div>
-                      <div className="mb-1 text-sm uppercase tracking-[0.16em] text-muted-foreground">Identity Anchors</div>
+                    )}
+                    {identityParts.anchors.length > 0 && (
                       <div className="flex flex-wrap gap-1">
                         {identityParts.anchors.slice(0, 4).map((tag) => (
                           <span key={`anchor-${tag}`} className="tag-chip">{tag}</span>
                         ))}
                       </div>
-                    </div>
-                  )}
-                  {identityParts.details.length > 0 && (
-                    <div>
-                      <div className="mb-1 text-sm uppercase tracking-[0.16em] text-muted-foreground">Identity Details</div>
+                    )}
+                    {identityParts.details.length > 0 && (
                       <div className="flex flex-wrap gap-1">
                         {identityParts.details.slice(0, 4).map((tag) => (
                           <span key={`identity-detail-${tag}`} className="tag-chip">{tag}</span>
                         ))}
                       </div>
-                    </div>
-                  )}
-                  {game.tags.setting.length > 0 && (
-                    <div>
-                      <div className="mb-1 text-sm uppercase tracking-[0.16em] text-muted-foreground">World / Setting</div>
+                    )}
+                    {game.tags.setting.length > 0 && (
                       <div className="flex flex-wrap gap-1">
                         {game.tags.setting.slice(0, 4).map((tag) => (
                           <span key={`setting-${tag}`} className="tag-chip">{tag}</span>
                         ))}
                       </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <span className="terminal-label block mb-2">Music Tags</span>
-                <div className="flex flex-wrap gap-1">
-                  {game.tags.music.map(tag => (
-                    <span key={tag} className="tag-chip">{tag}</span>
-                  ))}
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
