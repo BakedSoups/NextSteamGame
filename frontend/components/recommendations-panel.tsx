@@ -513,6 +513,7 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
     { label: MATCH_LABELS.genre, value: scorePercentages.genre ?? game.scores.genre, color: MATCH_COLORS.genre },
     { label: MATCH_LABELS.music, value: scorePercentages.music ?? game.scores.music, color: MATCH_COLORS.music },
   ].sort((a, b) => b.value - a.value)
+  const receiptTotal = Math.max(1, receiptRows.reduce((total, row) => total + Math.max(row.value, 0), 0))
   const baseGenres = genreTokens(selectedGame)
   const resultGenres = genreTokens(game)
   const baseGenreKeys = new Set(baseGenres.map(normalizeTagMatchKey))
@@ -746,30 +747,41 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
             </div>
             <div className="grid items-start gap-2 xl:grid-cols-[minmax(180px,0.8fr)_minmax(0,1.2fr)]">
               <div className="self-start rounded-lg border border-white/10 bg-white/[0.035] px-3 py-2">
-                <div className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                  Score Recipe
+                <div className="mb-1.5 flex items-center justify-between gap-2">
+                  <div className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                    Score Recipe
+                  </div>
+                  <span className="text-xs font-semibold text-slate-100">
+                    {receiptRows.reduce((total, row) => total + row.value, 0).toFixed(0)}
+                  </span>
                 </div>
-                <div className="space-y-1.5">
+                <div className="mb-2 flex h-2 overflow-hidden rounded-full bg-white/[0.08]">
                   {receiptRows.map((row) => (
-                    <div key={row.label} className="grid grid-cols-[minmax(0,1fr)_44px] items-center gap-2 text-xs">
-                      <div className="min-w-0">
-                        <div className="mb-1 flex items-center gap-1.5 text-slate-200/90">
-                          <span
-                            className="h-2 w-2 shrink-0 rounded-full"
-                            style={{ backgroundColor: row.color, boxShadow: `0 0 8px ${row.color}` }}
-                          />
-                          <span className="truncate">{row.label}</span>
-                        </div>
-                        <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.08]">
-                          <div
-                            className="h-full rounded-full"
-                            style={{ width: `${Math.min(Math.max(row.value, 0), 100)}%`, backgroundColor: row.color }}
-                          />
-                        </div>
+                    <div
+                      key={`score-segment-${row.label}`}
+                      className="h-full"
+                      style={{
+                        width: `${(Math.max(row.value, 0) / receiptTotal) * 100}%`,
+                        backgroundColor: row.color,
+                      }}
+                    />
+                  ))}
+                </div>
+                <div className="grid grid-cols-2 gap-x-2 gap-y-1">
+                  {receiptRows.map((row) => (
+                    <div key={row.label} className="min-w-0 text-xs leading-4">
+                      <div className="flex items-center gap-1.5 text-slate-200/90">
+                        <span
+                          className="h-2 w-2 shrink-0 rounded-full"
+                          style={{ backgroundColor: row.color, boxShadow: `0 0 8px ${row.color}` }}
+                        />
+                        <span className="min-w-0 truncate">
+                          {row.label}
+                        </span>
+                        <span className="ml-auto shrink-0 font-semibold text-slate-100">
+                          {row.value.toFixed(0)}
+                        </span>
                       </div>
-                      <span className="text-right text-sm font-semibold text-slate-100">
-                        {row.value.toFixed(0)}
-                      </span>
                     </div>
                   ))}
                 </div>
