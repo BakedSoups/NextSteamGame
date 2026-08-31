@@ -289,7 +289,9 @@ class CandidateRetriever:
             soundtrack_boosts=soundtrack_boosts,
         )
 
-        if self.store is not None:
+        use_precomputed_candidates = self.store is not None and use_default_chroma_path
+
+        if use_precomputed_candidates:
             precomputed_started = time.perf_counter()
             precomputed_ids = self.store.load_precomputed_candidate_appids(
                 int(game["appid"]),
