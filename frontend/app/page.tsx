@@ -527,7 +527,7 @@ export default function NextSteamGamePage() {
           body: JSON.stringify({
             appid: selectedGame.id,
             weights,
-            limit: 16,
+            limit: 32,
           }),
         })
         if (!cancelled) {
