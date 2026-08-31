@@ -261,17 +261,60 @@ function topRequestedTagMatch(game: RecommendedGame, weights: Weights, selectedG
   return null
 }
 
-function structuredIdentityTags(game: RecommendedGame) {
-  const signature = game.identity?.signatureTag ? [game.identity.signatureTag] : []
-  const anchors = game.identity?.nicheAnchors ?? []
-  const details = Array.from(
-    new Set([...(game.identity?.identityTags ?? []), ...(game.identity?.microTags ?? [])]),
-  )
-  return {
-    signature,
-    anchors,
-    details,
-  }
+function profileCompareSections(selectedGame: Game | null, game: RecommendedGame) {
+  const sections = [
+    {
+      label: "Genre",
+      base: genreTokens(selectedGame),
+      result: genreTokens(game),
+    },
+    {
+      label: "Identity",
+      base: selectedGame ? unique([
+        selectedGame.identity?.signatureTag ?? "",
+        ...(selectedGame.identity?.nicheAnchors ?? []),
+        ...(selectedGame.identity?.identityTags ?? []),
+        ...(selectedGame.identity?.microTags ?? []),
+        ...selectedGame.tags.identity,
+      ].filter(Boolean)) : [],
+      result: unique([
+        game.identity?.signatureTag ?? "",
+        ...(game.identity?.nicheAnchors ?? []),
+        ...(game.identity?.identityTags ?? []),
+        ...(game.identity?.microTags ?? []),
+        ...game.tags.identity,
+      ].filter(Boolean)),
+    },
+    {
+      label: "World",
+      base: selectedGame ? unique([...(selectedGame.identity?.settingTags ?? []), ...selectedGame.tags.setting]) : [],
+      result: unique([...(game.identity?.settingTags ?? []), ...game.tags.setting]),
+    },
+    {
+      label: "Music",
+      base: selectedGame ? unique([
+        selectedGame.identity?.musicPrimary ?? "",
+        selectedGame.identity?.musicSecondary ?? "",
+        ...selectedGame.tags.music,
+      ].filter(Boolean)) : [],
+      result: unique([
+        game.identity?.musicPrimary ?? "",
+        game.identity?.musicSecondary ?? "",
+        ...game.tags.music,
+      ].filter(Boolean)),
+    },
+  ]
+
+  return sections.map((section) => {
+    const baseKeys = new Set(section.base.map(normalizeTagMatchKey))
+    const resultKeys = new Set(section.result.map(normalizeTagMatchKey))
+    return {
+      label: section.label,
+      shared: section.result.filter((tag) => baseKeys.has(normalizeTagMatchKey(tag))),
+      baseOnly: section.base.filter((tag) => !resultKeys.has(normalizeTagMatchKey(tag))).slice(0, 5),
+      resultOnly: section.result.filter((tag) => !baseKeys.has(normalizeTagMatchKey(tag))).slice(0, 5),
+    }
+  }).filter((section) => section.shared.length > 0 || section.baseOnly.length > 0 || section.resultOnly.length > 0)
 }
 
 function SteamReviewBar({ positivePercent, reviewCount }: { positivePercent: number | null; reviewCount: number }) {
@@ -507,13 +550,6 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
   const requestedTagMatch = topRequestedTagMatch(game, weights, selectedGame)
   const visibleHighlights = highlights.slice(0, 3)
   const primaryHighlight = visibleHighlights[0]
-  const receiptRows = [
-    { label: MATCH_LABELS.vector, value: scorePercentages.vector ?? game.scores.vector, color: MATCH_COLORS.vector },
-    { label: MATCH_LABELS.appeal, value: scorePercentages.appeal ?? game.scores.appeal, color: MATCH_COLORS.appeal },
-    { label: MATCH_LABELS.genre, value: scorePercentages.genre ?? game.scores.genre, color: MATCH_COLORS.genre },
-    { label: MATCH_LABELS.music, value: scorePercentages.music ?? game.scores.music, color: MATCH_COLORS.music },
-  ].sort((a, b) => b.value - a.value)
-  const receiptTotal = Math.max(1, receiptRows.reduce((total, row) => total + Math.max(row.value, 0), 0))
   const baseGenres = genreTokens(selectedGame)
   const resultGenres = genreTokens(game)
   const baseGenreKeys = new Set(baseGenres.map(normalizeTagMatchKey))
@@ -564,7 +600,7 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
   ]
   const steamReview = reviewSummary(game)
   const screenshots = (game.screenshots ?? []).filter(Boolean).slice(0, 3)
-  const identityParts = structuredIdentityTags(game)
+  const profileCompareRows = profileCompareSections(selectedGame, game)
   const saveFeedback = (feedback: "up" | "down") => {
     setSavedFeedback(feedback)
     onFeedback?.(game, rank, feedback)
@@ -740,54 +776,12 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
           </div>
         )}
 
-        {(receiptRows.length > 0 || evidenceRows.length > 0) && (
+        {evidenceRows.length > 0 && (
           <div className="mb-3">
             <div className="mb-2 text-sm uppercase tracking-[0.18em] text-muted-foreground">
               Match Receipt
             </div>
-            <div className="grid items-start gap-2 xl:grid-cols-[minmax(180px,0.8fr)_minmax(0,1.2fr)]">
-              <div className="self-start rounded-lg border border-white/10 bg-white/[0.035] px-3 py-2">
-                <div className="mb-1.5 flex items-center justify-between gap-2">
-                  <div className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                    Score Recipe
-                  </div>
-                  <span className="text-xs font-semibold text-slate-100">
-                    {receiptRows.reduce((total, row) => total + row.value, 0).toFixed(0)}
-                  </span>
-                </div>
-                <div className="mb-2 flex h-2 overflow-hidden rounded-full bg-white/[0.08]">
-                  {receiptRows.map((row) => (
-                    <div
-                      key={`score-segment-${row.label}`}
-                      className="h-full"
-                      style={{
-                        width: `${(Math.max(row.value, 0) / receiptTotal) * 100}%`,
-                        backgroundColor: row.color,
-                      }}
-                    />
-                  ))}
-                </div>
-                <div className="grid grid-cols-2 gap-x-2 gap-y-1">
-                  {receiptRows.map((row) => (
-                    <div key={row.label} className="min-w-0 text-xs leading-4">
-                      <div className="flex items-center gap-1.5 text-slate-200/90">
-                        <span
-                          className="h-2 w-2 shrink-0 rounded-full"
-                          style={{ backgroundColor: row.color, boxShadow: `0 0 8px ${row.color}` }}
-                        />
-                        <span className="min-w-0 truncate">
-                          {row.label}
-                        </span>
-                        <span className="ml-auto shrink-0 font-semibold text-slate-100">
-                          {row.value.toFixed(0)}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="grid items-start gap-2 md:grid-cols-2 2xl:grid-cols-4">
+            <div className="grid items-start gap-2 md:grid-cols-2 2xl:grid-cols-4">
                 {evidenceRows.map((row) => (
                   <div key={row.label} className="min-w-0 rounded-lg border border-white/10 bg-white/[0.035] px-3 py-2">
                     <div className="mb-1 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
@@ -798,8 +792,8 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
                         <span
                           key={`${row.label}-${tag.label}`}
                           className={tag.influenced
-                            ? "max-w-full truncate rounded-full border border-sky-300/55 bg-sky-400/18 px-2.5 py-1 text-sm font-semibold leading-5 text-sky-50 shadow-[0_0_12px_rgba(56,189,248,0.14)]"
-                            : "max-w-full truncate rounded-full border border-white/14 bg-white/[0.075] px-2.5 py-1 text-sm font-medium leading-5 text-slate-100/88"
+                            ? "max-w-full whitespace-normal break-words rounded-full border border-sky-300/55 bg-sky-400/18 px-2.5 py-1 text-sm font-semibold leading-5 text-sky-50 shadow-[0_0_12px_rgba(56,189,248,0.14)]"
+                            : "max-w-full whitespace-normal break-words rounded-full border border-white/14 bg-white/[0.075] px-2.5 py-1 text-sm font-medium leading-5 text-slate-100/88"
                           }
                           title={tag.influenced ? "Influenced this match" : "Result tag"}
                         >
@@ -821,14 +815,13 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
                   <div className="space-y-1.5">
                     <div className="flex flex-wrap gap-1.5">
                       {(sharedGenres.length > 0 ? sharedGenres : resultGenres.slice(0, 3)).map((genre) => (
-                        <span key={`shared-${genre}`} className="max-w-full truncate rounded-full border border-emerald-300/45 bg-emerald-300/14 px-2 py-0.5 text-xs font-semibold text-emerald-50">
+                        <span key={`shared-${genre}`} className="max-w-full whitespace-normal break-words rounded-full border border-emerald-300/45 bg-emerald-300/14 px-2 py-0.5 text-xs font-semibold text-emerald-50">
                           {genre}
                         </span>
                       ))}
                     </div>
                   </div>
                 </div>
-              </div>
             </div>
           </div>
         )}
@@ -940,8 +933,8 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
                             <span
                               key={`${row.context}-${tag.label}`}
                               className={tag.influenced
-                                ? "max-w-full truncate rounded-full border border-sky-300/45 bg-sky-400/14 px-2 py-0.5 text-xs font-semibold text-sky-50"
-                                : "max-w-full truncate rounded-full border border-white/12 bg-white/[0.06] px-2 py-0.5 text-xs font-medium text-slate-100/80"
+                                ? "max-w-full whitespace-normal break-words rounded-full border border-sky-300/45 bg-sky-400/14 px-2 py-0.5 text-xs font-semibold text-sky-50"
+                                : "max-w-full whitespace-normal break-words rounded-full border border-white/12 bg-white/[0.06] px-2 py-0.5 text-xs font-medium text-slate-100/80"
                               }
                               title={tag.influenced ? "Matched evidence tag" : "Result tag"}
                             >
@@ -1005,65 +998,53 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
             </div>
 
             <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
-              <span className="terminal-label mb-3 block">Profile Details</span>
-              <div className="grid gap-3 md:grid-cols-2">
-                <div>
-                  <div className="mb-1 text-sm uppercase tracking-[0.16em] text-muted-foreground">Genre Match</div>
-                  <div className="flex flex-wrap gap-1">
-                    {game.genres.primary.map(g => (
-                      <span key={g} className="tag-chip included">{g}</span>
-                    ))}
-                    {game.genres.sub.map(g => (
-                      <span key={g} className="tag-chip">{g}</span>
-                    ))}
-                    {game.genres.sub_sub.slice(0, 3).map(g => (
-                      <span key={g} className="tag-chip">{g}</span>
-                    ))}
-                  </div>
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <span className="terminal-label block">Profile Comparison</span>
+                <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+                  <span className="inline-flex items-center gap-1">
+                    <span className="h-2 w-2 rounded-full bg-emerald-300" />
+                    Shared
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <span className="h-2 w-2 rounded-full bg-amber-300" />
+                    Base
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <span className="h-2 w-2 rounded-full bg-cyan-300" />
+                    Result
+                  </span>
                 </div>
-
-                <div>
-                  <div className="mb-1 text-sm uppercase tracking-[0.16em] text-muted-foreground">Music Tags</div>
-                  <div className="flex flex-wrap gap-1">
-                    {game.tags.music.map(tag => (
-                      <span key={tag} className="tag-chip">{tag}</span>
-                    ))}
+              </div>
+              <div className="space-y-3">
+                {profileCompareRows.map((row) => (
+                  <div key={`profile-compare-${row.label}`} className="rounded-lg border border-white/10 bg-black/10 p-2.5">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <div className="text-sm font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                        {row.label}
+                      </div>
+                      <span className="text-xs font-semibold text-emerald-100/80">
+                        {row.shared.length} shared
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {row.shared.map((tag) => (
+                        <span key={`${row.label}-shared-${tag}`} className="max-w-full whitespace-normal break-words rounded-full border border-emerald-300/45 bg-emerald-300/14 px-2 py-0.5 text-xs font-semibold text-emerald-50">
+                          {tag}
+                        </span>
+                      ))}
+                      {row.baseOnly.map((tag) => (
+                        <span key={`${row.label}-base-${tag}`} className="max-w-full whitespace-normal break-words rounded-full border border-amber-300/35 bg-amber-300/10 px-2 py-0.5 text-xs font-medium text-amber-50/90">
+                          {tag}
+                        </span>
+                      ))}
+                      {row.resultOnly.map((tag) => (
+                        <span key={`${row.label}-result-${tag}`} className="max-w-full whitespace-normal break-words rounded-full border border-cyan-300/35 bg-cyan-300/10 px-2 py-0.5 text-xs font-medium text-cyan-50/90">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                </div>
-
-                <div className="md:col-span-2">
-                  <div className="mb-1 text-sm uppercase tracking-[0.16em] text-muted-foreground">Signature & World</div>
-                  <div className="grid gap-2 md:grid-cols-2">
-                    {identityParts.signature.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {identityParts.signature.map((tag) => (
-                          <span key={`signature-${tag}`} className="tag-chip included">{tag}</span>
-                        ))}
-                      </div>
-                    )}
-                    {identityParts.anchors.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {identityParts.anchors.slice(0, 4).map((tag) => (
-                          <span key={`anchor-${tag}`} className="tag-chip">{tag}</span>
-                        ))}
-                      </div>
-                    )}
-                    {identityParts.details.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {identityParts.details.slice(0, 4).map((tag) => (
-                          <span key={`identity-detail-${tag}`} className="tag-chip">{tag}</span>
-                        ))}
-                      </div>
-                    )}
-                    {game.tags.setting.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {game.tags.setting.slice(0, 4).map((tag) => (
-                          <span key={`setting-${tag}`} className="tag-chip">{tag}</span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
+                ))}
               </div>
             </div>
           </div>
