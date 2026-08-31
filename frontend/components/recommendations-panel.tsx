@@ -148,13 +148,15 @@ function genreTokens(game: Pick<Game, "category" | "genres"> | null) {
   ].filter(Boolean))
 }
 
-function evidenceTags(influencedTags: string[], fallbackTags: string[], limit = 3) {
+function evidenceTags(influencedTags: string[], fallbackTags: string[], limit = 3, tunedTag?: string) {
   const influencedKeys = new Set(influencedTags.map(normalizeTagMatchKey))
+  const tunedKey = tunedTag ? normalizeTagMatchKey(tunedTag) : null
   return unique([...influencedTags, ...fallbackTags])
     .slice(0, limit)
     .map((label) => ({
       label,
       influenced: influencedKeys.has(normalizeTagMatchKey(label)),
+      tuned: tunedKey === normalizeTagMatchKey(label),
     }))
 }
 
@@ -560,6 +562,10 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
       tags: evidenceTags(
         [...matchedTags.structure_loop, ...matchedTags.mechanics],
         [...game.tags.structure_loop, ...game.tags.mechanics],
+        3,
+        requestedTagMatch?.context === "structure_loop" || requestedTagMatch?.context === "mechanics"
+          ? requestedTagMatch.tag
+          : undefined,
       ),
     },
     {
@@ -567,11 +573,20 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
       tags: evidenceTags(
         [...matchedTags.identity, ...matchedTags.setting],
         [...game.tags.identity, ...game.tags.setting],
+        3,
+        requestedTagMatch?.context === "identity" || requestedTagMatch?.context === "setting"
+          ? requestedTagMatch.tag
+          : undefined,
       ),
     },
     {
       label: "Music",
-      tags: evidenceTags(matchedTags.music, game.tags.music),
+      tags: evidenceTags(
+        matchedTags.music,
+        game.tags.music,
+        3,
+        requestedTagMatch?.context === "music" ? requestedTagMatch.tag : undefined,
+      ),
     },
   ].filter((row) => row.tags.length > 0)
   const contextImpactRows = (Object.keys(weights.context) as TagContextKey[])
@@ -752,27 +767,17 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
         )}
 
         {requestedTagMatch && (
-          <div className="mb-3 rounded-2xl border border-cyan-200/22 bg-cyan-300/[0.075] px-3.5 py-3 shadow-[0_0_22px_rgba(34,211,238,0.08)]">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div className="min-w-0">
-                <div className="text-sm uppercase tracking-[0.18em] text-cyan-100">
-                  Main Tuning Hit
-                </div>
-                <div className="mt-1 flex min-w-0 flex-wrap items-center gap-2">
-                  <span className="min-w-0 truncate text-base font-semibold text-cyan-50">
-                    {requestedTagMatch.tag}
-                  </span>
-                  <span className="rounded-full border border-cyan-200/25 bg-cyan-200/12 px-2 py-0.5 text-xs font-semibold text-cyan-50">
-                    {requestedTagMatch.exact ? `${Math.round(requestedTagMatch.requestedWeight)}% asked` : "closest hit"}
-                  </span>
-                </div>
-              </div>
-              <div className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs font-semibold uppercase tracking-[0.12em] text-cyan-100/72 sm:justify-end">
-                <span>{TAG_CONTEXT_LABELS[requestedTagMatch.context]}</span>
-                <span>hit {requestedTagMatch.contextHit.toFixed(1)}%</span>
-                <span>{MATCH_LABELS[requestedTagMatch.component]} {requestedTagMatch.componentShare.toFixed(0)}%</span>
-              </div>
-            </div>
+          <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 border-l-2 border-amber-300/60 pl-2 text-sm text-slate-200/84">
+            <span className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              Boosted by
+            </span>
+            <span className="font-semibold text-slate-100">{requestedTagMatch.tag}</span>
+            <span className="rounded-full border border-amber-300/35 bg-amber-300/10 px-2 py-0.5 text-xs font-semibold text-amber-50">
+              {requestedTagMatch.exact ? `${Math.round(requestedTagMatch.requestedWeight)}% asked` : "closest hit"}
+            </span>
+            <span className="text-xs font-medium uppercase tracking-[0.1em] text-muted-foreground">
+              {TAG_CONTEXT_LABELS[requestedTagMatch.context]} {requestedTagMatch.contextHit.toFixed(1)}%
+            </span>
           </div>
         )}
 
@@ -791,11 +796,13 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
                       {row.tags.map((tag) => (
                         <span
                           key={`${row.label}-${tag.label}`}
-                          className={tag.influenced
-                            ? "max-w-full whitespace-normal break-words rounded-full border border-sky-300/55 bg-sky-400/18 px-2.5 py-1 text-sm font-semibold leading-5 text-sky-50 shadow-[0_0_12px_rgba(56,189,248,0.14)]"
-                            : "max-w-full whitespace-normal break-words rounded-full border border-white/14 bg-white/[0.075] px-2.5 py-1 text-sm font-medium leading-5 text-slate-100/88"
+                          className={tag.tuned
+                            ? "max-w-full whitespace-normal break-words rounded-full border border-amber-300/60 bg-amber-300/16 px-2.5 py-1 text-sm font-semibold leading-5 text-amber-50 shadow-[0_0_12px_rgba(252,211,77,0.14)]"
+                            : tag.influenced
+                              ? "max-w-full whitespace-normal break-words rounded-full border border-sky-300/55 bg-sky-400/18 px-2.5 py-1 text-sm font-semibold leading-5 text-sky-50 shadow-[0_0_12px_rgba(56,189,248,0.14)]"
+                              : "max-w-full whitespace-normal break-words rounded-full border border-white/14 bg-white/[0.075] px-2.5 py-1 text-sm font-medium leading-5 text-slate-100/88"
                           }
-                          title={tag.influenced ? "Influenced this match" : "Result tag"}
+                          title={tag.tuned ? "Matched your tuning" : tag.influenced ? "Influenced this match" : "Result tag"}
                         >
                           {tag.label}
                         </span>
