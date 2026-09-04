@@ -28,6 +28,9 @@ from db_creation.paths import chroma_dir_path
 ROOT = Path(__file__).resolve().parent
 HOST = "127.0.0.1"
 PORT = 8000
+LIVE_CANDIDATE_LIMIT = 100
+LIVE_CHROMA_LIMIT = 100
+LIVE_PRESCREEN_LIMIT = 150
 
 
 def load_project_env() -> None:
@@ -318,10 +321,14 @@ def _serialize_recommendation(item: dict) -> dict[str, Any]:
         },
         "scorePercentages": dict(item.get("weighted_component_percentages", {})),
         "contextScores": {
-            "mechanics": float(item.get("vector_context_percentages", {}).get("mechanics", 0.0)),
-            "narrative": float(item.get("vector_context_percentages", {}).get("narrative", 0.0)),
-            "vibe": float(item.get("vector_context_percentages", {}).get("vibe", 0.0)),
-            "structure_loop": float(item.get("vector_context_percentages", {}).get("structure_loop", 0.0)),
+            # Vector breakdown values are independent 0..1 similarities. Do not use
+            # vector_context_percentages here: those describe each context's share
+            # of the vector score and can turn a lone weak match into a misleading
+            # 100% "hit" in the comparison UI.
+            "mechanics": float(item.get("vector_context_breakdown", {}).get("mechanics", 0.0)) * 100.0,
+            "narrative": float(item.get("vector_context_breakdown", {}).get("narrative", 0.0)) * 100.0,
+            "vibe": float(item.get("vector_context_breakdown", {}).get("vibe", 0.0)) * 100.0,
+            "structure_loop": float(item.get("vector_context_breakdown", {}).get("structure_loop", 0.0)) * 100.0,
             "identity": float(item.get("signal_context_percentages", {}).get("identity", 0.0)),
             "setting": float(item.get("signal_context_percentages", {}).get("setting", 0.0)),
             "music": float(item.get("active_context_percentages", {}).get("music", 0.0)),
@@ -353,6 +360,30 @@ def _normalize_tag_weight_map(payload: dict[str, dict[str, float]] | None) -> tu
         else:
             vector_weights[context] = cleaned
     return vector_weights, soundtrack_weights
+
+
+def _only_changed_tag_weights(
+    game: dict,
+    payload: dict[str, dict[str, float]] | None,
+) -> dict[str, dict[str, float]]:
+    """Remove UI defaults so an untouched request can use precomputed candidates."""
+    baseline = _build_tag_weights(game)
+    changed: dict[str, dict[str, float]] = {}
+
+    def comparable(entries: dict[str, float] | dict[str, int]) -> dict[str, float]:
+        return {
+            str(tag).replace("_", " ").replace("-", " ").lower(): float(value)
+            for tag, value in entries.items()
+        }
+
+    for context, entries in (payload or {}).items():
+        requested = comparable(entries)
+        defaults = comparable(baseline.get(context, {}))
+        if requested.keys() != defaults.keys() or any(
+            abs(value - defaults[tag]) > 0.001 for tag, value in requested.items()
+        ):
+            changed[context] = entries
+    return changed
 
 
 @app.get("/api/health")
@@ -399,7 +430,8 @@ def get_recommendations(payload: RecommendationRequest) -> JSONResponse:
     component_percentages = weights.match or default_component_percentages()
     context_percentages = weights.context or default_context_percentages()
     appeal_axes = weights.appeal or default_appeal_axes(game["metadata"])
-    tag_weights, soundtrack_weights = _normalize_tag_weight_map(weights.tags)
+    changed_tag_weights = _only_changed_tag_weights(game, weights.tags)
+    tag_weights, soundtrack_weights = _normalize_tag_weight_map(changed_tag_weights)
     genres = weights.genres or game["metadata"].get("genre_tree", {})
 
     base_tree = game["metadata"].get("genre_tree", {})
@@ -414,9 +446,9 @@ def get_recommendations(payload: RecommendationRequest) -> JSONResponse:
 
     candidate_games = retriever.retrieve_candidates(
         game,
-        chroma_limit=300,
-        prescreen_limit=450,
-        merged_limit=300,
+        chroma_limit=LIVE_CHROMA_LIMIT,
+        prescreen_limit=LIVE_PRESCREEN_LIMIT,
+        merged_limit=LIVE_CANDIDATE_LIMIT,
         context_percentages=context_percentages,
         tag_boosts=tag_weights,
         soundtrack_boosts=soundtrack_weights,

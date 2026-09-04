@@ -475,11 +475,11 @@ function StructuralBars({ game, weights }: { game: RecommendedGame; weights: Wei
       <div className="flex flex-wrap gap-4 text-sm uppercase tracking-[0.14em] text-muted-foreground">
         <div className="flex items-center gap-1.5">
           <span className="h-2.5 w-2.5 rounded-full border border-pink-300/80 bg-pink-300/20" />
-          <span>Requested</span>
+          <span>Ranking influence</span>
         </div>
         <div className="flex items-center gap-1.5">
           <span className="h-2.5 w-2.5 rounded-full bg-sky-300" />
-          <span>Matched</span>
+          <span>Similarity</span>
         </div>
       </div>
       <div className="space-y-4">
@@ -494,7 +494,7 @@ function StructuralBars({ game, weights }: { game: RecommendedGame; weights: Wei
                 <span className="font-semibold capitalize">{axis.replace(/_/g, " ")}</span>
               </div>
               <span className="shrink-0 text-sm font-semibold text-muted-foreground">
-                req {weights.context[axis]}% / hit {game.contextScores[axis].toFixed(1)}%
+                influence {weights.context[axis]}% / similarity {game.contextScores[axis].toFixed(1)}%
               </span>
             </div>
             <div className="relative h-3 overflow-hidden rounded-full bg-white/8">

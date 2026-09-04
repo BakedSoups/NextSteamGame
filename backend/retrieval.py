@@ -289,7 +289,11 @@ class CandidateRetriever:
             soundtrack_boosts=soundtrack_boosts,
         )
 
-        use_precomputed_candidates = self.store is not None and use_default_chroma_path
+        # Production keeps a precomputed candidate pool for every game. Reuse it
+        # for tuned requests as well, then apply the user's controls in the local
+        # reranker. Generating a fresh text embedding for every slider change is
+        # prohibitively slow on small CPU-only servers.
+        use_precomputed_candidates = self.store is not None
 
         if use_precomputed_candidates:
             precomputed_started = time.perf_counter()
