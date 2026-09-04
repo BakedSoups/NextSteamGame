@@ -29,6 +29,7 @@ The project has three main layers:
 Current runtime application:
 
 <img width="1958" height="1198" alt="image" src="https://github.com/user-attachments/assets/05f8ca2c-5578-41c2-8b3e-7d45d4ae61ff" />
+<img width="1986" height="1433" alt="image" src="https://github.com/user-attachments/assets/26c461ad-472d-41d3-aee9-02e57d3ee42a" />
 
 ## How Recommendations Work
 
