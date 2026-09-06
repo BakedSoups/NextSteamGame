@@ -73,8 +73,8 @@ export function SearchBar({ games, isLoading = false, onQueryChange, onSelect, s
     } else if (e.key === "ArrowUp") {
       e.preventDefault()
       setFocusedIndex(prev => Math.max(prev - 1, 0))
-    } else if (e.key === "Enter" && focusedIndex >= 0) {
-      handleSelect(filteredGames[focusedIndex])
+    } else if (e.key === "Enter" && filteredGames.length > 0) {
+      handleSelect(filteredGames[Math.max(focusedIndex, 0)])
     } else if (e.key === "Escape") {
       setIsOpen(false)
       inputRef.current?.blur()
@@ -82,9 +82,9 @@ export function SearchBar({ games, isLoading = false, onQueryChange, onSelect, s
   }
 
   return (
-    <div className="relative" ref={dropdownRef}>
+    <div className="group/search relative" ref={dropdownRef}>
       <div className="relative">
-        <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+        <Search className="absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within/search:text-cyan-200" />
         <input
           ref={inputRef}
           type="text"
@@ -104,8 +104,13 @@ export function SearchBar({ games, isLoading = false, onQueryChange, onSelect, s
             }
           }}
           onKeyDown={handleKeyDown}
-          placeholder="Search games..."
-          className="h-14 w-full rounded-xl border border-border bg-card pl-12 pr-11 text-base text-foreground shadow-[0_18px_42px_rgba(0,0,0,0.18)] transition-all placeholder:text-muted-foreground focus:border-foreground/20 focus:outline-none focus:ring-2 focus:ring-ring/20 sm:h-18 sm:rounded-2xl sm:pl-14 sm:pr-12 sm:text-lg"
+          placeholder="Search a game you already love…"
+          aria-activedescendant={focusedIndex >= 0 ? `game-search-result-${filteredGames[focusedIndex]?.id}` : undefined}
+          aria-autocomplete="list"
+          aria-controls="game-search-results"
+          aria-expanded={isOpen}
+          role="combobox"
+          className="h-16 w-full rounded-xl border border-white/16 bg-[#101d2a]/95 pl-12 pr-11 text-base text-foreground shadow-[0_20px_52px_rgba(0,0,0,0.32)] transition-all duration-300 placeholder:text-slate-400 focus:border-cyan-200/65 focus:outline-none focus:ring-2 focus:ring-cyan-300/20 focus:shadow-[0_0_0_1px_rgba(125,211,252,0.14),0_22px_64px_rgba(0,0,0,0.42),0_0_34px_rgba(56,189,248,0.13)] sm:h-20 sm:rounded-2xl sm:pl-14 sm:pr-12 sm:text-lg"
         />
         {query && (
           <button
@@ -123,27 +128,36 @@ export function SearchBar({ games, isLoading = false, onQueryChange, onSelect, s
 
       {isOpen && filteredGames.length > 0 && (
         <div
-          className="fixed left-4 right-4 top-[var(--mobile-dropdown-top)] z-[90] max-h-[45dvh] overflow-hidden rounded-xl border border-border bg-card shadow-[0_24px_60px_rgba(0,0,0,0.38)] sm:absolute sm:left-0 sm:right-0 sm:top-full sm:z-50 sm:mt-3 sm:max-h-none sm:rounded-2xl"
+          className="search-results-enter fixed left-4 right-4 top-[var(--mobile-dropdown-top)] z-[90] max-h-[45dvh] overflow-hidden rounded-xl border border-cyan-200/20 bg-[#101d2a]/98 shadow-[0_28px_70px_rgba(0,0,0,0.5)] backdrop-blur-xl sm:absolute sm:left-0 sm:right-0 sm:top-full sm:z-50 sm:mt-3 sm:max-h-none sm:rounded-2xl"
           style={mobileDropdownStyle}
+          id="game-search-results"
+          role="listbox"
         >
-          <div className="max-h-[48dvh] overflow-y-auto custom-scrollbar sm:max-h-72">
+          <div className="flex items-center justify-between border-b border-white/8 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+            <span>{filteredGames.length} {filteredGames.length === 1 ? "result" : "results"}</span>
+          </div>
+          <div className="max-h-[48dvh] overflow-y-auto custom-scrollbar sm:max-h-80">
             {filteredGames.map((game, index) => (
               <button
                 key={game.id}
+                id={`game-search-result-${game.id}`}
                 onClick={() => handleSelect(game)}
                 onMouseEnter={() => setFocusedIndex(index)}
-                className={`flex w-full items-center gap-3 px-3 py-3 text-left transition-colors sm:gap-4 sm:px-4 sm:py-4 ${
+                role="option"
+                aria-selected={focusedIndex === index}
+                style={{ animationDelay: `${Math.min(index * 28, 180)}ms` }}
+                className={`search-result-enter group/result flex w-full items-center gap-3 border-l-2 px-3 py-3 text-left transition-all sm:gap-4 sm:px-4 sm:py-3.5 ${
                   focusedIndex === index 
-                    ? "bg-secondary" 
-                    : "hover:bg-secondary/50"
+                    ? "border-cyan-300 bg-cyan-300/10 shadow-[inset_12px_0_28px_rgba(34,211,238,0.04)]"
+                    : "border-transparent hover:border-cyan-300/40 hover:bg-white/5"
                 } ${selectedGame?.id === game.id ? "bg-secondary/30" : ""}`}
               >
-                <div className="relative h-10 w-16 flex-shrink-0 overflow-hidden rounded bg-muted sm:h-12 sm:w-20">
+                <div className="relative h-11 w-[74px] flex-shrink-0 overflow-hidden rounded-md border border-white/10 bg-muted shadow-[0_8px_18px_rgba(0,0,0,0.24)] sm:h-14 sm:w-24">
                   <Image
                     src={game.assets.libraryCapsule || game.assets.capsuleV5 || game.image || IMAGE_FALLBACK}
                     alt={game.title}
                     fill
-                    className="object-cover"
+                    className="object-cover transition-transform duration-300 group-hover/result:scale-[1.04]"
                     unoptimized
                   />
                 </div>

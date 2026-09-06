@@ -910,21 +910,24 @@ export default function NextSteamGamePage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: jsonLdScriptValue(websiteStructuredData) }}
       />
-      <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur-sm">
+      <header className="sticky top-0 z-50 border-b border-white/8 bg-[#07111b]/92 backdrop-blur-xl">
         <div className="mx-auto max-w-[1800px] px-6 py-4">
-          <div className="relative flex items-start justify-between gap-6">
+          <div className="relative flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <button
                 onClick={() => goToScreen("search")}
-                className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-border bg-background/60 p-2 text-sm text-foreground shadow-[0_10px_28px_rgba(0,0,0,0.18)] transition hover:bg-secondary/40"
+                className="group/logo inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/12 bg-black/30 p-2 text-sm text-foreground shadow-[0_10px_28px_rgba(0,0,0,0.22)] transition hover:border-cyan-200/35 hover:bg-white/5"
                 aria-label="Home"
                 title="Home"
               >
                 <img
                   src={steamLogo.src}
                   alt="Steam"
-                  className="h-full w-full object-contain"
+                  className="h-full w-full object-contain transition-transform duration-300 group-hover/logo:rotate-6"
                 />
+              </button>
+              <button onClick={() => goToScreen("search")} className="hidden text-left sm:block" aria-label="NextSteamGame home">
+                <span className="block text-sm font-semibold tracking-wide text-slate-100">NextSteamGame</span>
               </button>
               <div className="inline-flex rounded-full border border-border bg-secondary/40 p-0.5 shadow-[0_10px_28px_rgba(0,0,0,0.18)]">
                 <button
@@ -951,6 +954,22 @@ export default function NextSteamGamePage() {
                 </button>
               </div>
             </div>
+
+            <a
+              href="https://github.com/BakedSoups/NextSteamGame"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/[0.04] px-3 py-2 text-sm font-medium text-slate-200 transition hover:border-cyan-200/35 hover:bg-white/[0.08] hover:text-white"
+            >
+              <Github className="h-4 w-4" />
+              <span className="hidden sm:inline">GitHub</span>
+              {githubStarCount !== null ? (
+                <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs font-semibold tabular-nums text-white/90">
+                  {githubStarCount.toLocaleString()}
+                </span>
+              ) : null}
+              <Star className="hidden h-3.5 w-3.5 fill-current sm:block" />
+            </a>
 
             {controlMode === "advanced" && showModeHint ? (
               <div
@@ -990,55 +1009,42 @@ export default function NextSteamGamePage() {
             <img
               src={gameShelfBackground.src}
               alt=""
-              className="absolute inset-0 h-full w-full object-cover object-center md:object-[center_42%]"
+              className="launch-background absolute inset-0 h-full w-full object-cover object-center md:object-[center_42%]"
             />
-            <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(8,13,19,0.58),rgba(8,13,19,0.78)),linear-gradient(90deg,rgba(8,13,19,0.30),rgba(8,13,19,0.42))]" />
-            <a
-              href="https://github.com/BakedSoups/NextSteamGame"
-              target="_blank"
-              rel="noreferrer"
-              className="absolute right-4 top-4 z-20 inline-flex items-center gap-2 rounded-full border border-white/18 bg-black/40 px-3 py-2 text-sm font-medium text-white shadow-[0_12px_30px_rgba(0,0,0,0.28)] backdrop-blur transition hover:bg-black/55 sm:right-6 sm:top-6"
-            >
-              <Github className="h-4 w-4" />
-              <span>GitHub</span>
-              {githubStarCount !== null ? (
-                <span className="rounded-full bg-white/12 px-2 py-0.5 text-xs font-semibold tabular-nums text-white/90">
-                  {githubStarCount.toLocaleString()}
-                </span>
-              ) : null}
-              <Star className="h-3.5 w-3.5 fill-current" />
-            </a>
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_47%,rgba(31,142,190,0.13),transparent_26rem),linear-gradient(180deg,rgba(5,11,17,0.42)_0%,rgba(8,13,19,0.65)_42%,rgba(5,10,16,0.88)_100%),linear-gradient(90deg,rgba(3,8,13,0.44)_0%,rgba(8,13,19,0.18)_48%,rgba(3,8,13,0.58)_100%)]" />
+            <div className="launch-scanlines pointer-events-none absolute inset-0 opacity-[0.055]" />
             <a
               href={SNEAKY_FISHY_URL}
               target="_blank"
               rel="noreferrer"
-              className="fixed bottom-6 right-6 z-[80] hidden w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-cyan-200/35 bg-black/78 text-left text-white shadow-[0_18px_46px_rgba(0,0,0,0.46)] backdrop-blur transition hover:-translate-y-0.5 hover:border-cyan-200/65 hover:bg-black/86 sm:block"
+              className="group/fishy absolute bottom-7 right-7 z-20 hidden w-[min(24rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-cyan-200/28 bg-[#09131e]/88 text-left text-white shadow-[0_22px_60px_rgba(0,0,0,0.48),0_0_28px_rgba(34,211,238,0.06)] backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:border-cyan-200/55 hover:shadow-[0_28px_70px_rgba(0,0,0,0.52),0_0_34px_rgba(34,211,238,0.11)] lg:block"
             >
               <span
                 aria-hidden="true"
-                className="block h-40 w-full bg-cover bg-center"
+                className="block h-44 w-full bg-cover bg-center transition-transform duration-500 group-hover/fishy:scale-[1.025]"
                 style={{ backgroundImage: `linear-gradient(180deg, rgba(0,0,0,0.08), rgba(0,0,0,0.18)), url(${sneakyFishyImage.src})` }}
               />
               <span className="flex min-w-0 flex-col gap-1.5 px-4 py-3">
-                <span className="text-sm font-semibold uppercase tracking-[0.14em] text-cyan-200/90">
-                  Support my sister&apos;s new game
+                <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-cyan-200/90">
+                  <span className="rounded-full border border-cyan-200/25 bg-cyan-200/8 px-2 py-0.5">Featured indie</span>
+                  From the family
                 </span>
                 <span className="flex items-center gap-1.5 text-lg font-semibold leading-tight">
                   Sneaky Fishy
                   <ExternalLink className="h-3.5 w-3.5 shrink-0" />
                 </span>
                 <span className="text-sm leading-5 text-white/76">
-                  Check it out, it&apos;s her first game. No, it&apos;s not in the recommender yet. Not an endpoint yet :(
+                  My sister&apos;s first game, a tiny stealth adventure worth a look.
                 </span>
               </span>
             </a>
             <div className="relative z-10 flex min-h-[calc(100dvh-77px)] items-start justify-center px-4 pb-40 pt-14 sm:items-center sm:px-8 sm:pb-12 sm:pt-8 md:min-h-[calc(125dvh-77px)] md:px-12 md:pt-10">
               <div className="w-full max-w-5xl text-center">
-                <div className="flex items-center justify-center gap-4 sm:gap-6">
+                <div className="group/hero-logo flex items-center justify-center gap-4 sm:gap-6">
                   <img
                     src={steamLogo.src}
                     alt="Steam"
-                    className="h-16 w-16 shrink-0 object-contain sm:h-32 sm:w-32 md:h-40 md:w-40"
+                    className="launch-logo h-16 w-16 shrink-0 object-contain transition-transform duration-500 group-hover/hero-logo:rotate-3 sm:h-32 sm:w-32 md:h-40 md:w-40"
                   />
                   <div className="min-w-0 space-y-2 text-left">
                     <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-[2.85rem] md:text-[3.5rem] xl:text-[3.9rem]">
@@ -1062,6 +1068,19 @@ export default function NextSteamGamePage() {
                   />
                 </div>
                 {searchError && <p className="mt-4 text-sm text-red-300">{searchError}</p>}
+                <a
+                  href={SNEAKY_FISHY_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mx-auto mt-8 flex max-w-md overflow-hidden rounded-2xl border border-cyan-200/25 bg-[#09131e]/88 text-left text-white shadow-[0_20px_50px_rgba(0,0,0,0.4)] backdrop-blur lg:hidden"
+                >
+                  <span aria-hidden="true" className="w-28 shrink-0 bg-cover bg-center sm:w-36" style={{ backgroundImage: `url(${sneakyFishyImage.src})` }} />
+                  <span className="min-w-0 px-4 py-3">
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-200">Featured indie · From the family</span>
+                    <span className="mt-1 flex items-center gap-1.5 font-semibold">Sneaky Fishy <ExternalLink className="h-3.5 w-3.5" /></span>
+                    <span className="mt-1 block text-xs leading-5 text-white/68">My sister&apos;s first game, a tiny stealth adventure worth a look.</span>
+                  </span>
+                </a>
               </div>
             </div>
           </div>

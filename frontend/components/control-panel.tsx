@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { ArrowRight, Check, ChevronDown, ChevronRight, Puzzle, Sparkles, Grid3X3, Activity, Zap, ThumbsDown, ThumbsUp } from "lucide-react"
+import { ArrowRight, Check, ChevronDown, ChevronRight, Puzzle, Sparkles, Grid3X3, Activity, SlidersHorizontal, Zap, ThumbsDown, ThumbsUp, ScanLine, Gamepad, BookOpen, Gauge, Shuffle, BadgeInfo, type LucideIcon } from "lucide-react"
 import type { Game, Weights } from "@/lib/types"
 import { unique } from "@/lib/collections"
 import { MATCH_LABELS } from "@/lib/score-labels"
@@ -49,13 +49,13 @@ type SimpleIntent =
   | "stronger_atmosphere"
   | "more_distinctive"
 
-const SIMPLE_INTENTS: { key: SimpleIntent; label: string; hint: string }[] = [
-  { key: "more_similar", label: "More Like This", hint: "Stay closer to the base game's structure and feel" },
-  { key: "better_gameplay", label: "Emphasize Gameplay", hint: "Shift the match toward systems, structure, and play feel" },
-  { key: "more_story", label: "Focus on Story", hint: "Shift the match toward story, character presence, and narrative pull" },
-  { key: "stronger_atmosphere", label: "Emphasize Atmosphere", hint: "Shift the match toward mood, tone, and overall feel" },
-  { key: "more_different", label: "More Different", hint: "Loosen the match and allow more novelty" },
-  { key: "more_distinctive", label: "Focus on Identity", hint: "Shift the match toward signature traits and standout identity" },
+const SIMPLE_INTENTS: { key: SimpleIntent; label: string; hint: string; icon: LucideIcon }[] = [
+  { key: "more_similar", label: "More Like This", hint: "Stay closer to the base game's structure and feel", icon: ScanLine },
+  { key: "better_gameplay", label: "Emphasize Gameplay", hint: "Shift the match toward systems, structure, and play feel", icon: Gamepad },
+  { key: "more_story", label: "Focus on Story", hint: "Shift the match toward story, character presence, and narrative pull", icon: BookOpen },
+  { key: "stronger_atmosphere", label: "Emphasize Atmosphere", hint: "Shift the match toward mood, tone, and overall feel", icon: Gauge },
+  { key: "more_different", label: "More Different", hint: "Loosen the match and allow more novelty", icon: Shuffle },
+  { key: "more_distinctive", label: "Focus on Identity", hint: "Shift the match toward signature traits and standout identity", icon: BadgeInfo },
 ]
 
 const CONTEXT_VISUALS: Record<
@@ -627,6 +627,7 @@ export function ControlPanel({
     vectors: null,
     tags: null,
   })
+  const [lastSimpleIntent, setLastSimpleIntent] = useState<SimpleIntent | null>(null)
   const [showFeedbackToast, showFeedbackSavedToast] = useTimedToast()
   const signalFeaturedGroups = featuredTags.filter((group) => TAG_SIGNAL_CONTEXT_KEYS.includes(group.context))
   const activeSignalTags = Object.entries(weights.tags)
@@ -666,25 +667,45 @@ export function ControlPanel({
         <div className="panel p-3 glow-box-subtle">
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-2">
-              <Zap className="h-3.5 w-3.5" />
+              <SlidersHorizontal className="h-3.5 w-3.5 text-[#66c0f4]" />
               <span className="text-sm font-semibold text-foreground">Quick Taste Shaping</span>
             </div>
             <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
               {SIMPLE_INTENTS.map((intent) => (
-                <button
-                  key={intent.key}
-                  type="button"
-                  onClick={() => onSimpleIntentBoost(intent.key)}
-                  title={intent.hint}
-                  className="min-h-[64px] rounded-lg border border-white/10 bg-white/[0.045] px-3 py-2 text-left transition hover:border-primary/45 hover:bg-primary/10"
-                >
-                  <span className="block text-sm font-semibold leading-5 text-foreground">
-                    {intent.label}
-                  </span>
-                  <span className="mt-0.5 block text-xs leading-4 text-muted-foreground">
-                    {intent.hint}
-                  </span>
-                </button>
+                (() => {
+                  const IntentIcon = intent.icon
+                  const isApplied = lastSimpleIntent === intent.key
+                  return (
+                    <button
+                      key={intent.key}
+                      type="button"
+                      onClick={() => {
+                        setLastSimpleIntent(intent.key)
+                        onSimpleIntentBoost(intent.key)
+                      }}
+                      title={intent.hint}
+                      aria-pressed={isApplied}
+                      className={`group/intent relative min-h-[76px] overflow-hidden rounded-md border px-3 py-2.5 text-left transition-colors ${
+                        isApplied ? "border-[#66c0f4]/55 bg-[#66c0f4]/10" : "border-white/9 bg-white/[0.025] hover:border-[#66c0f4]/35 hover:bg-white/[0.055]"
+                      }`}
+                    >
+                      <span className="flex items-start gap-2.5">
+                        <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center text-slate-400 group-hover/intent:text-[#66c0f4]">
+                          <IntentIcon className="h-[18px] w-[18px]" strokeWidth={1.7} />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="flex items-center justify-between gap-2 text-sm font-semibold leading-5 text-foreground">
+                            <span>{intent.label}</span>
+                            {isApplied ? <Check className="h-3.5 w-3.5 shrink-0 text-[#66c0f4]" /> : <ArrowRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/55 transition-transform group-hover/intent:translate-x-0.5" />}
+                          </span>
+                          <span className="mt-1 block text-xs leading-4 text-muted-foreground">
+                            {isApplied ? "Applied to this match" : intent.hint}
+                          </span>
+                        </span>
+                      </span>
+                    </button>
+                  )
+                })()
               ))}
             </div>
           </div>

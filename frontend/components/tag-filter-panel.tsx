@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useMemo } from "react"
-import { ArrowRight, Check, Search, X, Filter, ChevronDown, ChevronRight, Crosshair } from "lucide-react"
+import { useState, useMemo, type CSSProperties } from "react"
+import { Check, Search, X, Filter, ChevronDown, ChevronRight, ListFilter, Gamepad, MessageSquareText, Cloud, Repeat, BadgeInfo, Globe2, Volume2, type LucideIcon } from "lucide-react"
 
 interface TagFilterState {
   include: string[]
@@ -24,6 +24,16 @@ const CATEGORY_LABELS: Record<string, string> = {
   identity: "Identity",
   setting: "Setting",
   music: "Music"
+}
+
+const CATEGORY_VISUALS: Record<string, { icon: LucideIcon; accent: string }> = {
+  mechanics: { icon: Gamepad, accent: "#66c0f4" },
+  narrative: { icon: MessageSquareText, accent: "#66c0f4" },
+  vibe: { icon: Cloud, accent: "#66c0f4" },
+  structure_loop: { icon: Repeat, accent: "#66c0f4" },
+  identity: { icon: BadgeInfo, accent: "#66c0f4" },
+  setting: { icon: Globe2, accent: "#66c0f4" },
+  music: { icon: Volume2, accent: "#66c0f4" },
 }
 
 export function TagFilterPanel({ filters, tagOptions, onFiltersChange }: TagFilterPanelProps) {
@@ -85,7 +95,7 @@ export function TagFilterPanel({ filters, tagOptions, onFiltersChange }: TagFilt
     <div className="panel overflow-hidden glow-box-subtle">
       {/* Header */}
       <div className="panel-header">
-        <Crosshair className="w-3.5 h-3.5 text-primary" />
+        <ListFilter className="w-3.5 h-3.5 text-primary" />
         <span className="text-sm font-medium text-foreground">Micro Tag Filters</span>
         {activeFilterCount > 0 ? <span className="ml-auto data-value">{activeFilterCount} active</span> : <span className="ml-auto" />}
       </div>
@@ -144,16 +154,25 @@ export function TagFilterPanel({ filters, tagOptions, onFiltersChange }: TagFilt
 
       {/* Tag Categories */}
       <div className="max-h-64 overflow-y-auto custom-scrollbar">
-        {Object.entries(filteredTags).map(([category, tags]) => (
-          <div key={category} className="border-b border-border/50 last:border-b-0">
+        {Object.entries(filteredTags).map(([category, tags]) => {
+          const visual = CATEGORY_VISUALS[category] ?? CATEGORY_VISUALS.mechanics
+          const CategoryIcon = visual.icon
+          const selectedCount = tags.filter((tag) => filters.include.includes(tag)).length
+          const categoryStyle = { "--tag-accent": visual.accent } as CSSProperties
+
+          return <div key={category} className="border-b border-border/50 last:border-b-0" style={categoryStyle}>
             <button
               onClick={() => toggleCategory(category)}
               className="w-full flex items-center justify-between px-3 py-2 hover:bg-secondary/30 transition-colors"
             >
-              <span className="text-sm font-medium text-foreground">
-                {CATEGORY_LABELS[category]}
+              <span className="flex min-w-0 items-center gap-2 text-sm font-medium text-foreground">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center text-slate-400" style={{ color: visual.accent }}>
+                  <CategoryIcon className="h-3.5 w-3.5" strokeWidth={1.7} />
+                </span>
+                <span>{CATEGORY_LABELS[category] ?? category}</span>
               </span>
               <div className="flex items-center gap-2">
+                {selectedCount > 0 ? <span className="rounded-full px-1.5 py-0.5 text-[10px] font-bold" style={{ color: visual.accent, backgroundColor: `${visual.accent}16` }}>{selectedCount} ON</span> : null}
                 <span className="terminal-label">{tags.length}</span>
                 {expandedCategories.includes(category) ? (
                   <ChevronDown className="w-3.5 h-3.5 text-primary" />
@@ -165,7 +184,7 @@ export function TagFilterPanel({ filters, tagOptions, onFiltersChange }: TagFilt
             
             {expandedCategories.includes(category) && (
               <div className="px-3 pb-2.5">
-                <div className="grid gap-1.5 sm:grid-cols-2">
+                <div className="space-y-1">
                   {tags.map(tag => {
                     const isIncluded = filters.include.includes(tag)
                     
@@ -178,9 +197,10 @@ export function TagFilterPanel({ filters, tagOptions, onFiltersChange }: TagFilt
                           isIncluded ? "included" : ""
                         }`}
                       >
-                        <span className="min-w-0 break-words leading-4">{tag}</span>
+                        <span className="filter-tag-accent" aria-hidden="true" />
+                        <span className="min-w-0 flex-1 truncate leading-4" title={tag}>{tag}</span>
                         <span className="filter-tag-arrow" aria-hidden="true">
-                          {isIncluded ? <Check className="h-3.5 w-3.5" /> : <ArrowRight className="h-3.5 w-3.5" />}
+                          {isIncluded ? <Check className="h-3.5 w-3.5" /> : <span className="h-1.5 w-1.5 rounded-full bg-current opacity-40" />}
                         </span>
                       </button>
                     )
@@ -189,7 +209,7 @@ export function TagFilterPanel({ filters, tagOptions, onFiltersChange }: TagFilt
               </div>
             )}
           </div>
-        ))}
+        })}
         
         {Object.keys(filteredTags).length === 0 && (
           <div className="p-4 text-center">
