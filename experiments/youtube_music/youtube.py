@@ -10,13 +10,21 @@ import requests
 API_ROOT = "https://www.googleapis.com/youtube/v3"
 
 NOISY_TITLE_TERMS = {
-    "ambience", "ambient", "chill", "compilation", "extended", "full album",
-    "full soundtrack", "hours", "mix", "relax", "sleep", "study", "workout",
+    "ambience", "ambient", "chill", "compilation", "concert", "cover", "epic version",
+    "extended", "full album", "full soundtrack", "hours", "interview", "mix",
+    "opening movie", "orchestral version", "piano version", "relax", "reveal trailer",
+    "sleep", "study", "teaser trailer", "trailer music", "workout",
 }
 OFFICIAL_CHANNEL_TERMS = {
     "atlus", "bandai namco", "bethesda", "capcom", "devolver", "ea music",
     "game music", "microsoft", "nintendo", "playstation", "sega", "square enix",
     "ubisoft", "xbox",
+}
+HARD_REJECT_TITLE_TERMS = {
+    "concert", "cover", "epic version", "interview", "opening movie",
+    "breaks down", "composed the music", "music video", "orchestral version", "piano version", "reveal trailer",
+    "sheet music", "songs are connected", "teaser trailer", "trailer music",
+    "the soundtrack is", "trailer soundtrack", "tribute", "(live)", "[live]",
 }
 
 
@@ -109,6 +117,9 @@ def select_tracks(candidates: Iterable[Candidate], game_name: str, limit: int = 
     seen_titles: set[str] = set()
     seen_video_ids: set[str] = set()
     for score, candidate, signals in ranked:
+        searchable_identity = f"{candidate.title} {candidate.channel}".casefold()
+        if any(term in searchable_identity for term in HARD_REJECT_TITLE_TERMS):
+            continue
         identity = normalized_track_title(candidate.title, game_name) or candidate.video_id
         if candidate.video_id in seen_video_ids or identity in seen_titles:
             continue

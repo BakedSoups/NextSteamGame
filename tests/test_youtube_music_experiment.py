@@ -37,6 +37,17 @@ class YouTubeMusicExperimentTests(unittest.TestCase):
         self.assertIn("publisher_or_official_channel", selected[0]["signals"])
         self.assertEqual(selected[0]["provenance"]["playlist_title"], "Persona 5 Original Soundtrack")
 
+    def test_track_ranking_rejects_covers_trailers_and_interviews(self) -> None:
+        candidates = [
+            Candidate("cover", "Undertale His Theme Orchestral Cover", "Fan", 5_000_000, "PT4M"),
+            Candidate("trailer", "Mass Effect Official Reveal Trailer", "Official", 9_000_000, "PT3M"),
+            Candidate("interview", "Hollow Knight Soundtrack Interview", "Composer", 500_000, "PT8M"),
+            Candidate("sheet", "Undertale", "Sheet Music Boss", 8_000_000, "PT4M"),
+            Candidate("track", "Undertale", "Toby Fox", 10_000_000, "PT6M"),
+        ]
+        selected = select_tracks(candidates, "Undertale")
+        self.assertEqual([item["video_id"] for item in selected], ["track"])
+
     def test_track_selection_deduplicates_normalized_titles(self) -> None:
         candidates = [
             Candidate("one", "Persona 4 OST - Reach Out To The Truth", "SEGA", 1000, "PT2M50S"),
