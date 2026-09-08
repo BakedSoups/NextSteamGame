@@ -15,6 +15,10 @@ It is deliberately isolated from the production database pipeline.
 6. Analyze authorized local WAV audio. For walkthroughs, detect musical change
    points before classification; for OST tracks, classify representative windows.
 7. Aggregate instrument and genre evidence into a JSON report.
+8. Project raw Discogs labels into a game-focused profile with primary genres,
+   subgenres, musical traits, instruments, and review-pipeline-ready
+   `music_primary` and `music_secondary` values. Vague labels are retained only
+   in the audit field rather than exposed as the game's identity.
 
 The YouTube Data API supplies metadata only. This experiment does not download
 YouTube media. Pass audio you own, created, or otherwise have permission to
@@ -73,4 +77,5 @@ flag. Generated manifests, audio, and model files are excluded from Git.
 - Essentia CNN adapter: implemented; TensorFlow-enabled Essentia is required
 - official model download, multi-track genre/instrument classification, and
   evidence aggregation: implemented
+- game-focused genre taxonomy and vague-label suppression: implemented
 - production DB integration: intentionally not implemented

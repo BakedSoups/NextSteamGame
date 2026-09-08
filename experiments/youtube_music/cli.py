@@ -9,6 +9,7 @@ from pathlib import Path
 from .audio import SpectralBaselineClassifier, detect_music_segments, read_wav_mono
 from .cnn import EssentiaEffNetClassifier, aggregate_predictions, ensure_models, website_tags
 from .scrape import YtDlpMetadataDiscovery, acquire_authorized_audio
+from .taxonomy import build_music_profile
 from .youtube import YouTubeDiscovery
 
 
@@ -85,6 +86,7 @@ def classify(args: argparse.Namespace) -> int:
             "genres": website_tags(genres),
             "instruments": website_tags(instruments, minimum_score=0.10),
         },
+        "music_profile": build_music_profile(genres, instruments, len(predictions)),
     }
     path = output_path(args.appid, "classification")
     path.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")

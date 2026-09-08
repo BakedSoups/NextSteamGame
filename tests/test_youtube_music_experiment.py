@@ -8,6 +8,7 @@ import numpy as np
 from experiments.youtube_music.audio import detect_music_segments
 from experiments.youtube_music.cnn import aggregate_predictions, model_nodes, top_predictions, website_tags
 from experiments.youtube_music.scrape import acquire_authorized_audio, seconds_to_iso8601
+from experiments.youtube_music.taxonomy import build_music_profile
 from experiments.youtube_music.youtube import Candidate, chunks, iso8601_seconds, select_tracks
 
 
@@ -108,6 +109,26 @@ class YouTubeMusicExperimentTests(unittest.TestCase):
 
     def test_seconds_to_iso8601(self) -> None:
         self.assertEqual(seconds_to_iso8601(3723), "PT1H2M3S")
+
+    def test_music_profile_prefers_specific_supported_genres(self) -> None:
+        profile = build_music_profile(
+            [
+                {"label": "Electronic---Experimental", "score": 0.4, "evidence_count": 3},
+                {"label": "Jazz---Fusion", "score": 0.35, "evidence_count": 3},
+                {"label": "Funk / Soul---Funk", "score": 0.28, "evidence_count": 2},
+                {"label": "Electronic---Ambient", "score": 0.09, "evidence_count": 3},
+            ],
+            [
+                {"label": "brass", "score": 0.3, "evidence_count": 3},
+                {"label": "guitar", "score": 0.1, "evidence_count": 2},
+            ],
+            track_count=3,
+        )
+        self.assertEqual(profile["music_primary"], "jazz fusion")
+        self.assertEqual(profile["music_secondary"], "funk")
+        self.assertEqual(profile["musical_traits"][0]["tag"], "ambient")
+        self.assertEqual([item["tag"] for item in profile["instruments"]], ["brass", "guitar"])
+        self.assertIn("experimental", profile["suppressed_vague_labels"])
 
 
 if __name__ == "__main__":
