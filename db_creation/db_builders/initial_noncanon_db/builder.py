@@ -59,6 +59,7 @@ class InitialNoncanonDbBuilder:
         self.output_db_path = output_db_path
         self.output_db_path.parent.mkdir(parents=True, exist_ok=True)
         self.max_workers = max(1, max_workers or min(4, (os.cpu_count() or 2)))
+        self.preserve_existing_on_skipped = False
 
     def metadata_conn(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self.metadata_db_path)
@@ -178,7 +179,12 @@ class InitialNoncanonDbBuilder:
         filtered_rows = [row for row in rows if int(row["appid"]) not in existing_appids]
         return filtered_rows
 
-    def load_games_for_appids(self, appids: List[int]) -> List[sqlite3.Row]:
+    def load_games_for_appids(
+        self,
+        appids: List[int],
+        *,
+        include_existing: bool = False,
+    ) -> List[sqlite3.Row]:
         unique_appids = sorted({int(appid) for appid in appids})
         if not unique_appids:
             return []
@@ -200,6 +206,8 @@ class InitialNoncanonDbBuilder:
                 query = query_template.format(placeholders=placeholders)
                 loaded_rows.extend(connection.execute(query, chunk).fetchall())
 
+        if include_existing:
+            return loaded_rows
         existing_appids = self.load_existing_appids()
         return [row for row in loaded_rows if int(row["appid"]) not in existing_appids]
 
@@ -209,6 +217,12 @@ class InitialNoncanonDbBuilder:
         return int(row["count"])
 
     def store_profiles(self, profiles: List[Dict]) -> None:
+        if self.preserve_existing_on_skipped:
+            profiles = [
+                entry
+                for entry in profiles
+                if not str(entry["profile"].get("metadata", {}).get("status", "")).strip()
+            ]
         if not profiles:
             return
 
@@ -319,7 +333,9 @@ class InitialNoncanonDbBuilder:
                         },
                     }
                 )
-            except WORKER_BUILD_ERROR_TYPES as exc:
+            # External clients use their own exception hierarchies. Do not let an
+            # unexpected client error silently kill a worker thread.
+            except Exception as exc:
                 result_queue.put(
                     {
                         "kind": "error",
@@ -552,6 +568,8 @@ class InitialNoncanonDbBuilder:
         limit: Optional[int] = None,
         notes: Optional[str] = None,
         appids: Optional[List[int]] = None,
+        replace_existing: bool = False,
+        preserve_existing_on_skipped: bool = False,
     ) -> Dict:
         log_banner("Initial Non-Canonical DB Build")
         log_stage("setup", detail="preparing non-canon DB schema")
@@ -559,6 +577,7 @@ class InitialNoncanonDbBuilder:
         log_stage("setup", detail="loading insightful words")
         insightful_words = load_insightful_words()
         reset_semantics_retry_stats()
+        self.preserve_existing_on_skipped = preserve_existing_on_skipped
         log_stage("setup", detail="counting existing stored profiles")
         existing_profiles = self.count_existing_profiles()
 
@@ -572,7 +591,7 @@ class InitialNoncanonDbBuilder:
         try:
             log_stage("setup", detail="loading candidate games from metadata DB")
             if appids is not None:
-                rows = self.load_games_for_appids(appids)
+                rows = self.load_games_for_appids(appids, include_existing=replace_existing)
             else:
                 rows = self.load_games(limit=limit)
             log_stage("setup", detail=f"queued {len(rows)} games after resume filtering")

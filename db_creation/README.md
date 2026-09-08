@@ -485,6 +485,24 @@ So visual work exists, but it is intentionally an add-on layer, not yet the main
 
 ## Running Stages Independently
 
+Retry stored non-canon failures with an audit-first command:
+
+```bash
+python db_creation/retry_noncanon_status.py
+python db_creation/retry_noncanon_status.py --appid 1875830 --run
+python db_creation/retry_noncanon_status.py --status no_steam_review --run
+python db_creation/retry_noncanon_status.py \
+  --status no_reviews \
+  --status no_reviews_after_filtering \
+  --status no_insightful_reviews \
+  --min-reviews 100 \
+  --run
+```
+
+The default status is `no_steam_review`. Existing rows are replaced only when a
+retry produces a successful semantic profile. After successful repairs, rebuild
+the final canonical database and reload the runtime stores.
+
 Each stage can be rerun independently if its inputs already exist.
 
 Examples:

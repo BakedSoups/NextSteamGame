@@ -264,7 +264,10 @@ def fetch_steam_reviews(APP_ID):
         "num_per_page": 100,
         "language": "english",
         "review_type": "all",
-        "purchase_type": "steam",
+        # Include free-to-play, key-activated, and complimentary-license reviews.
+        # Restricting this to "steam" made popular games such as Warframe and
+        # Fallout Shelter appear to have few or no usable reviews.
+        "purchase_type": "all",
     }
 
     raw_reviews = []
