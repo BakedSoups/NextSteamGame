@@ -54,6 +54,9 @@ temp/
 
 # Generated analysis outputs
 db_creation/analysis/
+experiments/youtube_music/audio_cache/
+experiments/youtube_music/models/
+experiments/youtube_music/output/
 
 # Common generated data artifacts
 *.csv

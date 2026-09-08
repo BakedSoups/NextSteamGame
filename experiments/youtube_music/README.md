@@ -33,6 +33,25 @@ later without rewriting discovery and segmentation.
 export YOUTUBE_API_KEY=...
 python -m experiments.youtube_music.cli discover --appid 1113000 --game "Persona 4 Golden"
 
+# API-key-free metadata fallback
+python -m experiments.youtube_music.cli scrape --appid 1113000 --game "Persona 4 Golden"
+
+# Download the official Essentia model graphs and label metadata
+python -m experiments.youtube_music.cli download-models
+
+# Only use this for media you own or have permission to analyze
+python -m experiments.youtube_music.cli acquire \
+  --manifest experiments/youtube_music/output/1113000.discovery.json \
+  --confirm-authorized
+
+# Classify one or more authorized 16 kHz WAV files and aggregate the evidence
+python -m experiments.youtube_music.cli classify --appid 1113000 \
+  --audio experiments/youtube_music/audio_cache/*.wav
+
+# Or run classification in the isolated Python 3.11 Essentia container
+experiments/youtube_music/run_classifier.sh classify --appid 1113000 \
+  --audio experiments/youtube_music/audio_cache/track.wav
+
 python -m experiments.youtube_music.cli analyze \
   --manifest experiments/youtube_music/output/1113000.discovery.json \
   --audio path/to/authorized-audio.wav \
@@ -41,6 +60,9 @@ python -m experiments.youtube_music.cli analyze \
 
 Discovery uses `search.list`, `playlistItems.list`, and batched `videos.list`
 statistics. Search is quota-expensive, so manifests are cached under `output/`.
+The `scrape` command uses yt-dlp for metadata only and does not require an API
+key. Audio acquisition is a separate command with an explicit rights-confirmation
+flag. Generated manifests, audio, and model files are excluded from Git.
 
 ## Current status
 
@@ -48,5 +70,7 @@ statistics. Search is quota-expensive, so manifests are cached under `output/`.
 - source-aware top-three ranking, deduplication, and provenance: implemented
 - WAV decoding and change-point segmentation: implemented
 - classifier interface and deterministic spectral baseline: implemented
-- Essentia CNN adapter: scaffolded; model files must be supplied explicitly
+- Essentia CNN adapter: implemented; TensorFlow-enabled Essentia is required
+- official model download, multi-track genre/instrument classification, and
+  evidence aggregation: implemented
 - production DB integration: intentionally not implemented

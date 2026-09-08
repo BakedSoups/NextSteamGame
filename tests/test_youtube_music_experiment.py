@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import unittest
+from pathlib import Path
 
 import numpy as np
 
 from experiments.youtube_music.audio import detect_music_segments
-from experiments.youtube_music.cnn import top_predictions
+from experiments.youtube_music.cnn import aggregate_predictions, model_nodes, top_predictions, website_tags
+from experiments.youtube_music.scrape import acquire_authorized_audio, seconds_to_iso8601
 from experiments.youtube_music.youtube import Candidate, chunks, iso8601_seconds, select_tracks
 
 
@@ -65,6 +67,47 @@ class YouTubeMusicExperimentTests(unittest.TestCase):
             limit=2,
         )
         self.assertEqual([item["label"] for item in result], ["guitar", "piano"])
+
+    def test_prediction_aggregation_preserves_evidence_count(self) -> None:
+        reports = [
+            {"genres": [{"label": "Jazz", "score": 0.8}]},
+            {"genres": [{"label": "Jazz", "score": 0.6}, {"label": "Rock", "score": 0.5}]},
+        ]
+        result = aggregate_predictions(reports, "genres")
+        self.assertEqual(result[0], {"label": "Jazz", "score": 0.7, "evidence_count": 2})
+        self.assertEqual(result[1], {"label": "Rock", "score": 0.25, "evidence_count": 1})
+
+    def test_website_tags_normalizes_model_taxonomy(self) -> None:
+        result = website_tags([
+            {"label": "Jazz---Fusion", "score": 0.8},
+            {"label": "Electronic---Jazz_Fusion", "score": 0.5},
+            {"label": "Rock---Noise", "score": 0.01},
+        ])
+        self.assertEqual(result, [
+            {"tag": "jazz fusion", "confidence": 0.8},
+        ])
+
+    def test_model_nodes_uses_declared_prediction_output(self) -> None:
+        import json
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as directory:
+            metadata = Path(directory) / "model.json"
+            metadata.write_text(json.dumps({"schema": {
+                "inputs": [{"name": "input"}],
+                "outputs": [
+                    {"name": "hidden", "output_purpose": ""},
+                    {"name": "scores", "output_purpose": "predictions"},
+                ],
+            }}))
+            self.assertEqual(model_nodes(metadata), ("input", "scores"))
+
+    def test_audio_acquisition_requires_rights_confirmation(self) -> None:
+        with self.assertRaises(PermissionError):
+            acquire_authorized_audio("example", Path("unused.wav"))
+
+    def test_seconds_to_iso8601(self) -> None:
+        self.assertEqual(seconds_to_iso8601(3723), "PT1H2M3S")
 
 
 if __name__ == "__main__":
