@@ -21,3 +21,11 @@ The JSON report is written under `db_creation/analysis/`.
 The report separates exact five-way ontology accuracy from merge-decision accuracy.
 That distinction matters: a conservative `related` judgment in place of `right_parent`
 loses hierarchy detail, while a false `synonym` judgment corrupts every game's tags.
+
+Audit the most suspicious v6 replacements across 14 representative real games:
+
+```bash
+python3 -m db_creation.canon_group_pipeline.v7_experiment.sample_games
+```
+
+This also writes a report under `db_creation/analysis/` and leaves the databases unchanged.
