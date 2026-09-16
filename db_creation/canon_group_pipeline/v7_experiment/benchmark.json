@@ -1,0 +1,22 @@
+[
+  {"left":"platformer","right":"Platformer","context":"mechanics","gold":"synonym","note":"case-only variant"},
+  {"left":"puzzle-platformer","right":"puzzle platformer","context":"mechanics","gold":"synonym","note":"punctuation variant"},
+  {"left":"action-adventure","right":"action adventure","context":"genre","gold":"synonym","note":"punctuation variant"},
+  {"left":"arcade racer","right":"arcade racing","context":"genre","gold":"synonym","note":"inflection variant"},
+  {"left":"character-driven narrative","right":"character-driven storytelling","context":"narrative","gold":"synonym","note":"same concept"},
+  {"left":"precision platforming","right":"platforming","context":"mechanics","gold":"right_parent","note":"right is broader"},
+  {"left":"psychological horror","right":"horror","context":"vibe","gold":"right_parent","note":"right is broader"},
+  {"left":"deckbuilding roguelike","right":"roguelike","context":"genre","gold":"right_parent","note":"right is broader"},
+  {"left":"turn-based RPG","right":"RPG","context":"genre","gold":"right_parent","note":"right is broader"},
+  {"left":"shooter","right":"first-person shooter","context":"genre","gold":"left_parent","note":"left is broader"},
+  {"left":"card game","right":"board game","context":"genre","gold":"related","note":"neighboring tabletop forms, not interchangeable"},
+  {"left":"third-person shooter","right":"first-person shooter","context":"genre","gold":"related","note":"sibling shooter genres"},
+  {"left":"tactical shooter","right":"tactical RPG","context":"genre","gold":"related","note":"shared tactical emphasis, different genre"},
+  {"left":"dark","right":"tense","context":"vibe","gold":"related","note":"overlapping moods, not equivalents"},
+  {"left":"resource management","right":"tower placement","context":"mechanics","gold":"related","note":"co-occurring mechanics, not equivalents"},
+  {"left":"platformer","right":"arcade racing","context":"genre","gold":"unrelated","note":"known v6 catastrophic merge"},
+  {"left":"puzzle game","right":"adult game","context":"genre","gold":"unrelated","note":"known v6 catastrophic merge"},
+  {"left":"indie shooter","right":"farming simulation","context":"genre","gold":"unrelated","note":"generic indie must not cause a merge"},
+  {"left":"orchestral soundtrack","right":"turn-based combat","context":"mixed","gold":"unrelated","note":"facet mismatch"},
+  {"left":"story-rich","right":"controller support","context":"mixed","gold":"unrelated","note":"facet mismatch"}
+]
