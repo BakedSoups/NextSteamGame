@@ -29,3 +29,11 @@ python3 -m db_creation.canon_group_pipeline.v7_experiment.sample_games
 ```
 
 This also writes a report under `db_creation/analysis/` and leaves the databases unchanged.
+
+View the sample audit in a local dashboard:
+
+```bash
+python3 -m db_creation.canon_group_pipeline.v7_experiment.ui
+```
+
+Then open `http://localhost:9998`.
