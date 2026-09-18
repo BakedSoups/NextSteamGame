@@ -37,3 +37,12 @@ python3 -m db_creation.canon_group_pipeline.v7_experiment.ui
 ```
 
 Then open `http://localhost:9998`.
+
+Run the staged v7.1 experiment against the manually reviewed sample:
+
+```bash
+python3 -m db_creation.canon_group_pipeline.v7_experiment.sample_games_v71
+```
+
+V7.1 separates deterministic normalization, hard safety rules, equivalence judging,
+and canonical-label selection. Its report is `db_creation/analysis/canon_v71_game_sample.json`.

@@ -8,34 +8,51 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from db_creation.canon_pipeline.layer_1_normalization import format_display
+from db_creation.canon_group_pipeline.v7_experiment.ontology_v7 import TagPair
+from db_creation.canon_group_pipeline.v7_experiment.ontology_v71 import validated_canonical_label
 from db_creation.paths import analysis_dir
 
 
-REPORT_PATH = analysis_dir() / "canon_v7_game_sample.json"
+V7_REPORT_PATH = analysis_dir() / "canon_v7_game_sample.json"
+V71_REPORT_PATH = analysis_dir() / "canon_v71_game_sample.json"
 
 
 def dashboard_data() -> dict:
+    report_path = V71_REPORT_PATH if V71_REPORT_PATH.exists() else V7_REPORT_PATH
     try:
-        report = json.loads(REPORT_PATH.read_text(encoding="utf-8"))
+        report = json.loads(report_path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         report = {"results": []}
     grouped: dict[str, list[dict]] = defaultdict(list)
     for result in report.get("results", []):
-        accepted = bool(result.get("v6_merge_safe_under_v7"))
+        accepted = bool(result.get("safe_to_replace", result.get("v6_merge_safe_under_v7")))
         surviving_tag = result.get("v6_tag") if accepted else result.get("raw_tag")
-        enriched = {**result, "v7_canonical_outcome": format_display(str(surviving_tag or ""))}
+        proposed = str(result.get("canonical_outcome") or surviving_tag or "")
+        if accepted and report.get("version") == "7.1":
+            proposed = validated_canonical_label(
+                TagPair(str(result.get("raw_tag", "")), str(result.get("v6_tag", "")), str(result.get("context", ""))),
+                proposed,
+            )
+        enriched = {
+            **result,
+            "accepted": accepted,
+            "decision_label": result.get("state") or result.get("relation") or "unknown",
+            "canonical_outcome_display": format_display(proposed),
+        }
         grouped[result.get("game", "Unknown game")].append(enriched)
     games = []
     for name, results in grouped.items():
         games.append({
             "name": name,
             "appid": results[0].get("appid"),
-            "accepted": sum(bool(row.get("v6_merge_safe_under_v7")) for row in results),
-            "rejected": sum(not bool(row.get("v6_merge_safe_under_v7")) for row in results),
+            "accepted": sum(row["accepted"] for row in results),
+            "rejected": sum(not row["accepted"] for row in results),
             "results": results,
         })
     games.sort(key=lambda game: (-game["rejected"], game["name"].lower()))
-    return {"summary": {key: value for key, value in report.items() if key != "results"}, "games": games}
+    metrics = report.get("metrics") or {key: value for key, value in report.items() if key != "results"}
+    summary = {**metrics, "version": report.get("version", "7"), "games": len(games)}
+    return {"summary": summary, "games": games}
 
 
 HTML = r'''<!doctype html>
@@ -50,13 +67,13 @@ main{max-width:1360px;margin:auto;padding:24px}.hero{display:grid;grid-template-
 .mapping{display:grid;grid-template-columns:minmax(170px,1fr) 45px minmax(170px,1fr) 150px 150px;gap:12px;align-items:center;padding:14px 16px;border-top:1px solid #1e3443}.mapping:first-child{border-top:0}.tag-label{font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);margin-bottom:5px}.tag{font-weight:670}.arrow{text-align:center;color:#567184;font-size:20px}.context{display:inline-block;margin-top:6px;color:#9eb3c1;font-size:10px;background:#172a38;border:1px solid #2b4353;border-radius:99px;padding:3px 7px}.relation{font-weight:680}.relation small{display:block;color:var(--muted);font-weight:450;margin-top:5px}.meter{height:5px;background:#253743;border-radius:9px;overflow:hidden;margin-top:6px}.fill{height:100%;background:var(--violet)}.decision{text-align:center;font-size:10px;font-weight:800;letter-spacing:.06em;border-radius:7px;padding:8px 7px}.decision.accept{color:var(--green);background:#102e25;border:1px solid #286d52}.decision.reject{color:var(--amber);background:#302a19;border:1px solid #77632b}.reason{grid-column:1/-1;color:var(--muted);font-size:12px;line-height:1.45;background:#0a1721;border-radius:7px;padding:8px 10px}.outcome{grid-column:1/-1;display:flex;gap:7px;align-items:center;color:#c6d6df;font-size:12px}.outcome b{color:var(--cyan)}.empty{text-align:center;border:1px dashed var(--line);border-radius:12px;padding:40px;color:var(--muted)}
 @media(max-width:850px){.hero{grid-template-columns:1fr}.stats{flex-wrap:wrap}.mapping{grid-template-columns:1fr 30px 1fr}.relation,.decision{grid-column:auto}.relation{grid-column:1/3}.decision{grid-column:3}.branch{display:none}} </style></head>
 <body><header><div class="brand"><div class="mark">CT</div><div><div class="title">Canon Tag Lab</div><div class="eyebrow">Ontology-first mapping audit</div></div></div><div class="branch">experiment/ontology-canon-v7</div></header>
-<main><section class="hero"><div><h1>Real-game canonical tag audit</h1><p>V6 proposes the replacement. V7 decides whether the two meanings are truly interchangeable.<br>Only high-confidence synonyms pass.</p></div><div class="stats" id="stats"></div></section>
+<main><section class="hero"><div><h1>Real-game canonical tag audit</h1><p>V6 proposes the replacement. V7.1 applies normalization, hard safety rules, and focused equivalence judging.<br>Canonical naming happens only after equivalence is confirmed.</p></div><div class="stats" id="stats"></div></section>
 <div class="toolbar"><input class="search" id="search" placeholder="Search games, tags, contexts"><button data-filter="all" class="active">All</button><button data-filter="rejected">Rejected</button><button data-filter="accepted">Accepted</button></div><div id="content"></div></main>
 <script>
 let data,filter='all';const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-function mapping(r){const ok=!!r.v6_merge_safe_under_v7,pct=Math.round((r.confidence||0)*100);return `<div class="mapping" data-ok="${ok}"><div><div class="tag-label">Raw game tag</div><div class="tag">${esc(r.raw_tag)}</div><span class="context">${esc(r.context)}</span></div><div class="arrow">→</div><div><div class="tag-label">V6 replacement</div><div class="tag">${esc(r.v6_tag)}</div></div><div class="relation">${esc((r.relation||'').replaceAll('_',' '))}<small>${pct}% confidence</small><div class="meter"><div class="fill" style="width:${pct}%"></div></div></div><div class="decision ${ok?'accept':'reject'}">${ok?'USE V6 TAG':'KEEP RAW TAG'}</div><div class="outcome">V7 canonical outcome: <b>${esc(r.v7_canonical_outcome)}</b></div><div class="reason">${esc(r.reason)}</div></div>`}
-function render(){const q=document.querySelector('#search').value.trim().toLowerCase();let shown=0;const cards=data.games.map(g=>{const rows=g.results.filter(r=>(filter==='all'||(filter==='accepted')===!!r.v6_merge_safe_under_v7)&&(!q||[g.name,r.raw_tag,r.v6_tag,r.context,r.relation].join(' ').toLowerCase().includes(q)));if(!rows.length)return'';shown++;return `<section class="game"><div class="game-head"><div class="game-icon">${esc(g.name.slice(0,1))}</div><div><div class="game-name">${esc(g.name)}</div><div class="game-id">Steam app ${esc(g.appid)}</div></div><div class="counts"><span class="pill accept">${rows.filter(r=>r.v6_merge_safe_under_v7).length} accepted</span><span class="pill reject">${rows.filter(r=>!r.v6_merge_safe_under_v7).length} rejected</span></div></div><div>${rows.map(mapping).join('')}</div></section>`}).join('');document.querySelector('#content').innerHTML=cards||'<div class="empty">No mappings match this view.</div>'}
-fetch('/api/data').then(r=>r.json()).then(d=>{data=d;const s=d.summary;document.querySelector('#stats').innerHTML=`<div class="stat"><b>${s.games_found||0}</b><span>games</span></div><div class="stat"><b>${s.mappings_audited||0}</b><span>audited</span></div><div class="stat good"><b>${s.v6_merges_accepted||0}</b><span>accepted</span></div><div class="stat bad"><b>${s.v6_merges_rejected||0}</b><span>rejected</span></div>`;render()});
+function mapping(r){const ok=!!r.accepted,pct=Math.round((r.confidence||0)*100);return `<div class="mapping" data-ok="${ok}"><div><div class="tag-label">Raw game tag</div><div class="tag">${esc(r.raw_tag)}</div><span class="context">${esc(r.context)}</span></div><div class="arrow">→</div><div><div class="tag-label">V6 replacement</div><div class="tag">${esc(r.v6_tag)}</div></div><div class="relation">${esc((r.decision_label||'').replaceAll('_',' '))}<small>${pct}% confidence · ${esc(r.source||'model')}</small><div class="meter"><div class="fill" style="width:${pct}%"></div></div></div><div class="decision ${ok?'accept':'reject'}">${ok?'MERGE TAGS':'KEEP SEPARATE'}</div><div class="outcome">V7.1 canonical outcome: <b>${esc(r.canonical_outcome_display)}</b></div><div class="reason">${esc(r.reason)}</div></div>`}
+function render(){const q=document.querySelector('#search').value.trim().toLowerCase();let shown=0;const cards=data.games.map(g=>{const rows=g.results.filter(r=>(filter==='all'||(filter==='accepted')===!!r.accepted)&&(!q||[g.name,r.raw_tag,r.v6_tag,r.context,r.decision_label].join(' ').toLowerCase().includes(q)));if(!rows.length)return'';shown++;return `<section class="game"><div class="game-head"><div class="game-icon">${esc(g.name.slice(0,1))}</div><div><div class="game-name">${esc(g.name)}</div><div class="game-id">Steam app ${esc(g.appid)}</div></div><div class="counts"><span class="pill accept">${rows.filter(r=>r.accepted).length} merged</span><span class="pill reject">${rows.filter(r=>!r.accepted).length} separate</span></div></div><div>${rows.map(mapping).join('')}</div></section>`}).join('');document.querySelector('#content').innerHTML=cards||'<div class="empty">No mappings match this view.</div>'}
+fetch('/api/data').then(r=>r.json()).then(d=>{data=d;const s=d.summary;document.querySelector('#stats').innerHTML=`<div class="stat"><b>v${s.version||'7.1'}</b><span>system</span></div><div class="stat"><b>${s.pairs||0}</b><span>audited</span></div><div class="stat good"><b>${Math.round((s.merge_precision||0)*100)}%</b><span>precision</span></div><div class="stat bad"><b>${s.dangerous_false_merges||0}</b><span>false merges</span></div>`;render()});
 document.querySelector('#search').addEventListener('input',render);document.querySelectorAll('button').forEach(b=>b.onclick=()=>{filter=b.dataset.filter;document.querySelectorAll('button').forEach(x=>x.classList.toggle('active',x===b));render()});
 </script></body></html>'''
 

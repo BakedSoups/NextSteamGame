@@ -1,0 +1,22 @@
+[
+  {"left":"platformer","right":"arcade racing","equivalent":false},
+  {"left":"addictive gameplay","right":"replay value concern","equivalent":false},
+  {"left":"high replayability","right":"replay value concern","equivalent":false},
+  {"left":"rebellion against corruption","right":"oppression and rebellion","equivalent":false},
+  {"left":"psychological detective RPG","right":"psychological horror platformer","equivalent":false},
+  {"left":"single-player strategy","right":"player driven tactic","equivalent":false},
+  {"left":"pixelated art style","right":"2d pixelated graphic","equivalent":true,"preferred":"pixel art style"},
+  {"left":"poker-inspired mechanics","right":"casual poker game","equivalent":false},
+  {"left":"layered gameplay mechanics","right":"mechanic mastery","equivalent":false},
+  {"left":"dystopian environment","right":"near dystopian world","equivalent":false},
+  {"left":"noir-inspired world","right":"noir city","equivalent":false},
+  {"left":"character fusions","right":"persona fusion system","equivalent":false,"preferred":"character fusion"},
+  {"left":"farming systems","right":"farming mechanic","equivalent":true,"preferred":"farming system"},
+  {"left":"dynamic dialogue","right":"dialogue exploration","equivalent":false},
+  {"left":"narrative integration","right":"story integration","equivalent":true,"preferred":"narrative integration"},
+  {"left":"seasonal cycles","right":"seasonal update","equivalent":false},
+  {"left":"collectible hunting","right":"collectable hunting","equivalent":true,"preferred":"collectible hunting"},
+  {"left":"adrenaline-fueled","right":"adrenaline pumping","equivalent":true,"preferred":"adrenaline-fueled"},
+  {"left":"bombastic soundtrack","right":"bombastic music","equivalent":true,"preferred":"bombastic soundtrack"},
+  {"left":"murder mystery","right":"supernatural mystery","equivalent":false}
+]
