@@ -46,3 +46,12 @@ python3 -m db_creation.canon_group_pipeline.v7_experiment.sample_games_v71
 
 V7.1 separates deterministic normalization, hard safety rules, equivalence judging,
 and canonical-label selection. Its report is `db_creation/analysis/canon_v71_game_sample.json`.
+
+Build an isolated full database and vector index using the conservative v7.1 policy:
+
+```bash
+python3 -m db_creation.canon_group_pipeline.v7_experiment.build_v71_database
+```
+
+This writes `data/steam_final_canon_v71.db` and `data/chroma_v71`. It never overwrites
+the current production SQLite database or Chroma directory.
