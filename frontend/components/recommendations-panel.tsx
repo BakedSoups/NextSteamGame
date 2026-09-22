@@ -578,9 +578,6 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
   const showMusicMatches = matchedTags.music.length >= 3
   const hasVectorOverlap = VECTOR_CONTEXT_KEYS.some((key) => game.contextScores[key] > 0)
   const requestedTagMatch = topRequestedTagMatch(game, weights, selectedGame)
-  const selectedFilterMatches = highlightedTags.filter((selectedTag) =>
-    unique(Object.values(game.tags).flat()).some((resultTag) => tagsMatch(resultTag, selectedTag)),
-  )
   const visibleHighlights = highlights.slice(0, 3)
   const primaryHighlight = visibleHighlights[0]
   const baseGenres = genreTokens(selectedGame)
@@ -812,19 +809,6 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
             <span className="text-xs font-medium uppercase tracking-[0.1em] text-muted-foreground">
               {TAG_CONTEXT_LABELS[requestedTagMatch.context]} {requestedTagMatch.contextHit.toFixed(1)}%
             </span>
-          </div>
-        )}
-
-        {selectedFilterMatches.length > 0 && (
-          <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-amber-300/35 bg-amber-300/[0.07] px-3 py-2">
-            <span className="text-xs font-bold uppercase tracking-[0.14em] text-amber-200">
-              Selected filter
-            </span>
-            {selectedFilterMatches.map((tag) => (
-              <span key={`selected-filter-${tag}`} className="rounded-full border border-amber-300/70 bg-amber-300/20 px-2.5 py-1 text-sm font-bold text-amber-50 shadow-[0_0_14px_rgba(252,211,77,0.16)]">
-                {tag}
-              </span>
-            ))}
           </div>
         )}
 
