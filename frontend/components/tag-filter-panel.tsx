@@ -63,6 +63,12 @@ export function TagFilterPanel({ filters, tagOptions, onFiltersChange }: TagFilt
     onFiltersChange({ include: [], exclude: [], minReviewPercent: 0, minReviewRelevance: 0 })
   }
 
+  const setReviewThreshold = (field: "minReviewPercent" | "minReviewRelevance", rawValue: string) => {
+    const parsed = Number(rawValue)
+    const value = Number.isFinite(parsed) ? Math.min(100, Math.max(0, Math.round(parsed))) : 0
+    onFiltersChange({ ...filters, [field]: value })
+  }
+
   const filteredTags = useMemo(() => {
     if (!searchQuery.trim()) return tagOptions
     
@@ -183,7 +189,7 @@ export function TagFilterPanel({ filters, tagOptions, onFiltersChange }: TagFilt
             </button>
             
             {expandedCategories.includes(category) && (
-              <div className="px-3 pb-2.5">
+              <div className="filter-category-options px-3 pb-2.5 pt-1">
                 <div className="space-y-1">
                   {tags.map(tag => {
                     const isIncluded = filters.include.includes(tag)
@@ -223,7 +229,18 @@ export function TagFilterPanel({ filters, tagOptions, onFiltersChange }: TagFilt
         <div>
           <div className="mb-2 flex items-center justify-between">
             <span className="text-sm font-medium text-foreground">Minimum Positive Reviews</span>
-            <span className="data-value text-sm">{Math.round(filters.minReviewPercent ?? 0)}%</span>
+            <label className="review-threshold-input" aria-label="Minimum positive review percentage">
+              <input
+                type="number"
+                min={0}
+                max={100}
+                step={1}
+                inputMode="numeric"
+                value={Math.round(filters.minReviewPercent ?? 0)}
+                onChange={(event) => setReviewThreshold("minReviewPercent", event.target.value)}
+              />
+              <span>%</span>
+            </label>
           </div>
           <input
             type="range"
@@ -246,7 +263,18 @@ export function TagFilterPanel({ filters, tagOptions, onFiltersChange }: TagFilt
         <div>
           <div className="mb-2 flex items-center justify-between">
             <span className="text-sm font-medium text-foreground">Review Quality Floor</span>
-            <span className="data-value text-sm">{Math.round(filters.minReviewRelevance ?? 0)}</span>
+            <label className="review-threshold-input" aria-label="Review quality floor percentage">
+              <input
+                type="number"
+                min={0}
+                max={100}
+                step={1}
+                inputMode="numeric"
+                value={Math.round(filters.minReviewRelevance ?? 0)}
+                onChange={(event) => setReviewThreshold("minReviewRelevance", event.target.value)}
+              />
+              <span>%</span>
+            </label>
           </div>
           <input
             type="range"

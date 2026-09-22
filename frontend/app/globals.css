@@ -124,12 +124,12 @@
   }
 
   .filter-tag-button {
-    @apply relative flex min-h-9 w-full items-center gap-2 overflow-hidden rounded-md border border-white/8 bg-white/[0.035] py-2 pl-3 pr-2 text-left text-sm font-medium text-slate-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.025)] transition-all hover:border-white/16 hover:bg-white/[0.075] focus-visible:ring-2 focus-visible:ring-primary/50;
+    @apply relative flex min-h-10 w-full items-center gap-2 overflow-hidden rounded-lg border border-slate-500/45 bg-slate-700/55 py-2 pl-3 pr-2 text-left text-sm font-semibold text-slate-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.055),0_2px_8px_rgba(0,0,0,0.16)] transition-all hover:-translate-y-px hover:border-sky-300/55 hover:bg-slate-600/70 focus-visible:ring-2 focus-visible:ring-primary/60;
   }
 
   .filter-tag-button.included {
-    border-color: color-mix(in srgb, var(--tag-accent) 55%, transparent);
-    background: color-mix(in srgb, var(--tag-accent) 13%, transparent);
+    border-color: color-mix(in srgb, var(--tag-accent) 78%, white 4%);
+    background: color-mix(in srgb, var(--tag-accent) 24%, #142637);
     color: #f8fafc;
     box-shadow: inset 0 1px 0 rgba(255,255,255,0.055), 0 0 14px color-mix(in srgb, var(--tag-accent) 10%, transparent);
   }
@@ -145,7 +145,7 @@
   }
 
   .filter-tag-arrow {
-    @apply ml-auto flex h-5 w-5 shrink-0 items-center justify-center rounded-sm border border-white/14 bg-black/20 text-slate-300/80 transition-colors;
+    @apply ml-auto flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-slate-300/30 bg-slate-950/45 text-slate-200 transition-colors;
   }
 
   .filter-tag-button:hover .filter-tag-arrow {
@@ -156,6 +156,30 @@
     border-color: color-mix(in srgb, var(--tag-accent) 65%, transparent);
     background: var(--tag-accent);
     color: #07111b;
+  }
+
+  .filter-category-options {
+    background: linear-gradient(180deg, rgba(2, 10, 18, 0.22), rgba(2, 10, 18, 0.36));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
+  }
+
+  .review-threshold-input {
+    @apply flex h-8 w-[4.75rem] shrink-0 items-center overflow-hidden rounded-lg border border-primary/45 bg-slate-950/65 text-primary shadow-[inset_0_1px_4px_rgba(0,0,0,0.32)] transition focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/25;
+  }
+
+  .review-threshold-input input {
+    @apply h-full min-w-0 flex-1 bg-transparent pl-2.5 text-right text-sm font-bold text-sky-100 outline-none;
+    appearance: textfield;
+  }
+
+  .review-threshold-input input::-webkit-inner-spin-button,
+  .review-threshold-input input::-webkit-outer-spin-button {
+    margin: 0;
+    appearance: none;
+  }
+
+  .review-threshold-input span {
+    @apply pr-2 text-xs font-bold text-primary;
   }
 
   .preference-chip {
