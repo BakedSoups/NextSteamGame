@@ -114,7 +114,7 @@ export function TagFilterPanel({ filters, tagOptions, onFiltersChange }: TagFilt
                 key={tag}
                 type="button"
                 onClick={() => toggleIncludeTag(tag)}
-                className="rounded-full border border-sky-300/35 bg-sky-400/12 px-2.5 py-1 text-sm font-medium text-sky-50 transition hover:border-destructive/50 hover:text-destructive"
+                className="rounded-full border border-amber-300/65 bg-amber-300/18 px-2.5 py-1 text-sm font-semibold text-amber-50 shadow-[0_0_12px_rgba(252,211,77,0.12)] transition hover:border-destructive/50 hover:text-destructive"
                 title={`Remove ${tag}`}
               >
                 {tag}
@@ -178,7 +178,7 @@ export function TagFilterPanel({ filters, tagOptions, onFiltersChange }: TagFilt
                 <span>{CATEGORY_LABELS[category] ?? category}</span>
               </span>
               <div className="flex items-center gap-2">
-                {selectedCount > 0 ? <span className="rounded-full px-1.5 py-0.5 text-[10px] font-bold" style={{ color: visual.accent, backgroundColor: `${visual.accent}16` }}>{selectedCount} ON</span> : null}
+                {selectedCount > 0 ? <span className="rounded-full border border-amber-300/40 bg-amber-300/14 px-1.5 py-0.5 text-[10px] font-bold text-amber-100">{selectedCount} ON</span> : null}
                 <span className="terminal-label">{tags.length}</span>
                 {expandedCategories.includes(category) ? (
                   <ChevronDown className="w-3.5 h-3.5 text-primary" />

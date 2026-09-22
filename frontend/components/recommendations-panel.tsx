@@ -88,6 +88,7 @@ interface RecommendationsPanelProps {
   recommendations: RecommendedGame[]
   weights: Weights
   selectedGame: Game | null
+  highlightedTags?: string[]
   onOpenSteam?: (game: RecommendedGame, rank: number) => void
   onRecommendationFeedback?: (game: RecommendedGame, rank: number, feedback: "up" | "down") => void
 }
@@ -167,7 +168,13 @@ function genreTokens(game: Pick<Game, "category" | "genres"> | null) {
   ].filter(Boolean))
 }
 
-function evidenceTags(influencedTags: string[], fallbackTags: string[], limit = 3, tunedTag?: string) {
+function tagsMatch(left: string, right: string) {
+  const leftKey = normalizeTagMatchKey(left)
+  const rightKey = normalizeTagMatchKey(right)
+  return leftKey === rightKey || leftKey.includes(rightKey) || rightKey.includes(leftKey)
+}
+
+function evidenceTags(influencedTags: string[], fallbackTags: string[], limit = 3, tunedTag?: string, highlightedTags: string[] = []) {
   const influencedKeys = new Set(influencedTags.map(normalizeTagMatchKey))
   const tunedKey = tunedTag ? normalizeTagMatchKey(tunedTag) : null
   return unique([...influencedTags, ...fallbackTags])
@@ -176,6 +183,7 @@ function evidenceTags(influencedTags: string[], fallbackTags: string[], limit = 
       label,
       influenced: influencedKeys.has(normalizeTagMatchKey(label)),
       tuned: tunedKey === normalizeTagMatchKey(label),
+      selected: highlightedTags.some((selectedTag) => tagsMatch(label, selectedTag)),
     }))
 }
 
@@ -544,11 +552,12 @@ interface RecommendationCardProps {
   weights: Weights
   selectedGame: Game | null
   highlights: string[]
+  highlightedTags: string[]
   onOpenSteam?: (game: RecommendedGame, rank: number) => void
   onFeedback?: (game: RecommendedGame, rank: number, feedback: "up" | "down") => void
 }
 
-const RecommendationCard = memo(function RecommendationCard({ game, rank, weights, selectedGame, highlights, onOpenSteam, onFeedback }: RecommendationCardProps) {
+const RecommendationCard = memo(function RecommendationCard({ game, rank, weights, selectedGame, highlights, highlightedTags, onOpenSteam, onFeedback }: RecommendationCardProps) {
   const [isExpanded, setIsExpanded] = useState(false)
   const [savedFeedback, setSavedFeedback] = useState<"up" | "down" | null>(null)
   const cardImage = game.headerImage || game.assets.header || game.assets.libraryCapsule || game.assets.capsuleV5 || game.image || IMAGE_FALLBACK
@@ -569,6 +578,9 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
   const showMusicMatches = matchedTags.music.length >= 3
   const hasVectorOverlap = VECTOR_CONTEXT_KEYS.some((key) => game.contextScores[key] > 0)
   const requestedTagMatch = topRequestedTagMatch(game, weights, selectedGame)
+  const selectedFilterMatches = highlightedTags.filter((selectedTag) =>
+    unique(Object.values(game.tags).flat()).some((resultTag) => tagsMatch(resultTag, selectedTag)),
+  )
   const visibleHighlights = highlights.slice(0, 3)
   const primaryHighlight = visibleHighlights[0]
   const baseGenres = genreTokens(selectedGame)
@@ -585,6 +597,7 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
         requestedTagMatch?.context === "structure_loop" || requestedTagMatch?.context === "mechanics"
           ? requestedTagMatch.tag
           : undefined,
+        highlightedTags,
       ),
     },
     {
@@ -596,6 +609,7 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
         requestedTagMatch?.context === "identity" || requestedTagMatch?.context === "setting"
           ? requestedTagMatch.tag
           : undefined,
+        highlightedTags,
       ),
     },
     {
@@ -605,6 +619,7 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
         game.tags.music,
         3,
         requestedTagMatch?.context === "music" ? requestedTagMatch.tag : undefined,
+        highlightedTags,
       ),
     },
   ].filter((row) => row.tags.length > 0)
@@ -620,7 +635,7 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
         contextHit,
         impact,
         color: TAG_CONTEXT_COLORS[context],
-        tags: evidenceTags(matchedTags[context] ?? [], game.tags[context] ?? [], 3),
+        tags: evidenceTags(matchedTags[context] ?? [], game.tags[context] ?? [], 3, undefined, highlightedTags),
       }
     })
     .filter((row) => row.requestedWeight > 0 || row.contextHit > 0 || row.tags.length > 0)
@@ -800,6 +815,19 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
           </div>
         )}
 
+        {selectedFilterMatches.length > 0 && (
+          <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-amber-300/35 bg-amber-300/[0.07] px-3 py-2">
+            <span className="text-xs font-bold uppercase tracking-[0.14em] text-amber-200">
+              Selected filter
+            </span>
+            {selectedFilterMatches.map((tag) => (
+              <span key={`selected-filter-${tag}`} className="rounded-full border border-amber-300/70 bg-amber-300/20 px-2.5 py-1 text-sm font-bold text-amber-50 shadow-[0_0_14px_rgba(252,211,77,0.16)]">
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
+
         {evidenceRows.length > 0 && (
           <div className="mb-3">
             <div className="mb-2 text-sm uppercase tracking-[0.18em] text-muted-foreground">
@@ -815,13 +843,15 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
                       {row.tags.map((tag) => (
                         <span
                           key={`${row.label}-${tag.label}`}
-                          className={tag.tuned
+                          className={tag.selected
+                            ? "max-w-full whitespace-normal break-words rounded-full border border-amber-300/75 bg-amber-300/22 px-2.5 py-1 text-sm font-bold leading-5 text-amber-50 shadow-[0_0_14px_rgba(252,211,77,0.18)]"
+                            : tag.tuned
                             ? "max-w-full whitespace-normal break-words rounded-full border border-amber-300/60 bg-amber-300/16 px-2.5 py-1 text-sm font-semibold leading-5 text-amber-50 shadow-[0_0_12px_rgba(252,211,77,0.14)]"
                             : tag.influenced
                               ? "max-w-full whitespace-normal break-words rounded-full border border-sky-300/55 bg-sky-400/18 px-2.5 py-1 text-sm font-semibold leading-5 text-sky-50 shadow-[0_0_12px_rgba(56,189,248,0.14)]"
                               : "max-w-full whitespace-normal break-words rounded-full border border-white/14 bg-white/[0.075] px-2.5 py-1 text-sm font-medium leading-5 text-slate-100/88"
                           }
-                          title={tag.tuned ? "Matched your tuning" : tag.influenced ? "Influenced this match" : "Result tag"}
+                          title={tag.selected ? "Matched your selected filter" : tag.tuned ? "Matched your tuning" : tag.influenced ? "Influenced this match" : "Result tag"}
                         >
                           {tag.label}
                         </span>
@@ -958,11 +988,13 @@ const RecommendationCard = memo(function RecommendationCard({ game, rank, weight
                           {row.tags.map((tag) => (
                             <span
                               key={`${row.context}-${tag.label}`}
-                              className={tag.influenced
+                              className={tag.selected
+                                ? "max-w-full whitespace-normal break-words rounded-full border border-amber-300/70 bg-amber-300/20 px-2 py-0.5 text-xs font-bold text-amber-50"
+                                : tag.influenced
                                 ? "max-w-full whitespace-normal break-words rounded-full border border-sky-300/45 bg-sky-400/14 px-2 py-0.5 text-xs font-semibold text-sky-50"
                                 : "max-w-full whitespace-normal break-words rounded-full border border-white/12 bg-white/[0.06] px-2 py-0.5 text-xs font-medium text-slate-100/80"
                               }
-                              title={tag.influenced ? "Matched evidence tag" : "Result tag"}
+                              title={tag.selected ? "Matched your selected filter" : tag.influenced ? "Matched evidence tag" : "Result tag"}
                             >
                               {tag.label}
                             </span>
@@ -1084,6 +1116,7 @@ export function RecommendationsPanel({
   recommendations,
   weights,
   selectedGame,
+  highlightedTags = [],
   onOpenSteam,
   onRecommendationFeedback,
 }: RecommendationsPanelProps) {
@@ -1168,6 +1201,7 @@ export function RecommendationsPanel({
             weights={weights}
             selectedGame={selectedGame}
             highlights={highlights}
+            highlightedTags={highlightedTags}
             onOpenSteam={onOpenSteam}
             onFeedback={handleFeedback}
           />

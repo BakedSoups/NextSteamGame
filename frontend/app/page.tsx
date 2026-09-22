@@ -1413,6 +1413,7 @@ export default function NextSteamGamePage() {
                       recommendations={recommendations}
                       weights={weights}
                       selectedGame={selectedGame}
+                      highlightedTags={tagFilters.include}
                       onOpenSteam={(game, rank) =>
                         logUiActivity(game, "opened_recommendation_on_steam", {
                           source: "results",
