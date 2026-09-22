@@ -27,6 +27,7 @@ services:
     environment:
       STEAM_REC_POSTGRES_DSN: postgresql://steam_rec:steam_rec@postgres:5432/steam_rec
       DB_CREATION_DATA_DIR: /app/data
+      STEAM_REC_FINAL_CANON_DB_PATH: ${STEAM_REC_FINAL_CANON_DB_PATH:-/app/data/steam_final_canon.db}
     volumes:
       - ./data:/app/data:ro
     command: ["python", "-m", "db_creation.postgres.load_from_sqlite"]
@@ -42,6 +43,7 @@ services:
     environment:
       STEAM_REC_POSTGRES_DSN: postgresql://steam_rec:steam_rec@postgres:5432/steam_rec
       DB_CREATION_DATA_DIR: /app/data
+      STEAM_REC_CHROMA_DIR_PATH: ${STEAM_REC_CHROMA_DIR_PATH:-/app/data/chroma}
     volumes:
       - ./data:/app/data
       - chroma_model_cache:/root/.cache/chroma

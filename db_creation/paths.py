@@ -19,6 +19,16 @@ def _configured_dir(env_var: str, default: Path) -> Path:
     return path
 
 
+def _configured_path(env_var: str, default: Path) -> Path:
+    raw = os.getenv(env_var, "").strip()
+    if not raw:
+        return default
+    path = Path(raw).expanduser()
+    if not path.is_absolute():
+        path = PROJECT_ROOT / path
+    return path
+
+
 def data_dir() -> Path:
     return _configured_dir("DB_CREATION_DATA_DIR", PROJECT_ROOT / "data")
 
@@ -36,11 +46,17 @@ def initial_noncanon_db_path() -> Path:
 
 
 def final_canon_db_path() -> Path:
-    return data_dir() / "steam_final_canon.db"
+    return _configured_path(
+        "STEAM_REC_FINAL_CANON_DB_PATH",
+        data_dir() / "steam_final_canon.db",
+    )
 
 
 def chroma_dir_path() -> Path:
-    return data_dir() / "chroma"
+    return _configured_path(
+        "STEAM_REC_CHROMA_DIR_PATH",
+        data_dir() / "chroma",
+    )
 
 
 def insightful_words_path() -> Path:
