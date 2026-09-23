@@ -177,7 +177,13 @@ function tagsMatch(left: string, right: string) {
 function evidenceTags(influencedTags: string[], fallbackTags: string[], limit = 3, tunedTag?: string, highlightedTags: string[] = []) {
   const influencedKeys = new Set(influencedTags.map(normalizeTagMatchKey))
   const tunedKey = tunedTag ? normalizeTagMatchKey(tunedTag) : null
-  return unique([...influencedTags, ...fallbackTags])
+  const tags = unique([...influencedTags, ...fallbackTags])
+  const selectedTags = tags.filter((label) =>
+    highlightedTags.some((selectedTag) => tagsMatch(label, selectedTag)),
+  )
+  const remainingTags = tags.filter((label) => !selectedTags.includes(label))
+
+  return [...selectedTags, ...remainingTags]
     .slice(0, limit)
     .map((label) => ({
       label,
