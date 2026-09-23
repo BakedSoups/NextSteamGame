@@ -955,22 +955,6 @@ export default function NextSteamGamePage() {
               </div>
             </div>
 
-            <a
-              href="https://github.com/BakedSoups/NextSteamGame"
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/[0.04] px-3 py-2 text-sm font-medium text-slate-200 transition hover:border-cyan-200/35 hover:bg-white/[0.08] hover:text-white"
-            >
-              <Github className="h-4 w-4" />
-              <span className="hidden sm:inline">GitHub</span>
-              {githubStarCount !== null ? (
-                <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs font-semibold tabular-nums text-white/90">
-                  {githubStarCount.toLocaleString()}
-                </span>
-              ) : null}
-              <Star className="hidden h-3.5 w-3.5 fill-current sm:block" />
-            </a>
-
             {controlMode === "advanced" && showModeHint ? (
               <div
                 className="pointer-events-auto absolute left-3 right-3 top-[58px] z-[70] rounded-[22px] border border-black/10 bg-white px-4 py-3 text-xs leading-5 text-slate-950 shadow-[0_18px_42px_rgba(0,0,0,0.28)] sm:left-[92px] sm:right-auto sm:w-[240px]"
@@ -1013,6 +997,21 @@ export default function NextSteamGamePage() {
             />
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_47%,rgba(31,142,190,0.13),transparent_26rem),linear-gradient(180deg,rgba(5,11,17,0.42)_0%,rgba(8,13,19,0.65)_42%,rgba(5,10,16,0.88)_100%),linear-gradient(90deg,rgba(3,8,13,0.44)_0%,rgba(8,13,19,0.18)_48%,rgba(3,8,13,0.58)_100%)]" />
             <div className="launch-scanlines pointer-events-none absolute inset-0 opacity-[0.055]" />
+            <a
+              href="https://github.com/BakedSoups/NextSteamGame"
+              target="_blank"
+              rel="noreferrer"
+              className="absolute right-4 top-4 z-20 inline-flex items-center gap-2 rounded-full border border-white/18 bg-black/40 px-3 py-2 text-sm font-medium text-white shadow-[0_12px_30px_rgba(0,0,0,0.28)] backdrop-blur transition hover:border-cyan-200/45 hover:bg-black/55 sm:right-6 sm:top-6"
+            >
+              <Github className="h-4 w-4" />
+              <span>GitHub</span>
+              {githubStarCount !== null ? (
+                <span className="rounded-full bg-white/12 px-2 py-0.5 text-xs font-semibold tabular-nums text-white/90">
+                  {githubStarCount.toLocaleString()}
+                </span>
+              ) : null}
+              <Star className="h-3.5 w-3.5 fill-current" />
+            </a>
             <a
               href={SNEAKY_FISHY_URL}
               target="_blank"
