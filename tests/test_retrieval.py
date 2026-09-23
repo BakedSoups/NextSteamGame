@@ -10,14 +10,15 @@ from backend.retrieval import CandidateRetriever
 
 
 class FakeStore:
-    def __init__(self) -> None:
+    def __init__(self, *, precomputed_appids: list[int] | None = None) -> None:
+        self.precomputed_appids = [101, 102] if precomputed_appids is None else precomputed_appids
         self.precomputed_calls: list[int] = []
         self.prescreen_calls: list[dict[str, Any]] = []
         self.hydrated_appids: list[list[int]] = []
 
     def load_precomputed_candidate_appids(self, source_appid: int, *, limit: int) -> list[int]:
         self.precomputed_calls.append(source_appid)
-        return [101, 102][:limit]
+        return self.precomputed_appids[:limit]
 
     def prescreen_candidate_appids(self, base_game: dict[str, Any], **kwargs: Any) -> list[int]:
         self.prescreen_calls.append(kwargs)
@@ -44,7 +45,7 @@ class CandidateRetrieverTests(unittest.TestCase):
         self.assertEqual(store.precomputed_calls, [10])
         self.assertEqual(store.prescreen_calls, [])
 
-    def test_tuned_tag_request_bypasses_precomputed_candidates(self) -> None:
+    def test_tuned_tag_request_uses_precomputed_candidates(self) -> None:
         store = FakeStore()
         retriever = self.make_retriever(store)
 
@@ -55,11 +56,11 @@ class CandidateRetrieverTests(unittest.TestCase):
             merged_limit=300,
         )
 
-        self.assertEqual([candidate["appid"] for candidate in candidates], [201, 202])
-        self.assertEqual(store.precomputed_calls, [])
-        self.assertEqual(len(store.prescreen_calls), 1)
+        self.assertEqual([candidate["appid"] for candidate in candidates], [101, 102])
+        self.assertEqual(store.precomputed_calls, [10])
+        self.assertEqual(store.prescreen_calls, [])
 
-    def test_tuned_context_request_bypasses_precomputed_candidates(self) -> None:
+    def test_tuned_context_request_uses_precomputed_candidates(self) -> None:
         store = FakeStore()
         retriever = self.make_retriever(store)
         context_percentages = default_context_percentages()
@@ -73,8 +74,23 @@ class CandidateRetrieverTests(unittest.TestCase):
             merged_limit=300,
         )
 
+        self.assertEqual([candidate["appid"] for candidate in candidates], [101, 102])
+        self.assertEqual(store.precomputed_calls, [10])
+        self.assertEqual(store.prescreen_calls, [])
+
+    def test_tuned_request_falls_back_to_live_prescreen_without_precomputed_candidates(self) -> None:
+        store = FakeStore(precomputed_appids=[])
+        retriever = self.make_retriever(store)
+
+        candidates = retriever.retrieve_candidates(
+            {"appid": 10},
+            tag_boosts={"identity": {"social deduction": 80}},
+            prescreen_limit=450,
+            merged_limit=300,
+        )
+
         self.assertEqual([candidate["appid"] for candidate in candidates], [201, 202])
-        self.assertEqual(store.precomputed_calls, [])
+        self.assertEqual(store.precomputed_calls, [10])
         self.assertEqual(len(store.prescreen_calls), 1)
 
 
