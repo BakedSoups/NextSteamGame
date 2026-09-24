@@ -4,13 +4,20 @@ import { memo, useState } from "react"
 import Image from "next/image"
 import { ChevronDown, ChevronUp, Radar, Target, AudioLines, ThumbsDown, ThumbsUp } from "lucide-react"
 import type { Game, RecommendedGame, Weights } from "@/lib/types"
-import { unique } from "@/lib/collections"
 import { MATCH_LABELS } from "@/lib/score-labels"
 import { useTimedToast } from "@/lib/use-timed-toast"
+import {
+  evidenceTags,
+  formatReviewCount,
+  genreTokens,
+  normalizeTagMatchKey,
+  profileCompareSections,
+  reviewSummary,
+  topRequestedTagMatch,
+} from "@/lib/recommendation-card-model"
 
 type VectorContextKey = "mechanics" | "narrative" | "vibe" | "structure_loop"
 type TagContextKey = keyof Weights["tags"]
-type MatchComponentKey = keyof Weights["match"]
 
 const VECTOR_CONTEXT_KEYS: VectorContextKey[] = [
   "mechanics",
@@ -45,15 +52,6 @@ const TAG_CONTEXT_LABELS: Record<TagContextKey, string> = {
   music: "Music",
 }
 
-const TAG_CONTEXT_COMPONENT: Record<TagContextKey, MatchComponentKey> = {
-  mechanics: "vector",
-  narrative: "vector",
-  vibe: "vector",
-  structure_loop: "vector",
-  identity: "appeal",
-  setting: "appeal",
-  music: "music",
-}
 
 const TAG_CONTEXT_COLORS: Record<TagContextKey, string> = {
   mechanics: "#7dd3fc",
@@ -93,264 +91,7 @@ interface RecommendationsPanelProps {
   onRecommendationFeedback?: (game: RecommendedGame, rank: number, feedback: "up" | "down") => void
 }
 
-interface ScoreBarProps {
-  label: string
-  value: number
-  max?: number
-  color?: "primary" | "accent"
-  fillColor?: string
-}
 
-function ScoreBar({ label, value, max = 100, color = "primary", fillColor }: ScoreBarProps) {
-  const percentage = Math.min((Math.abs(value) / max) * 100, 100)
-  const isNegative = value < 0
-  
-  return (
-    <div className="flex items-center gap-2">
-      <span className="terminal-label w-20 capitalize truncate">
-        {label.replace(/_/g, " ")}
-      </span>
-      <div className="flex-1 progress-track">
-        <div 
-          className={isNegative ? "h-full bg-destructive" : color === "accent" ? "progress-fill-green" : "progress-fill"}
-          style={{ width: `${percentage}%`, ...(fillColor ? { background: fillColor } : {}) }}
-        />
-      </div>
-      <span className={`data-value text-sm w-12 text-right ${isNegative ? "text-destructive" : ""}`}>
-        {value.toFixed(1)}%
-      </span>
-    </div>
-  )
-}
-
-function formatReviewCount(count: number) {
-  if (count >= 1_000_000) {
-    return `${(count / 1_000_000).toFixed(count >= 10_000_000 ? 0 : 1)}m`
-  }
-  if (count >= 1_000) {
-    return `${(count / 1_000).toFixed(count >= 10_000 ? 0 : 1)}k`
-  }
-  return String(count)
-}
-
-function reviewSummary(game: RecommendedGame) {
-  const positive = game.reviewStats?.positive ?? 0
-  const negative = game.reviewStats?.negative ?? 0
-  const reviewCount = game.reviewStats?.reviewCount ?? positive + negative
-  const total = positive + negative
-
-  if (reviewCount <= 0 && total <= 0) {
-    return null
-  }
-
-  const positivePercent = total > 0 ? Math.round((positive / total) * 100) : null
-
-  return {
-    positivePercent,
-    reviewCount,
-  }
-}
-
-function normalizeTagMatchKey(tag: string) {
-  return tag.trim().replace(/[_-]+/g, " ").replace(/\s+/g, " ").toLowerCase()
-}
-
-function genreTokens(game: Pick<Game, "category" | "genres"> | null) {
-  if (!game) {
-    return []
-  }
-  return unique([
-    game.category,
-    ...game.genres.primary,
-    ...game.genres.sub,
-    ...game.genres.sub_sub,
-    ...game.genres.traits,
-  ].filter(Boolean))
-}
-
-function tagsMatch(left: string, right: string) {
-  const leftKey = normalizeTagMatchKey(left)
-  const rightKey = normalizeTagMatchKey(right)
-  return leftKey === rightKey || leftKey.includes(rightKey) || rightKey.includes(leftKey)
-}
-
-function evidenceTags(influencedTags: string[], fallbackTags: string[], limit = 3, tunedTag?: string, highlightedTags: string[] = []) {
-  const influencedKeys = new Set(influencedTags.map(normalizeTagMatchKey))
-  const tunedKey = tunedTag ? normalizeTagMatchKey(tunedTag) : null
-  const tags = unique([...influencedTags, ...fallbackTags])
-  const selectedTags = tags.filter((label) =>
-    highlightedTags.some((selectedTag) => tagsMatch(label, selectedTag)),
-  )
-  const remainingTags = tags.filter((label) => !selectedTags.includes(label))
-
-  return [...selectedTags, ...remainingTags]
-    .slice(0, limit)
-    .map((label) => ({
-      label,
-      influenced: influencedKeys.has(normalizeTagMatchKey(label)),
-      tuned: tunedKey === normalizeTagMatchKey(label),
-      selected: highlightedTags.some((selectedTag) => tagsMatch(label, selectedTag)),
-    }))
-}
-
-function changedTagWeight(context: TagContextKey, tag: string, weights: Weights, selectedGame: Game | null) {
-  const requestedWeight = weights.tags[context]?.[tag] ?? 0
-  const baselineEntries = selectedGame?.weights?.tags?.[context] ?? {}
-  const normalizedKey = normalizeTagMatchKey(tag).replace(/\s+/g, "_")
-  const legacyKey = tag.replace(/[\s-]+/g, "_").toLowerCase()
-  const baselineWeight = baselineEntries[tag] ?? baselineEntries[normalizedKey] ?? baselineEntries[legacyKey] ?? 0
-  const delta = requestedWeight - baselineWeight
-  return delta > 1 ? { requestedWeight, delta } : null
-}
-
-function topRequestedTagMatch(game: RecommendedGame, weights: Weights, selectedGame: Game | null) {
-  if (!selectedGame) {
-    return null
-  }
-
-  const matchedTags = game.matchedTags ?? {
-    mechanics: [],
-    narrative: [],
-    vibe: [],
-    structure_loop: [],
-    identity: [],
-    setting: [],
-    music: [],
-  }
-
-  const requestedByContext = (Object.keys(weights.tags) as TagContextKey[])
-    .map((context) => {
-      const changedWeights = Object.keys(weights.tags[context] ?? {})
-        .map((tag) => changedTagWeight(context, tag, weights, selectedGame))
-        .filter(Boolean)
-      const maxRequestedWeight = Math.max(0, ...changedWeights.map((entry) => entry!.requestedWeight))
-      const maxDelta = Math.max(0, ...changedWeights.map((entry) => entry!.delta))
-      return { context, requestedWeight: maxRequestedWeight, delta: maxDelta }
-    })
-    .filter((item) => item.delta > 1)
-
-  const exactMatches = requestedByContext
-    .flatMap(({ context }) => {
-      const matchedByKey = new Map((matchedTags[context] ?? []).map((tag) => [normalizeTagMatchKey(tag), tag]))
-      const matches: Array<{
-        context: TagContextKey
-        component: MatchComponentKey
-        tag: string
-        requestedWeight: number
-        contextHit: number
-        componentShare: number
-        exact: boolean
-      }> = []
-
-      for (const [tag] of Object.entries(weights.tags[context] ?? {})) {
-        const changed = changedTagWeight(context, tag, weights, selectedGame)
-        if (!changed) {
-          continue
-        }
-        const matchedTag = matchedByKey.get(normalizeTagMatchKey(tag))
-        if (!matchedTag) {
-          continue
-        }
-        const component = TAG_CONTEXT_COMPONENT[context]
-        matches.push({
-          context,
-          component,
-          tag: matchedTag,
-          requestedWeight: changed.requestedWeight,
-          contextHit: game.contextScores[context] ?? 0,
-          componentShare: game.scorePercentages?.[component] ?? game.scores[component] ?? 0,
-          exact: true,
-        })
-      }
-      return matches
-    })
-    .sort((a, b) => {
-      if (b.requestedWeight !== a.requestedWeight) {
-        return b.requestedWeight - a.requestedWeight
-      }
-      return b.contextHit - a.contextHit
-    })
-
-  if (exactMatches[0]) {
-    return exactMatches[0]
-  }
-
-  for (const { context, requestedWeight } of requestedByContext.sort((a, b) => b.delta - a.delta)) {
-    const matchedTag = matchedTags[context]?.[0]
-    const contextHit = game.contextScores[context] ?? 0
-    if (!matchedTag || contextHit <= 0) {
-      continue
-    }
-    const component = TAG_CONTEXT_COMPONENT[context]
-    return {
-      context,
-      component,
-      tag: matchedTag,
-      requestedWeight,
-      contextHit,
-      componentShare: game.scorePercentages?.[component] ?? game.scores[component] ?? 0,
-      exact: false,
-    }
-  }
-
-  return null
-}
-
-function profileCompareSections(selectedGame: Game | null, game: RecommendedGame) {
-  const sections = [
-    {
-      label: "Genre",
-      base: genreTokens(selectedGame),
-      result: genreTokens(game),
-    },
-    {
-      label: "Identity",
-      base: selectedGame ? unique([
-        selectedGame.identity?.signatureTag ?? "",
-        ...(selectedGame.identity?.nicheAnchors ?? []),
-        ...(selectedGame.identity?.identityTags ?? []),
-        ...(selectedGame.identity?.microTags ?? []),
-        ...selectedGame.tags.identity,
-      ].filter(Boolean)) : [],
-      result: unique([
-        game.identity?.signatureTag ?? "",
-        ...(game.identity?.nicheAnchors ?? []),
-        ...(game.identity?.identityTags ?? []),
-        ...(game.identity?.microTags ?? []),
-        ...game.tags.identity,
-      ].filter(Boolean)),
-    },
-    {
-      label: "World",
-      base: selectedGame ? unique([...(selectedGame.identity?.settingTags ?? []), ...selectedGame.tags.setting]) : [],
-      result: unique([...(game.identity?.settingTags ?? []), ...game.tags.setting]),
-    },
-    {
-      label: "Music",
-      base: selectedGame ? unique([
-        selectedGame.identity?.musicPrimary ?? "",
-        selectedGame.identity?.musicSecondary ?? "",
-        ...selectedGame.tags.music,
-      ].filter(Boolean)) : [],
-      result: unique([
-        game.identity?.musicPrimary ?? "",
-        game.identity?.musicSecondary ?? "",
-        ...game.tags.music,
-      ].filter(Boolean)),
-    },
-  ]
-
-  return sections.map((section) => {
-    const baseKeys = new Set(section.base.map(normalizeTagMatchKey))
-    const resultKeys = new Set(section.result.map(normalizeTagMatchKey))
-    return {
-      label: section.label,
-      shared: section.result.filter((tag) => baseKeys.has(normalizeTagMatchKey(tag))),
-      baseOnly: section.base.filter((tag) => !resultKeys.has(normalizeTagMatchKey(tag))).slice(0, 5),
-      resultOnly: section.result.filter((tag) => !baseKeys.has(normalizeTagMatchKey(tag))).slice(0, 5),
-    }
-  }).filter((section) => section.shared.length > 0 || section.baseOnly.length > 0 || section.resultOnly.length > 0)
-}
 
 function SteamReviewBar({ positivePercent, reviewCount }: { positivePercent: number | null; reviewCount: number }) {
   const fill = positivePercent ?? 0

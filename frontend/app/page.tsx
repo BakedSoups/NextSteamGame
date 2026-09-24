@@ -13,6 +13,23 @@ import { RecommendationsPanel } from "@/components/recommendations-panel"
 import { TagFilterPanel } from "@/components/tag-filter-panel"
 import { unique } from "@/lib/collections"
 import { clampPercent } from "@/lib/number"
+import {
+  DEFAULT_APPEAL_WEIGHTS,
+  DEFAULT_CONTEXT_WEIGHTS,
+  DEFAULT_MATCH_WEIGHTS,
+  SIGNAL_CONTEXT_KEYS,
+  VECTOR_CONTEXT_KEYS,
+  buildWeightsFromGame,
+  featuredTagGroups,
+  frequentTags,
+  hasSemanticProfile,
+  reviewPositivePercent,
+  reviewRelevanceScore,
+  simpleIntentHighlights,
+  steamStoreUrl,
+  type SimpleIntentKey,
+  type TagContextKey,
+} from "@/lib/recommendation-page"
 import type { Game, RecommendedGame, TagFilters, Weights } from "@/lib/types"
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000"
@@ -22,223 +39,8 @@ const API_REQUEST_TIMEOUT_MS = 12_000
 const DIAGNOSTIC_REQUEST_TIMEOUT_MS = 5_000
 const GITHUB_REQUEST_TIMEOUT_MS = 5_000
 
-const DEFAULT_MATCH_WEIGHTS: Weights["match"] = {
-  vector: 34,
-  genre: 26,
-  appeal: 22,
-  music: 18,
-}
-
-const DEFAULT_CONTEXT_WEIGHTS: Weights["context"] = {
-  mechanics: 20,
-  narrative: 8,
-  vibe: 10,
-  structure_loop: 18,
-  identity: 18,
-  setting: 13,
-  music: 13,
-}
-
-const DEFAULT_APPEAL_WEIGHTS: Weights["appeal"] = {
-  challenge: 50,
-  complexity: 50,
-  pace: 50,
-  narrative_focus: 50,
-  social_energy: 50,
-  creativity: 50,
-}
-
 type Screen = "search" | "profile" | "results"
-type TagContextKey = keyof Weights["tags"]
-const VECTOR_CONTEXT_KEYS: TagContextKey[] = ["mechanics", "narrative", "vibe", "structure_loop"]
-const SIGNAL_CONTEXT_KEYS: TagContextKey[] = ["identity", "setting", "music"]
-type SimpleIntentKey =
-  | "more_similar"
-  | "more_different"
-  | "better_gameplay"
-  | "more_story"
-  | "stronger_atmosphere"
-  | "more_distinctive"
 
-function frequentTags(games: Game[], select: (game: Game) => string[], minimumCount = 3): string[] {
-  const counts = new Map<string, number>()
-  for (const game of games) {
-    const uniqueTags = new Set(select(game).filter(Boolean))
-    for (const tag of uniqueTags) {
-      counts.set(tag, (counts.get(tag) ?? 0) + 1)
-    }
-  }
-  return Array.from(counts.entries())
-    .filter(([, count]) => count >= minimumCount)
-    .map(([tag]) => tag)
-    .sort((a, b) => a.localeCompare(b))
-}
-
-function normalizeToHundred(tags: string[]): Record<string, number> {
-  if (tags.length === 0) {
-    return {}
-  }
-
-  const base = Math.floor(100 / tags.length)
-  const remainder = 100 - base * tags.length
-
-  return tags.reduce<Record<string, number>>((acc, tag, index) => {
-    acc[tag] = base + (index < remainder ? 1 : 0)
-    return acc
-  }, {})
-}
-
-function normalizeTagKey(tag: string): string {
-  return tag.replace(/[\s-]+/g, "_").toLowerCase()
-}
-
-function displayTagWeights(
-  tags: string[],
-  liveWeights: Record<string, number> | undefined,
-): Record<string, number> {
-  const fallbackWeights = normalizeToHundred(tags)
-  const rawWeights = liveWeights ?? {}
-  const normalizedEntries = Object.entries(rawWeights).reduce<Record<string, number>>((acc, [tag, value]) => {
-    acc[normalizeTagKey(tag)] = value
-    return acc
-  }, {})
-
-  const resolved = tags.reduce<Record<string, number>>((acc, tag) => {
-    acc[tag] = rawWeights[tag] ?? normalizedEntries[normalizeTagKey(tag)] ?? fallbackWeights[tag] ?? 0
-    return acc
-  }, {})
-
-  for (const [tag, value] of Object.entries(rawWeights)) {
-    const displayTag = tag.replace(/_/g, " ")
-    if (!(displayTag in resolved) && !(tag in resolved)) {
-      resolved[displayTag] = value
-    }
-  }
-
-  return resolved
-}
-
-function buildTagWeights(game: Game): Weights["tags"] {
-  return {
-    mechanics: normalizeToHundred(game.tags.mechanics),
-    narrative: normalizeToHundred(game.tags.narrative),
-    vibe: normalizeToHundred(game.tags.vibe),
-    structure_loop: normalizeToHundred(game.tags.structure_loop),
-    identity: normalizeToHundred(game.tags.identity),
-    setting: normalizeToHundred(game.tags.setting),
-    music: normalizeToHundred(game.tags.music),
-  }
-}
-
-function featuredTagGroups(game: Game | null): Array<{
-  context: keyof Weights["tags"]
-  label: string
-  tags: string[]
-}> {
-  if (!game) {
-    return []
-  }
-
-  const signatureTags = game.identity?.signatureTag ? [game.identity.signatureTag] : []
-  const nicheAnchorTags = game.identity?.nicheAnchors.slice(0, 6) ?? []
-  const identityDetailTags = Array.from(
-    new Set([...(game.identity?.identityTags ?? []), ...(game.identity?.microTags ?? [])]),
-  ).slice(0, 6)
-
-  const groups: Array<{
-    context: keyof Weights["tags"]
-    label: string
-    tags: string[]
-  }> = [
-    { context: "identity", label: "Signature Hook", tags: signatureTags },
-    { context: "identity", label: "Identity Anchors", tags: nicheAnchorTags },
-    { context: "identity", label: "Identity Details", tags: identityDetailTags },
-    { context: "setting", label: "World / Setting", tags: game.tags.setting.slice(0, 6) },
-    { context: "music", label: "Music", tags: game.tags.music.slice(0, 6) },
-    { context: "narrative", label: "Narrative", tags: game.tags.narrative.slice(0, 3) },
-    { context: "vibe", label: "Vibe", tags: game.tags.vibe.slice(0, 3) },
-    { context: "structure_loop", label: "Structure", tags: game.tags.structure_loop.slice(0, 3) },
-    { context: "mechanics", label: "Mechanics", tags: game.tags.mechanics.slice(0, 3) },
-  ]
-  return groups.filter((group) => group.tags.length > 0)
-}
-
-function hasSemanticProfile(game: Game | null): boolean {
-  if (!game) {
-    return false
-  }
-
-  return Object.values(game.tags).some((tags) => tags.length > 0)
-}
-
-function buildWeightsFromGame(game: Game): Weights {
-  const liveWeights = game.weights ?? {}
-  return {
-    match: { ...DEFAULT_MATCH_WEIGHTS, ...(liveWeights.match ?? {}) },
-    context: { ...DEFAULT_CONTEXT_WEIGHTS, ...(liveWeights.context ?? {}) },
-    appeal: { ...DEFAULT_APPEAL_WEIGHTS, ...(liveWeights.appeal ?? {}) },
-    tags: {
-      mechanics: displayTagWeights(game.tags.mechanics, liveWeights.tags?.mechanics),
-      narrative: displayTagWeights(game.tags.narrative, liveWeights.tags?.narrative),
-      vibe: displayTagWeights(game.tags.vibe, liveWeights.tags?.vibe),
-      structure_loop: displayTagWeights(game.tags.structure_loop, liveWeights.tags?.structure_loop),
-      identity: displayTagWeights(game.tags.identity, liveWeights.tags?.identity),
-      setting: displayTagWeights(game.tags.setting, liveWeights.tags?.setting),
-      music: displayTagWeights(game.tags.music, liveWeights.tags?.music),
-    },
-    genres: {
-      primary: [...game.genres.primary],
-      sub: [...game.genres.sub],
-      sub_sub: [...game.genres.sub_sub],
-      traits: [...game.genres.traits],
-    },
-  }
-}
-
-function simpleIntentHighlights(intent: SimpleIntentKey): TagContextKey[] {
-  switch (intent) {
-    case "more_similar":
-      return ["mechanics", "structure_loop"]
-    case "more_different":
-      return ["identity", "setting", "music"]
-    case "better_gameplay":
-      return ["mechanics", "structure_loop"]
-    case "more_story":
-      return ["narrative"]
-    case "stronger_atmosphere":
-      return ["vibe", "music"]
-    case "more_distinctive":
-      return ["identity", "setting"]
-  }
-}
-
-function reviewPositivePercent(game: RecommendedGame): number | null {
-  const positive = game.reviewStats?.positive ?? 0
-  const negative = game.reviewStats?.negative ?? 0
-  const total = positive + negative
-  if (total <= 0) {
-    return null
-  }
-  return (positive / total) * 100
-}
-
-function reviewRelevanceScore(game: RecommendedGame): number | null {
-  const positivity = reviewPositivePercent(game)
-  if (positivity === null) {
-    return null
-  }
-  const reviewCount = game.reviewStats?.reviewCount ?? 0
-  const confidence = Math.min(Math.log10(reviewCount + 1) / 5, 1)
-  return positivity * 0.72 + confidence * 100 * 0.28
-}
-
-function steamStoreUrl(game: Game | null): string {
-  if (!game) {
-    return "https://store.steampowered.com/"
-  }
-
-  return `https://store.steampowered.com/app/${game.id}`
-}
 
 function captureProductEvent(
   eventType: string,
