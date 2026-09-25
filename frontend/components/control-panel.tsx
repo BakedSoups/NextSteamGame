@@ -431,8 +431,8 @@ function SignalTagMenus({
   onSimpleTagToggle: (context: keyof Weights["tags"], tag: string) => void
 }) {
   return (
-    <div className="space-y-5">
-      <p className="text-base leading-6 text-slate-200/82">
+    <div className="space-y-3 sm:space-y-5">
+      <p className="text-sm leading-5 text-slate-200/82 sm:text-base sm:leading-6">
         Click what you want to see most in the recommendations.
       </p>
       {groups.map((group) => {
@@ -441,16 +441,16 @@ function SignalTagMenus({
         ).length
 
         return (
-          <div key={`${group.context}-${group.label}`}>
+          <div key={`${group.context}-${group.label}`} className="border-t border-white/[0.06] pt-3 first:border-t-0 first:pt-0">
             <div className="mb-2 flex items-center justify-between gap-3">
-              <div className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-200/82">
+              <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-200/82 sm:text-sm sm:tracking-[0.18em]">
                 {group.label}
               </div>
-              <div className="rounded-full border border-amber-200/20 bg-amber-200/10 px-2 py-0.5 text-sm tracking-[0.12em] text-amber-100/85">
+              <div className="rounded-full border border-amber-200/20 bg-amber-200/10 px-2 py-0.5 text-xs tracking-[0.08em] text-amber-100/85 sm:text-sm sm:tracking-[0.12em]">
                 {selectedCount > 0 ? `${selectedCount} active` : `${group.tags.length} tags`}
               </div>
             </div>
-              <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+            <div className="flex flex-wrap gap-2 sm:grid sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
               {group.tags.map((tag) => {
                 const selectionKey = `${group.context}:${tag}`
                 const isSelected = selectedSimpleTags.includes(selectionKey)
@@ -463,7 +463,7 @@ function SignalTagMenus({
                     className={`signal-tag-button ${isSelected ? "selected" : ""}`}
                   >
                     <span className="min-w-0 break-words leading-4">{tag}</span>
-                    <span className="ml-auto shrink-0" aria-hidden="true">
+                    <span className={`ml-auto shrink-0 ${isSelected ? "" : "hidden sm:inline"}`} aria-hidden="true">
                       {isSelected ? <Check className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
                     </span>
                   </button>

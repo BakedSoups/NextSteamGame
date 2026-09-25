@@ -204,7 +204,7 @@
   }
 
   .signal-tag-button {
-    @apply inline-flex min-h-10 items-center gap-2 rounded-md border border-amber-200/18 bg-amber-200/[0.055] px-3 py-2.5 text-left text-sm font-semibold text-slate-100 transition-all hover:border-amber-200/50 hover:bg-amber-200/[0.10] focus-visible:ring-2 focus-visible:ring-amber-200/45;
+    @apply inline-flex min-h-9 w-auto items-center gap-1.5 rounded-full border border-amber-200/18 bg-amber-200/[0.055] px-3 py-1.5 text-left text-xs font-semibold text-slate-100 transition-all hover:border-amber-200/50 hover:bg-amber-200/[0.10] focus-visible:ring-2 focus-visible:ring-amber-200/45 sm:min-h-10 sm:w-full sm:gap-2 sm:rounded-md sm:py-2.5 sm:text-sm;
   }
 
   .signal-tag-button.selected {

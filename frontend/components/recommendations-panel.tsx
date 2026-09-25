@@ -894,21 +894,24 @@ export function RecommendationsPanel({
       ) : null}
 
       {/* Header */}
-      <div className="panel p-4 glow-box">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
+      <div className="panel p-3 glow-box sm:p-4">
+        <div className="flex items-center justify-between gap-2 sm:gap-4">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
             <SteamRecommendationMark />
-            <div>
+            <div className="hidden sm:block">
               <h2 className="text-sm font-semibold text-foreground">Recommendations</h2>
               <p className="mt-1 text-base font-semibold text-slate-100">
                 {recommendations.length} matches found!
               </p>
             </div>
+            <div className="truncate text-sm font-semibold text-slate-100 sm:hidden">
+              Recommendations · {recommendations.length} matches
+            </div>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex shrink-0 items-center gap-4">
             <div className="flex items-center gap-2">
-              <span className="terminal-label">Sorted by</span>
-              <span className="data-value bg-primary/10 px-2 py-0.5 rounded border border-primary/30">
+              <span className="terminal-label hidden sm:inline">Sorted by</span>
+              <span className="data-value rounded border border-primary/30 bg-primary/10 px-2 py-1 text-xs sm:py-0.5 sm:text-sm">
                 Match Score
               </span>
             </div>

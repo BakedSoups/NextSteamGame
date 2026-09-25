@@ -181,6 +181,7 @@ export default function NextSteamGamePage() {
   const [rawRecommendations, setRawRecommendations] = useState<RecommendedGame[]>([])
   const [tagFilters, setTagFilters] = useState<TagFilters>({ include: [], exclude: [], minReviewPercent: 0, minReviewRelevance: 0 })
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
+  const [mobileScrollProgress, setMobileScrollProgress] = useState(0)
   const [weights, setWeights] = useState<Weights>({
     match: DEFAULT_MATCH_WEIGHTS,
     context: DEFAULT_CONTEXT_WEIGHTS,
@@ -448,6 +449,32 @@ export default function NextSteamGamePage() {
     window.requestAnimationFrame(() => {
       window.scrollTo({ top: 0, left: 0, behavior: "auto" })
     })
+  }
+
+  useEffect(() => {
+    if (screen !== "profile") {
+      return
+    }
+
+    const updateScrollProgress = () => {
+      const scrollableHeight = document.documentElement.scrollHeight - window.innerHeight
+      setMobileScrollProgress(scrollableHeight > 0 ? Math.min(1, window.scrollY / scrollableHeight) : 0)
+    }
+
+    updateScrollProgress()
+    window.addEventListener("scroll", updateScrollProgress, { passive: true })
+    window.addEventListener("resize", updateScrollProgress)
+    return () => {
+      window.removeEventListener("scroll", updateScrollProgress)
+      window.removeEventListener("resize", updateScrollProgress)
+    }
+  }, [screen])
+
+  const scrollProfileFromRail = (element: HTMLButtonElement, clientY: number) => {
+    const bounds = element.getBoundingClientRect()
+    const progress = Math.min(1, Math.max(0, (clientY - bounds.top) / bounds.height))
+    const scrollableHeight = document.documentElement.scrollHeight - window.innerHeight
+    window.scrollTo({ top: progress * scrollableHeight, behavior: "auto" })
   }
 
   const handleSelectGame = async (game: Game) => {
@@ -755,7 +782,7 @@ export default function NextSteamGamePage() {
                       advanced: false,
                     }))
                   }}
-                  className={`rounded-full px-3 py-1.5 text-xs transition-colors ${
+                  className={`hidden rounded-full px-3 py-1.5 text-xs transition-colors sm:block ${
                     controlMode === "advanced" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
@@ -796,9 +823,9 @@ export default function NextSteamGamePage() {
         </div>
       </header>
 
-      <main className={screen === "search" ? "" : "mx-auto max-w-[1920px] px-3 py-8 md:px-4 xl:px-5"}>
+      <main className={screen === "search" ? "" : "mx-auto max-w-[1920px] px-3 py-4 sm:py-8 md:px-4 xl:px-5"}>
         {screen === "search" && (
-          <div className="relative min-h-[calc(100dvh-77px)] overflow-x-hidden sm:overflow-hidden md:min-h-[calc(125dvh-77px)]">
+          <div className="relative isolate min-h-[calc(100svh-77px)] overflow-hidden bg-[#050a10] md:min-h-[calc(125dvh-77px)]">
             <img
               src={gameShelfBackground.src}
               alt=""
@@ -846,16 +873,16 @@ export default function NextSteamGamePage() {
                 </span>
               </span>
             </a>
-            <div className="relative z-10 flex min-h-[calc(100dvh-77px)] items-start justify-center px-4 pb-40 pt-14 sm:items-center sm:px-8 sm:pb-12 sm:pt-8 md:min-h-[calc(125dvh-77px)] md:px-12 md:pt-10">
+            <div className="relative z-10 flex min-h-[calc(100svh-77px)] items-start justify-center px-4 pb-10 pt-20 sm:items-center sm:px-8 sm:pb-12 sm:pt-8 md:min-h-[calc(125dvh-77px)] md:px-12 md:pt-10">
               <div className="w-full max-w-5xl text-center">
                 <div className="group/hero-logo flex items-center justify-center gap-4 sm:gap-6">
                   <img
                     src={steamLogo.src}
                     alt="Steam"
-                    className="launch-logo h-16 w-16 shrink-0 object-contain transition-transform duration-500 group-hover/hero-logo:rotate-3 sm:h-32 sm:w-32 md:h-40 md:w-40"
+                    className="launch-logo h-14 w-14 shrink-0 object-contain transition-transform duration-500 group-hover/hero-logo:rotate-3 sm:h-32 sm:w-32 md:h-40 md:w-40"
                   />
                   <div className="min-w-0 space-y-2 text-left">
-                    <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-[2.85rem] md:text-[3.5rem] xl:text-[3.9rem]">
+                    <h1 className="text-[1.75rem] font-semibold leading-[1.08] tracking-tight text-white sm:text-[2.85rem] md:text-[3.5rem] xl:text-[3.9rem]">
                       Find Similar Steam Games
                     </h1>
                     <div className="text-xs font-medium uppercase tracking-[0.22em] text-slate-300/88 sm:text-sm sm:tracking-[0.24em]">
@@ -863,7 +890,7 @@ export default function NextSteamGamePage() {
                     </div>
                   </div>
                 </div>
-                <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-200 sm:mt-5 md:text-lg">
+                <p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-slate-200 sm:mt-5 sm:text-base sm:leading-7 md:text-lg">
                   This site turns Steam reviews into usable tags and vectors, so games here represent the community&apos;s voice instead of only store categories.
                 </p>
                 <div className="mx-auto mt-6 max-w-4xl sm:mt-10">
@@ -880,7 +907,7 @@ export default function NextSteamGamePage() {
                   href={SNEAKY_FISHY_URL}
                   target="_blank"
                   rel="noreferrer"
-                  className="mx-auto mt-8 flex max-w-md overflow-hidden rounded-2xl border border-cyan-200/25 bg-[#09131e]/88 text-left text-white shadow-[0_20px_50px_rgba(0,0,0,0.4)] backdrop-blur lg:hidden"
+                  className="mx-auto mt-6 flex max-w-md overflow-hidden rounded-2xl border border-cyan-200/25 bg-[#09131e]/94 text-left text-white shadow-[0_20px_50px_rgba(0,0,0,0.4)] backdrop-blur lg:hidden sm:mt-8"
                 >
                   <span aria-hidden="true" className="w-28 shrink-0 bg-cover bg-center sm:w-36" style={{ backgroundImage: `url(${sneakyFishyImage.src})` }} />
                   <span className="min-w-0 px-4 py-3">
@@ -895,14 +922,14 @@ export default function NextSteamGamePage() {
         )}
 
         {screen === "profile" && (
-          <div className="relative -mx-6 -mt-8 overflow-hidden bg-[#121b27]">
+          <div className="relative -mx-3 -mt-4 overflow-hidden bg-[#121b27] sm:-mx-6 sm:-mt-8">
               {profileHeroImage && (
                 <>
                   <div className="absolute inset-x-0 top-0 flex items-start justify-center overflow-hidden" style={{ height: backgroundHeroHeight }}>
                     <img
                       src={profileHeroImage}
                       alt={selectedGame?.title || "Selected game"}
-                      className="h-full w-full object-cover"
+                      className="h-full w-full object-cover blur-[1.5px] saturate-[0.82] md:blur-0 md:saturate-100"
                       style={{
                         objectPosition: backgroundHeroPosition,
                         transform: `scale(${backgroundHeroZoom})`,
@@ -911,7 +938,7 @@ export default function NextSteamGamePage() {
                     />
                   </div>
                   <div
-                    className="absolute inset-x-0 top-0 bg-[linear-gradient(180deg,rgba(9,14,20,0.08),rgba(9,14,20,0.22)_32%,rgba(9,14,20,0.46)_60%,rgba(9,14,20,0.90)_100%),linear-gradient(90deg,rgba(9,14,20,0.46)_0%,rgba(9,14,20,0.18)_36%,rgba(9,14,20,0.06)_68%,rgba(9,14,20,0.22)_100%)]"
+                    className="absolute inset-x-0 top-0 bg-[linear-gradient(180deg,rgba(9,14,20,0.34),rgba(9,14,20,0.48)_32%,rgba(9,14,20,0.68)_60%,rgba(9,14,20,0.96)_100%),linear-gradient(90deg,rgba(9,14,20,0.66)_0%,rgba(9,14,20,0.36)_50%,rgba(9,14,20,0.40)_100%)] md:bg-[linear-gradient(180deg,rgba(9,14,20,0.08),rgba(9,14,20,0.22)_32%,rgba(9,14,20,0.46)_60%,rgba(9,14,20,0.90)_100%),linear-gradient(90deg,rgba(9,14,20,0.46)_0%,rgba(9,14,20,0.18)_36%,rgba(9,14,20,0.06)_68%,rgba(9,14,20,0.22)_100%)]"
                     style={{ height: backgroundHeroHeight }}
                   />
                   <div
@@ -921,13 +948,13 @@ export default function NextSteamGamePage() {
                 </>
               )}
 
-              <div className="relative z-10 px-4 py-6 md:px-5 md:py-8 xl:px-6 xl:py-10">
+              <div className="relative z-10 px-3 py-4 sm:px-4 sm:py-6 md:px-5 md:py-8 xl:px-6 xl:py-10">
                 <div className="flex flex-col gap-6 xl:gap-8">
                   <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
                     <div className="space-y-4">
                       <button
                         onClick={() => goToScreen("search")}
-                        className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-base text-white/88 backdrop-blur hover:bg-white/10"
+                        className="inline-flex min-h-10 items-center gap-2 rounded-full border border-white/10 bg-black/25 px-4 py-2 text-sm text-white/88 backdrop-blur hover:bg-white/10 sm:text-base"
                       >
                         <ArrowLeft className="h-4 w-4" />
                         Back to Search
@@ -936,15 +963,15 @@ export default function NextSteamGamePage() {
                   </div>
 
                   <div
-                    className="grid items-end gap-5 md:[grid-template-columns:210px_minmax(0,1fr)] xl:gap-8"
+                    className="grid grid-cols-[116px_minmax(0,1fr)] items-end gap-3 sm:grid-cols-[148px_minmax(0,1fr)] sm:gap-5 md:[grid-template-columns:210px_minmax(0,1fr)] xl:gap-8"
                   >
                     <div className="contents md:hidden">
                       <div
-                        className="w-full max-w-[220px] self-end overflow-hidden shadow-[0_24px_44px_rgba(0,0,0,0.32)]"
+                        className="w-full self-end overflow-hidden shadow-[0_24px_44px_rgba(0,0,0,0.32)]"
                         style={{ borderRadius: `${thumbnailRadius}px` }}
                       >
                         {profileCardImage ? (
-                          <div style={{ height: `${Math.round(thumbnailHeight * 0.82)}px` }}>
+                          <div className="h-[168px] sm:h-[208px]">
                             <img
                               src={profileCardImage}
                               alt={selectedGame?.title || "Selected game"}
@@ -986,49 +1013,29 @@ export default function NextSteamGamePage() {
                     </div>
 
                     <div className="min-w-0 pt-2">
-                      <h2 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl md:text-5xl">
+                      <h2 className="text-2xl font-semibold leading-tight tracking-tight text-white sm:text-4xl md:text-5xl">
                         {selectedGame?.title}
                       </h2>
-                      <div className="mt-4 flex flex-wrap gap-2">
+                      <div className="mt-3 flex flex-wrap gap-1.5 sm:mt-4 sm:gap-2">
                         {selectedGame?.genres.primary.slice(0, 2).map((genre) => (
                           <span
                             key={genre}
-                            className="rounded-full border border-white/22 bg-white/12 px-3 py-1 text-xs uppercase tracking-[0.18em] text-white/95"
+                            className="rounded-full border border-white/22 bg-white/12 px-2.5 py-1 text-[10px] uppercase tracking-[0.12em] text-white/95 sm:px-3 sm:text-xs sm:tracking-[0.18em]"
                           >
                             {genre}
                           </span>
                         ))}
                         {selectedGame?.category ? (
-                          <span className="rounded-full border border-sky-300/32 bg-sky-400/18 px-3 py-1 text-xs uppercase tracking-[0.18em] text-sky-50">
+                          <span className="rounded-full border border-sky-300/32 bg-sky-400/18 px-2.5 py-1 text-[10px] uppercase tracking-[0.12em] text-sky-50 sm:px-3 sm:text-xs sm:tracking-[0.18em]">
                             {selectedGame.category}
                           </span>
                         ) : null}
-                        <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs uppercase tracking-[0.18em] text-white/85">
+                        <span className="rounded-full border border-white/20 bg-white/10 px-2.5 py-1 text-[10px] uppercase tracking-[0.12em] text-white/85 sm:px-3 sm:text-xs sm:tracking-[0.18em]">
                           AppID {selectedGame?.id}
                         </span>
                       </div>
                       {selectedGameScreenshots.length > 0 ? (
-                        <>
-                          <div className="mt-6 md:hidden">
-                            <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                              {selectedGameScreenshots.map((url, index) => (
-                                <a
-                                  key={`selected-shot-mobile-${index}`}
-                                  href={url}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="group min-w-[168px] overflow-hidden rounded-xl border border-white/10 bg-black/20"
-                                >
-                                  <img
-                                    src={url}
-                                    alt={`${selectedGame?.title || "Selected game"} screenshot ${index + 1}`}
-                                    className="h-24 w-[168px] object-cover transition-transform duration-200 group-hover:scale-[1.02]"
-                                  />
-                                </a>
-                              ))}
-                            </div>
-                          </div>
-                          <div className="mt-6 hidden md:block">
+                        <div className="mt-6 hidden md:block">
                             <div className="grid max-w-3xl grid-cols-3 gap-3">
                               {selectedGameScreenshots.map((url, index) => (
                                 <a
@@ -1046,11 +1053,32 @@ export default function NextSteamGamePage() {
                                 </a>
                               ))}
                             </div>
-                          </div>
-                        </>
+                        </div>
                       ) : null}
                     </div>
                   </div>
+
+                  {selectedGameScreenshots.length > 0 ? (
+                    <div className="-mt-2 md:hidden">
+                      <div className="flex snap-x gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                        {selectedGameScreenshots.map((url, index) => (
+                          <a
+                            key={`selected-shot-mobile-${index}`}
+                            href={url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="group min-w-[72vw] snap-start overflow-hidden rounded-xl border border-white/10 bg-black/20 sm:min-w-[46vw]"
+                          >
+                            <img
+                              src={url}
+                              alt={`${selectedGame?.title || "Selected game"} screenshot ${index + 1}`}
+                              className="h-28 w-full object-cover transition-transform duration-200 group-hover:scale-[1.02] sm:h-32"
+                            />
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
 
                   {selectedGameHasSemanticProfile ? (
                     <>
@@ -1346,6 +1374,28 @@ export default function NextSteamGamePage() {
           </div>
         )}
       </main>
+      {screen === "profile" ? (
+        <button
+          type="button"
+          className="fixed bottom-5 right-1.5 top-[88px] z-[75] w-4 touch-none rounded-full xl:hidden"
+          onPointerDown={(event) => {
+            event.currentTarget.setPointerCapture(event.pointerId)
+            scrollProfileFromRail(event.currentTarget, event.clientY)
+          }}
+          onPointerMove={(event) => {
+            if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+              scrollProfileFromRail(event.currentTarget, event.clientY)
+            }
+          }}
+          aria-label="Scroll through game tuning"
+        >
+          <span className="absolute bottom-0 left-1/2 top-0 w-1 -translate-x-1/2 rounded-full border border-white/10 bg-black/35 shadow-[0_0_10px_rgba(0,0,0,0.45)]" />
+          <span
+            className="absolute left-1/2 h-12 w-1.5 -translate-x-1/2 rounded-full bg-sky-300 shadow-[0_0_10px_rgba(56,189,248,0.75)]"
+            style={{ top: `calc(${mobileScrollProgress * 100}% - ${mobileScrollProgress * 48}px)` }}
+          />
+        </button>
+      ) : null}
     </div>
   )
 }
