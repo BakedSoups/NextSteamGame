@@ -159,7 +159,7 @@ export function TagFilterPanel({ filters, tagOptions, onFiltersChange }: TagFilt
       </div>
 
       {/* Tag Categories */}
-      <div className="max-h-64 overflow-y-auto custom-scrollbar">
+      <div className="max-h-[48dvh] overflow-y-auto custom-scrollbar xl:max-h-64">
         {Object.entries(filteredTags).map(([category, tags]) => {
           const visual = CATEGORY_VISUALS[category] ?? CATEGORY_VISUALS.mechanics
           const CategoryIcon = visual.icon
@@ -204,7 +204,7 @@ export function TagFilterPanel({ filters, tagOptions, onFiltersChange }: TagFilt
                         }`}
                       >
                         <span className="filter-tag-accent" aria-hidden="true" />
-                        <span className="min-w-0 flex-1 truncate leading-4" title={tag}>{tag}</span>
+                        <span className="min-w-0 flex-1 whitespace-normal break-words leading-5 sm:truncate sm:leading-4" title={tag}>{tag}</span>
                         <span className="filter-tag-arrow" aria-hidden="true">
                           {isIncluded ? <Check className="h-3.5 w-3.5" /> : <span className="h-1.5 w-1.5 rounded-full bg-current opacity-40" />}
                         </span>

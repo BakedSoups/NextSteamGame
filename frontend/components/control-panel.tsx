@@ -314,7 +314,7 @@ function VectorControlCard({
             return (
               <label
                 key={`${context}-${tag}`}
-                className="group relative block min-h-[46px] cursor-ew-resize overflow-hidden rounded-2xl border bg-white/[0.035] px-3.5 py-2.5 transition-colors hover:bg-white/[0.06]"
+                className="group relative block min-h-[56px] cursor-ew-resize overflow-hidden rounded-2xl border bg-white/[0.035] px-4 py-3 transition-colors hover:bg-white/[0.06] sm:min-h-[46px] sm:px-3.5 sm:py-2.5"
                 style={{
                   borderColor: `${visual.accent}4d`,
                 }}
@@ -327,7 +327,7 @@ function VectorControlCard({
                   }}
                 />
                 <div className="relative z-10 flex min-w-0 items-center justify-between gap-3">
-                  <div className="min-w-0 truncate text-sm font-semibold text-slate-50">
+                  <div className="min-w-0 break-words pr-2 text-base font-semibold leading-5 text-slate-50 [text-shadow:0_1px_3px_rgba(0,0,0,0.9)] sm:truncate sm:text-sm">
                     {tag.replace(/_/g, " ")}
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
@@ -343,7 +343,7 @@ function VectorControlCard({
                   </div>
                 </div>
                 <div
-                  className="pointer-events-none absolute top-1/2 z-[1] flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full border bg-slate-950/80 shadow-[0_0_18px_rgba(255,255,255,0.18)] transition-[left] duration-500 ease-out"
+                  className="pointer-events-none absolute top-1/2 z-[1] hidden h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full border bg-slate-950/80 shadow-[0_0_18px_rgba(255,255,255,0.18)] transition-[left] duration-500 ease-out sm:flex"
                   style={{
                     left: `calc(${strength}% - 14px)`,
                     borderColor: `${visual.accent}80`,

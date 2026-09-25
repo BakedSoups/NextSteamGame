@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import posthog from "posthog-js"
-import { ArrowLeft, ArrowRight, ExternalLink, Github, MessageCircleMore, Star, X } from "lucide-react"
+import { ArrowLeft, ArrowRight, ExternalLink, Github, Menu, MessageCircleMore, Star, X } from "lucide-react"
 import steamLogo from "@/art_assets/Steam-Logo.png"
 import gameShelfBackground from "@/art_assets/game_collection_background.webp"
 import sneakyFishyImage from "@/art_assets/sneaky-fishy-card.jpg"
@@ -180,6 +180,7 @@ export default function NextSteamGamePage() {
   const [resultsError, setResultsError] = useState<string | null>(null)
   const [rawRecommendations, setRawRecommendations] = useState<RecommendedGame[]>([])
   const [tagFilters, setTagFilters] = useState<TagFilters>({ include: [], exclude: [], minReviewPercent: 0, minReviewRelevance: 0 })
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
   const [weights, setWeights] = useState<Weights>({
     match: DEFAULT_MATCH_WEIGHTS,
     context: DEFAULT_CONTEXT_WEIGHTS,
@@ -435,8 +436,14 @@ export default function NextSteamGamePage() {
   }, [selectedGame, recommendations])
 
   const simpleFeaturedTags = useMemo(() => featuredTagGroups(selectedGame), [selectedGame])
+  const activeFilterCount =
+    tagFilters.include.length +
+    tagFilters.exclude.length +
+    ((tagFilters.minReviewPercent ?? 0) > 0 ? 1 : 0) +
+    ((tagFilters.minReviewRelevance ?? 0) > 0 ? 1 : 0)
 
   const goToScreen = (nextScreen: Screen) => {
+    setMobileFiltersOpen(false)
     setScreen(nextScreen)
     window.requestAnimationFrame(() => {
       window.scrollTo({ top: 0, left: 0, behavior: "auto" })
@@ -1137,8 +1144,8 @@ export default function NextSteamGamePage() {
         )}
 
         {screen === "results" && (
-          <div className="grid grid-cols-1 gap-5 xl:grid-cols-[270px_minmax(0,1fr)_340px] xl:gap-5">
-            <div className="space-y-4 xl:sticky xl:top-24 xl:h-fit xl:max-h-[calc(100vh-7rem)] xl:overflow-y-auto custom-scrollbar xl:pr-1">
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-[270px_minmax(0,1fr)_340px] xl:gap-5">
+            <div className="hidden space-y-4 xl:sticky xl:top-24 xl:block xl:h-fit xl:max-h-[calc(100vh-7rem)] xl:overflow-y-auto custom-scrollbar xl:pr-1">
               <button
                 onClick={() => goToScreen("profile")}
                 className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm text-foreground hover:bg-secondary/30"
@@ -1155,6 +1162,32 @@ export default function NextSteamGamePage() {
             </div>
 
             <div className="space-y-4">
+              <div className="sticky top-[76px] z-40 -mx-1 flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-[#07111b]/94 p-2 shadow-[0_14px_34px_rgba(0,0,0,0.32)] backdrop-blur-xl xl:hidden">
+                <button
+                  type="button"
+                  onClick={() => goToScreen("profile")}
+                  className="inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-slate-100 transition hover:bg-white/[0.07]"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  Tuning
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMobileFiltersOpen(true)}
+                  className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-sky-300/35 bg-sky-300/10 px-3 text-sm font-semibold text-sky-50 shadow-[0_0_18px_rgba(56,189,248,0.08)]"
+                  aria-haspopup="dialog"
+                  aria-expanded={mobileFiltersOpen}
+                >
+                  <Menu className="h-5 w-5" />
+                  Filters
+                  {activeFilterCount > 0 ? (
+                    <span className="rounded-full bg-amber-300 px-2 py-0.5 text-xs font-bold text-slate-950">
+                      {activeFilterCount}
+                    </span>
+                  ) : null}
+                </button>
+              </div>
+
               {!selectedGameHasSemanticProfile ? (
                 <div className="rounded-[28px] border border-amber-300/25 bg-amber-300/10 p-8 text-center shadow-[0_18px_42px_rgba(0,0,0,0.18)]">
                   <a
@@ -1268,6 +1301,48 @@ export default function NextSteamGamePage() {
                 </div>
               )}
             </div>
+
+            {mobileFiltersOpen ? (
+              <div className="fixed inset-0 z-[90] xl:hidden" role="dialog" aria-modal="true" aria-label="Recommendation filters">
+                <button
+                  type="button"
+                  className="absolute inset-0 bg-black/72 backdrop-blur-sm"
+                  onClick={() => setMobileFiltersOpen(false)}
+                  aria-label="Close filters"
+                />
+                <aside className="absolute inset-y-0 left-0 flex w-[min(92vw,380px)] flex-col border-r border-sky-200/20 bg-[#07131f] shadow-[28px_0_70px_rgba(0,0,0,0.58)]">
+                  <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+                    <div>
+                      <div className="text-base font-semibold text-white">Filter Results</div>
+                      <div className="text-xs text-slate-400">Choose the traits you want to keep</div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setMobileFiltersOpen(false)}
+                      className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/12 bg-white/[0.05] text-slate-100"
+                      aria-label="Close filters"
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
+                  </div>
+                  <div className="min-h-0 flex-1 overflow-y-auto p-3 custom-scrollbar">
+                    <SelectedGamePanel game={selectedGame} />
+                    <div className="mt-3">
+                      <TagFilterPanel filters={tagFilters} tagOptions={tagOptions} onFiltersChange={setTagFilters} />
+                    </div>
+                  </div>
+                  <div className="border-t border-white/10 p-3">
+                    <button
+                      type="button"
+                      onClick={() => setMobileFiltersOpen(false)}
+                      className="min-h-12 w-full rounded-xl bg-sky-300 px-4 text-sm font-bold text-slate-950"
+                    >
+                      Show {recommendations.length} results
+                    </button>
+                  </div>
+                </aside>
+              </div>
+            ) : null}
           </div>
         )}
       </main>
