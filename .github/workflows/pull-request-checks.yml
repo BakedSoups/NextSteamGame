@@ -44,6 +44,21 @@ jobs:
   python:
     name: Python Compile And Unit Tests
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: steam-test-only
+          POSTGRES_DB: steam_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d steam_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      STEAM_REC_TEST_POSTGRES_DSN: postgresql://postgres:steam-test-only@localhost:5432/steam_test
     steps:
       - name: Checkout
         uses: actions/checkout@v4

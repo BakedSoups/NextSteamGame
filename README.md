@@ -176,7 +176,7 @@ This keeps the live application extremely cheap while still allowing real-time c
 
 - backend: `FastAPI`
 - frontend: `Next.js` / React
-- runtime game store: `Postgres`
+- runtime game store: `Postgres` through SQLAlchemy Core
 - retrieval target: local `Chroma`
 - upstream build artifacts: `SQLite`
 
