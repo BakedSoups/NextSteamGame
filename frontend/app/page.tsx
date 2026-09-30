@@ -13,6 +13,7 @@ import { RecommendationsPanel } from "@/components/recommendations-panel"
 import { TagFilterPanel } from "@/components/tag-filter-panel"
 import { unique } from "@/lib/collections"
 import { clampPercent } from "@/lib/number"
+import { updatePercentWeight } from "@/lib/percent-weights"
 import {
   DEFAULT_APPEAL_WEIGHTS,
   DEFAULT_CONTEXT_WEIGHTS,
@@ -74,6 +75,8 @@ async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit = {}
     throw new DOMException("Request was cancelled", "AbortError")
   }
 
+  // A newer search can cancel a stale request independently of the timeout.
+  // Keep that cancellation distinguishable from a user-visible timeout error.
   const abortFromCaller = () => controller.abort()
   callerSignal?.addEventListener("abort", abortFromCaller, { once: true })
 
@@ -497,50 +500,13 @@ export default function NextSteamGamePage() {
   }
 
   const updateMatchWeight = (key: keyof Weights["match"], value: number) => {
-    setWeights((prev) => {
-      const others = Object.keys(prev.match).filter((k) => k !== key) as (keyof Weights["match"])[]
-      const remaining = 100 - value
-      const otherTotal = others.reduce((sum, k) => sum + prev.match[k], 0)
-
-      const newMatch = { ...prev.match, [key]: value }
-      if (otherTotal > 0) {
-        others.forEach((k) => {
-          newMatch[k] = Math.max(0, Math.round((prev.match[k] / otherTotal) * remaining))
-        })
-      }
-
-      const total = Object.values(newMatch).reduce((a, b) => a + b, 0)
-      if (total !== 100 && others.length > 0) {
-        const largestKey = others.reduce((a, b) => (newMatch[a] > newMatch[b] ? a : b))
-        newMatch[largestKey] += 100 - total
-      }
-
-      return { ...prev, match: newMatch }
-    })
+    setWeights((prev) => ({ ...prev, match: updatePercentWeight(prev.match, key, value) }))
   }
 
   const updateContextWeight = (key: keyof Weights["context"], value: number) => {
-    setWeights((prev) => {
-      const contextGroup = VECTOR_CONTEXT_KEYS.includes(key) ? VECTOR_CONTEXT_KEYS : SIGNAL_CONTEXT_KEYS
-      const others = contextGroup.filter((k) => k !== key)
-      const remaining = 100 - value
-      const otherTotal = others.reduce((sum, k) => sum + prev.context[k], 0)
-
-      const newContext = { ...prev.context, [key]: value }
-      if (otherTotal > 0) {
-        others.forEach((k) => {
-          newContext[k] = Math.max(0, Math.round((prev.context[k] / otherTotal) * remaining))
-        })
-      }
-
-      const total = contextGroup.reduce((sum, item) => sum + newContext[item], 0)
-      if (total !== 100 && others.length > 0) {
-        const largestKey = others.reduce((a, b) => (newContext[a] > newContext[b] ? a : b))
-        newContext[largestKey] += 100 - total
-      }
-
-      return { ...prev, context: newContext }
-    })
+    // Vector and signal controls each have their own 100-point budget.
+    const group = VECTOR_CONTEXT_KEYS.includes(key) ? VECTOR_CONTEXT_KEYS : SIGNAL_CONTEXT_KEYS
+    setWeights((prev) => ({ ...prev, context: updatePercentWeight(prev.context, key, value, group) }))
   }
 
   const updateAppealWeight = (key: keyof Weights["appeal"], value: number) => {
@@ -664,6 +630,8 @@ export default function NextSteamGamePage() {
     groupTags?: string[],
   ) => {
     setWeights((prev) => {
+      // Tag groups differ from component sliders: hidden tags are cleared and
+      // a zero-weight group splits the remaining budget evenly across its peers.
       const currentContext = prev.tags[context]
       const activeTags = groupTags?.length
         ? unique(groupTags)

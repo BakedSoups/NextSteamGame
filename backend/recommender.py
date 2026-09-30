@@ -122,6 +122,8 @@ def context_percentages_to_multipliers(percentages: dict[str, float | int]) -> d
         "music": SOUNDTRACK_CONTEXT_MULTIPLIER,
     }
 
+    # Normalize vector and signal budgets separately. Multipliers average 1
+    # within a group, so equal preferences preserve the scoring scale.
     def normalize_group(contexts: tuple[str, ...]) -> dict[str, float]:
         total = sum(float(percentages.get(context, 0.0)) for context in contexts)
         if total <= 0:
@@ -638,6 +640,8 @@ def recommend_games(
             "appeal": appeal_score * component_weights["appeal"],
             "music": soundtrack_score * component_weights["music"],
         }
+        # Breakdown percentages explain each component's share of this result;
+        # they are not independent similarity scores for the UI's hit indicators.
         weighted_component_percentages = _percent_breakdown(weighted_components)
         vector_component_weights = {
             context: value * context_multipliers.get(context, 1.0)
@@ -655,6 +659,8 @@ def recommend_games(
             + weighted_components["appeal"]
             + weighted_components["music"]
         )
+        # Apply compatibility penalties and evidence confidence after the user
+        # weights, preserving the raw component scores for result explanations.
         total_score = _apply_penalties(total_score, base_game["metadata"], game["metadata"])
         confidence_multiplier = _metadata_confidence_multiplier(game)
         total_score *= confidence_multiplier

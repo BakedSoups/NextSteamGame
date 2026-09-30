@@ -10,7 +10,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, TSVECTOR
 
-from backend.coercion import coerce_json_dict, coerce_json_list, normalize_search_text
+from backend.coercion import coerce_json_dict, coerce_json_list, normalize_search_text, unique_appids
 
 
 # Runtime projections of the existing schema; database creation stays in the
@@ -172,18 +172,11 @@ class PostgresGameStore:
         *,
         source: str = "chroma",
     ) -> None:
-        normalized_candidates: list[int] = []
-        seen: set[int] = set()
-        for raw_appid in candidate_appids:
-            try:
-                appid = int(raw_appid)
-            except (TypeError, ValueError):
-                continue
-            if appid == int(source_appid) or appid in seen:
-                continue
-            seen.add(appid)
-            normalized_candidates.append(appid)
+        source_appid = int(source_appid)
+        normalized_candidates = [appid for appid in unique_appids(candidate_appids) if appid != source_appid]
 
+        # Delete and insert share a transaction: a failed replacement must leave
+        # the previous candidate pool available to recommendation requests.
         with self.engine.begin() as connection:
             connection.execute(delete(candidates).where(candidates.c.source_appid == int(source_appid)))
             if normalized_candidates:
@@ -264,6 +257,8 @@ class PostgresGameStore:
                 scalar_matches(keys, tags),
             )
 
+        # These weights choose a cheap candidate pool, not the final UI score.
+        # Reuse each condition for both eligibility and ranking so they agree.
         matches = [
             (scalar_matches(("signature_tag",), signature_tags), signature_tags, 18),
             (array_matches(("niche_anchors",), niche_anchor_tags), niche_anchor_tags, 12),
@@ -336,6 +331,8 @@ class PostgresGameStore:
         prefix_query = f"{normalized_query}%"
         contains_query = f"%{normalized_query}%"
         g = games.c
+        # Exact/prefix matches dominate; full-text and trigram similarity recover
+        # partial titles and typos. SQLAlchemy binds every request-derived value.
         full_text_match = g.search_name.bool_op("@@")(func.plainto_tsquery("simple", query))
         score = (
             case((g.normalized_name == normalized_query, 10000.0), else_=0.0)
@@ -393,17 +390,7 @@ class PostgresGameStore:
             return self._row_to_game(row, screenshots_by_appid.get(appid, []))
 
     def load_games_by_appids(self, appids: list[int]) -> list[dict[str, Any]]:
-        normalized_appids: list[int] = []
-        seen: set[int] = set()
-        for raw_appid in appids:
-            try:
-                appid = int(raw_appid)
-            except (TypeError, ValueError):
-                continue
-            if appid in seen:
-                continue
-            seen.add(appid)
-            normalized_appids.append(appid)
+        normalized_appids = unique_appids(appids)
 
         if not normalized_appids:
             return []
@@ -416,6 +403,7 @@ class PostgresGameStore:
             int(row["appid"]): self._row_to_game(row, screenshots_by_appid.get(int(row["appid"]), []))
             for row in rows
         }
+        # IN queries do not preserve input order; restore the retriever's ranking.
         return [row_by_appid[appid] for appid in normalized_appids if appid in row_by_appid]
 
     def record_ui_diagnostic(

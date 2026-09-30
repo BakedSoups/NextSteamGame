@@ -5,30 +5,21 @@ import argparse
 import html
 import json
 import os
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 
+# Support both `python -m ...` and direct execution from outside the repo.
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from backend.environment import load_project_env
+
 DEFAULT_HTML_OUT = PROJECT_ROOT / "data" / "postgres_bar_report.html"
 DEFAULT_JSON_OUT = PROJECT_ROOT / "data" / "postgres_bar_report.json"
-
-
-def load_project_env() -> None:
-    env_path = PROJECT_ROOT / ".env"
-    if not env_path.exists():
-        return
-
-    for raw_line in env_path.read_text().splitlines():
-        line = raw_line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, value = line.split("=", 1)
-        key = key.strip()
-        if not key or key in os.environ:
-            continue
-        os.environ[key] = value.strip().strip("\"'")
 
 
 def connect(dsn: str):

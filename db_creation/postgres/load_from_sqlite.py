@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import sqlite3
 from pathlib import Path
 
+from backend.coercion import normalize_search_text
+from backend.environment import load_project_env
 from db_creation.paths import final_canon_db_path, metadata_db_path
 
 POSTGRES_IMPORT_ERROR_TYPES = (
@@ -22,33 +23,6 @@ POSTGRES_IMPORT_ERROR_TYPES = (
 
 def log(message: str) -> None:
     print(message, flush=True)
-
-
-def normalize_search_text(text: str) -> str:
-    lowered = text.lower()
-    lowered = re.sub(r"[^a-z0-9]+", " ", lowered)
-    return " ".join(lowered.split())
-
-
-def project_root() -> Path:
-    return Path(__file__).resolve().parents[2]
-
-
-def load_project_env() -> None:
-    env_path = project_root() / ".env"
-    if not env_path.exists():
-        return
-
-    for raw_line in env_path.read_text().splitlines():
-        line = raw_line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, value = line.split("=", 1)
-        key = key.strip()
-        if not key or key in os.environ:
-            continue
-        value = value.strip().strip("\"'")
-        os.environ[key] = value
 
 
 load_project_env()
